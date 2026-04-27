@@ -1,0 +1,105 @@
+{
+  "lockfile_version": "1",
+  "packages": {
+    "github:NixOS/nixpkgs/nixpkgs-unstable": {
+      "last_modified": "2026-04-23T13:07:47Z",
+      "resolved": "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30?lastModified=1776949667"
+    },
+    "hcloud@latest": {
+      "last_modified": "2026-04-16T08:46:55Z",
+      "resolved": "github:NixOS/nixpkgs/b86751bc4085f48661017fa226dee99fab6c651b#hcloud",
+      "source": "devbox-search",
+      "version": "1.61.0",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/lrb4kf02kqac8jsia1mm1135kgbjampq-hcloud-1.61.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/lrb4kf02kqac8jsia1mm1135kgbjampq-hcloud-1.61.0"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/q8k0274spfvlzhwln5qw4g6hrnig86c5-hcloud-1.61.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/q8k0274spfvlzhwln5qw4g6hrnig86c5-hcloud-1.61.0"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/pivrk200dprkvd9sl8vn8k70yxmfrqbn-hcloud-1.61.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/pivrk200dprkvd9sl8vn8k70yxmfrqbn-hcloud-1.61.0"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/lnp3cw257jajavhb86drqqfrs7lbkrhr-hcloud-1.61.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/lnp3cw257jajavhb86drqqfrs7lbkrhr-hcloud-1.61.0"
+        }
+      }
+    },
+    "opentofu@latest": {
+      "last_modified": "2026-04-16T08:46:55Z",
+      "resolved": "github:NixOS/nixpkgs/b86751bc4085f48661017fa226dee99fab6c651b#opentofu",
+      "source": "devbox-search",
+      "version": "1.11.6",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/2q8yhgimylc6ccsjh2j9cpygfdkk441w-opentofu-1.11.6",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/2q8yhgimylc6ccsjh2j9cpygfdkk441w-opentofu-1.11.6"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/v6bwbpix3hqpbyidqpmlazidhlhwqlbl-opentofu-1.11.6",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/v6bwbpix3hqpbyidqpmlazidhlhwqlbl-opentofu-1.11.6"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/3iambzj17slq072w9nj6aizkl7jg3kdr-opentofu-1.11.6",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/3iambzj17slq072w9nj6aizkl7jg3kdr-opentofu-1.11.6"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/7ffsyb2jaw4qz9gayrjs4in8igiywypb-opentofu-1.11.6",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/7ffsyb2jaw4qz9gayrjs4in8igiywypb-opentofu-1.11.6"
+        }
+      }
+    }
+  }
+}
