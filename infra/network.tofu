@@ -7,7 +7,7 @@
 #   ip_range = "10.0.0.0/8"
 # }
 #
-# resource "hcloud_subnet" "main" {
+# resource "hcloud_network_subnet" "main" {
 #   network_id   = hcloud_network.main.id
 #   type         = "cloud"
 #   network_zone = "eu-central"
