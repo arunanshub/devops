@@ -6,7 +6,9 @@
     "lefthook@latest",
     "sops@latest",
     "age@latest",
-    "gitleaks@latest"
+    "gitleaks@latest",
+    "terragrunt@latest",
+    "just@latest"
   ],
   "shell": {
     "init_hook": [
