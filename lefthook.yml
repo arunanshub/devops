@@ -1,0 +1,11 @@
+pre-commit:
+  parallel: true
+  commands:
+    tofu-fmt:
+      run: tofu fmt -recursive
+      root: infra/
+      stage_fixed: true
+
+    tofu-validate:
+      run: tofu validate
+      root: infra/
