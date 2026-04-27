@@ -3,7 +3,10 @@
   "packages": [
     "opentofu@latest",
     "hcloud@latest",
-    "lefthook@latest"
+    "lefthook@latest",
+    "sops@latest",
+    "age@latest",
+    "gitleaks@latest"
   ],
   "shell": {
     "init_hook": [
