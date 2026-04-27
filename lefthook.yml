@@ -12,3 +12,7 @@ pre-commit:
 
     gitleaks:
       run: gitleaks git --pre-commit
+      
+    just-fmt:
+      run: just --fmt --unstable
+      stage_fixed: true

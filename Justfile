@@ -1,5 +1,4 @@
-apply:
-    sops exec-env --pristine 'tofu apply'
+infra := justfile_dir() / "infra"
 
-plan:
-    sops exec-env --pristine 'tofu plan'
+@plan:
+    cd "{{ infra }}" && sops exec-env "{{ infra / "secrets.yaml" }}" "tofu plan"
