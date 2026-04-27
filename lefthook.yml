@@ -9,3 +9,6 @@ pre-commit:
     tofu-validate:
       run: tofu validate
       root: infra/
+
+    gitleaks:
+      run: gitleaks git --pre-commit
