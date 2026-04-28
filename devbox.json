@@ -10,7 +10,8 @@
     "terragrunt@latest",
     "just@latest",
     "helmfile@latest",
-    "apacheHttpd@latest"
+    "apacheHttpd@latest",
+    "kubeseal@latest"
   ],
   "shell": {
     "init_hook": [
