@@ -5,3 +5,5 @@ kubeconfig.yaml
 # OpenTofu working directory
 .terraform/
  
+# Ignore SSH known hosts file to prevent conflicts with existing entries.
+.ssh_known_hosts

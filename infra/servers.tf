@@ -25,8 +25,8 @@ resource "hcloud_server" "control_plane" {
 
   # Enable once the cluster has any real workload on it.
   # Intentional friction: tofu destroy will fail until you set these to false.
-  # delete_protection  = true
-  # rebuild_protection = true
+  delete_protection  = true
+  rebuild_protection = true
 }
 
 resource "terraform_data" "k3s" {
@@ -50,8 +50,8 @@ resource "terraform_data" "k3s" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      ssh -o StrictHostKeyChecking=no \
-          -o UserKnownHostsFile=/dev/null \
+      ssh -o StrictHostKeyChecking=accept-new \
+          -o UserKnownHostsFile=${path.module}/.ssh_known_hosts \
           -i ${var.ssh_private_key_path} \
           root@${hcloud_server.control_plane.ipv6_address} \
           "cat /etc/rancher/k3s/k3s.yaml" \
