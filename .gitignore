@@ -4,5 +4,4 @@ kubeconfig.yaml
  
 # OpenTofu working directory
 .terraform/
-.terraform.lock.hcl
  
