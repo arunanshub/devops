@@ -55,7 +55,7 @@ resource "null_resource" "kubeconfig" {
                      -o UserKnownHostsFile=/dev/null \
                      -o ConnectTimeout=10 \
                      -i ${var.ssh_private_key_path} \
-                     root@${hcloud_server.control_plane.ipv4_address} \
+                     root@${hcloud_server.control_plane.ipv6_address} \
                      'systemctl is-active k3s 2>/dev/null || echo inactive')
         echo "Attempt $i/24: k3s status = $STATUS"
         if [ "$STATUS" = "active" ]; then
@@ -75,7 +75,7 @@ resource "null_resource" "kubeconfig" {
       ssh -o StrictHostKeyChecking=no \
           -o UserKnownHostsFile=/dev/null \
           -i ${var.ssh_private_key_path} \
-          root@${hcloud_server.control_plane.ipv4_address} \
+          root@${hcloud_server.control_plane.ipv6_address} \
           "cat /etc/rancher/k3s/k3s.yaml" \
         | sed "s/127.0.0.1/[${hcloud_server.control_plane.ipv6_address}]/" \
         > kubeconfig.yaml
