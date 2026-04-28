@@ -41,11 +41,38 @@ resource "terraform_data" "k3s" {
     timeout        = "3m"
   }
 
+  provisioner "file" {
+    content     = <<-EOF
+      Unattended-Upgrade::Allowed-Origins {
+          "Ubuntu:noble-security";
+      };
+      Unattended-Upgrade::Automatic-Reboot "false";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+    EOF
+    destination = "/tmp/50unattended-upgrades"
+  }
+
+  provisioner "file" {
+    content     = <<-EOF
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+    EOF
+    destination = "/tmp/20auto-upgrades"
+  }
+
+
   # remote-exec blocks until the command exits; a non-zero exit fails tofu apply immediately.
   # k3s kubectl wait replaces the bash polling loop — it blocks until the node is Ready
   # or times out with a non-zero exit code.
   provisioner "remote-exec" {
     inline = [
+      # unattended-upgrades
+      "apt-get update -qq",
+      "apt-get install -y unattended-upgrades",
+      "mv /tmp/50unattended-upgrades /etc/apt/apt.conf.d/50unattended-upgrades",
+      "mv /tmp/20auto-upgrades /etc/apt/apt.conf.d/20auto-upgrades",
+
+      # k3s install
       "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION='${local.k3s_version}' INSTALL_K3S_EXEC='server --cluster-init --disable traefik --disable servicelb' sh -",
       "k3s kubectl wait node --all --for condition=Ready --timeout=5m",
     ]
