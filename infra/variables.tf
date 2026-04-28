@@ -41,5 +41,5 @@ variable "location" {
 variable "control_plane_server_type" {
   type        = string
   description = "Hetzner server type for the control plane node."
-  default     = "cx33"
+  default     = "cx43"
 }
