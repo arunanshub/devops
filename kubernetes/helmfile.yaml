@@ -1,0 +1,13 @@
+repositories:
+  - name: argo
+    url: https://argoproj.github.io/argo-helm
+
+releases:
+  - name: argocd
+    chart: argo/argo-cd
+    version: 9.5.6
+    namespace: argocd
+    atomic: true
+    cleanupOnFail: true
+    createNamespace: true
+    cascade: background

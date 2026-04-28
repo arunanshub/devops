@@ -49,6 +49,107 @@
         }
       }
     },
+    "apacheHttpd@latest": {
+      "last_modified": "2026-04-16T08:46:55Z",
+      "plugin_version": "0.0.2",
+      "resolved": "github:NixOS/nixpkgs/b86751bc4085f48661017fa226dee99fab6c651b#apacheHttpd",
+      "source": "devbox-search",
+      "version": "2.4.66",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/qy2mnzrjbnpmn4sicfbzdd76gcf5mddd-apache-httpd-2.4.66",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/qhh20fv7jnx154qnm5r1h76ikcj6fpm7-apache-httpd-2.4.66-man",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/k0mgcrk2lpahhhgmzhhxgw5h4ssfcy9a-apache-httpd-2.4.66-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/xfgz0iqhf6y8aa3bpqykg4p95636jvhy-apache-httpd-2.4.66-doc"
+            }
+          ],
+          "store_path": "/nix/store/qy2mnzrjbnpmn4sicfbzdd76gcf5mddd-apache-httpd-2.4.66"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/8jp8n38zx6bhqfabd97igqn7g6jni1v0-apache-httpd-2.4.66",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/qm4hsnz2fms7k3ci2nmkgrrx9g2qgxl6-apache-httpd-2.4.66-man",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/54myz76gr9z8fbxk26f6nbf9ldz6x215-apache-httpd-2.4.66-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/zszap27dkvzcwkbwz6rhvzglf8hqg542-apache-httpd-2.4.66-doc"
+            }
+          ],
+          "store_path": "/nix/store/8jp8n38zx6bhqfabd97igqn7g6jni1v0-apache-httpd-2.4.66"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/cp8w86vkqxira33s2y90j7z2byb1jga7-apache-httpd-2.4.66",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/48l2yzbl57254bgb30f3wlx22px2mbx1-apache-httpd-2.4.66-man",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/1j4n5wxv1q7p7f1wpj5k6nbfkandm70w-apache-httpd-2.4.66-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/c377cr646nfdkyhvgik7was3g1qf0hxb-apache-httpd-2.4.66-doc"
+            }
+          ],
+          "store_path": "/nix/store/cp8w86vkqxira33s2y90j7z2byb1jga7-apache-httpd-2.4.66"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/9503lq25nbakzpz8w0922rnyjdwp4ym8-apache-httpd-2.4.66",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/ph1qmdd6sirzfjrci9078l6d01s6vg9y-apache-httpd-2.4.66-man",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/g3nix3sbb2wn43jwfbb9jlv0ayn8pl85-apache-httpd-2.4.66-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/mjcpmgyv3ssb4bjb3sjxxvag0p5j2w0s-apache-httpd-2.4.66-doc"
+            }
+          ],
+          "store_path": "/nix/store/9503lq25nbakzpz8w0922rnyjdwp4ym8-apache-httpd-2.4.66"
+        }
+      }
+    },
     "github:NixOS/nixpkgs/nixpkgs-unstable": {
       "last_modified": "2026-04-23T13:07:47Z",
       "resolved": "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30?lastModified=1776949667"
@@ -146,6 +247,54 @@
             }
           ],
           "store_path": "/nix/store/lnp3cw257jajavhb86drqqfrs7lbkrhr-hcloud-1.61.0"
+        }
+      }
+    },
+    "helmfile@latest": {
+      "last_modified": "2026-04-16T08:46:55Z",
+      "resolved": "github:NixOS/nixpkgs/b86751bc4085f48661017fa226dee99fab6c651b#helmfile",
+      "source": "devbox-search",
+      "version": "1.4.4",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/si5anqxd09lvk8rar615k3v1p22bwn92-helmfile-1.4.4",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/si5anqxd09lvk8rar615k3v1p22bwn92-helmfile-1.4.4"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/likdjrhqa1m446jpcv7d4n00zxsmhgg0-helmfile-1.4.4",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/likdjrhqa1m446jpcv7d4n00zxsmhgg0-helmfile-1.4.4"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/lhbnbcq1bkwqpc8wslzb5978n8w8frhs-helmfile-1.4.4",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/lhbnbcq1bkwqpc8wslzb5978n8w8frhs-helmfile-1.4.4"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/x8r45vhsp4vmmvy2a1gjdqmw553fjiph-helmfile-1.4.4",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/x8r45vhsp4vmmvy2a1gjdqmw553fjiph-helmfile-1.4.4"
         }
       }
     },
