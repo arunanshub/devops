@@ -24,7 +24,12 @@ variable "ssh_private_key_path" {
 
 variable "home_ip" {
   type        = string
-  description = "Your home public IP (IPv6 or IPv4). Used to restrict firewall ingress for SSH and k3s API. Do not hardcode — put in secrets.yaml."
+  description = "Your home public IP in CIDR notation (e.g. 1.2.3.4/32 or 2001:db8::1/128). Used to restrict firewall ingress for SSH and k3s API. Do not hardcode — put in secrets.yaml."
+
+  validation {
+    condition     = can(cidrhost(var.home_ip, 0))
+    error_message = "home_ip must be a valid CIDR (e.g. 1.2.3.4/32 or 2001:db8::1/128)."
+  }
 }
 
 variable "location" {

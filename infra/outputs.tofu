@@ -5,5 +5,5 @@ output "control_plane_ipv6" {
 
 output "kubeconfig_path" {
   description = "Local path where kubeconfig was written by the null_resource."
-  value       = "${path.root}/kubeconfig.yaml"
+  value       = "${path.module}/kubeconfig.yaml"
 }

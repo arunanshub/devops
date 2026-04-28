@@ -22,6 +22,13 @@ resource "hcloud_firewall" "main" {
     source_ips = [var.home_ip]
   }
 
+  # ICMP — allow ping and path MTU discovery from anywhere.
+  # rule {
+  #   direction  = "in"
+  #   protocol   = "icmp"
+  #   source_ips = ["0.0.0.0/0", "::/0"]
+  # }
+
   # All other inbound is blocked by default (Hetzner firewall default-deny).
   # Outbound is unrestricted.
 }

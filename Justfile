@@ -5,3 +5,6 @@ infra := justfile_dir() / "infra"
 
 apply:
     cd "{{ infra }}" && sops exec-env "{{ infra / "secrets.yaml" }}" "tofu apply"
+
+destroy:
+    cd "{{ infra }}" && sops exec-env "{{ infra / "secrets.yaml" }}" "tofu destroy"

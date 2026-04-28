@@ -9,25 +9,15 @@ resource "hcloud_server" "control_plane" {
   server_type = var.control_plane_server_type
   location    = var.location
   ssh_keys    = [hcloud_ssh_key.main.id]
+  labels      = { cluster = local.cluster_name }
 
-  # IPv6 only — no public IPv4.
-  # Your Airtel connection is IPv6-capable so kubectl works directly.
-  # ghcr.io has no IPv6 support — use Docker Hub images only.
+  # IPv4 required: get.k3s.io (GitHub releases) and image registries don't support IPv6.
+  # SSH and kubectl use the IPv6 address since your Airtel connection is IPv6-capable.
+  # ghcr.io has no IPv6 support — use Docker Hub images only for workloads.
   public_net {
     ipv4_enabled = true
     ipv6_enabled = true
   }
-
-  user_data = <<-EOF
-    #!/bin/bash
-    set -euo pipefail
-
-    # Fail loudly rather than silently installing the wrong version.
-    curl -sfL https://get.k3s.io \
-      | INSTALL_K3S_VERSION="${local.k3s_version}" \
-        INSTALL_K3S_EXEC="server --cluster-init --disable traefik --disable servicelb" \
-        sh -
-  EOF
 
   # Enable once the cluster has any real workload on it.
   # Intentional friction: tofu destroy will fail until you set these to false.
@@ -35,41 +25,32 @@ resource "hcloud_server" "control_plane" {
   # rebuild_protection = true
 }
 
-# Retrieve kubeconfig without manual SSH.
-# Patches the server's public IPv6 address in automatically so kubectl works immediately.
-resource "null_resource" "kubeconfig" {
+# Installs k3s synchronously over SSH so tofu apply fails immediately on error,
+# then fetches and patches the kubeconfig.
+resource "terraform_data" "k3s" {
   depends_on = [hcloud_server.control_plane]
 
-  triggers = {
-    server_id = hcloud_server.control_plane.id
+  triggers_replace = [hcloud_server.control_plane.id]
+
+  connection {
+    type           = "ssh"
+    user           = "root"
+    agent          = true
+    agent_identity = var.ssh_private_key_path
+    host           = hcloud_server.control_plane.ipv6_address
+    timeout        = "3m"
   }
 
-  # Wait for k3s to actually be running before fetching kubeconfig.
-  # This makes `tofu apply` fail loudly if cloud-init botches the install,
-  # rather than succeeding silently with a broken cluster.
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "Waiting for k3s to become active..."
-      for i in $(seq 1 24); do
-        STATUS=$(ssh -o StrictHostKeyChecking=no \
-                     -o UserKnownHostsFile=/dev/null \
-                     -o ConnectTimeout=10 \
-                     -i ${var.ssh_private_key_path} \
-                     root@${hcloud_server.control_plane.ipv6_address} \
-                     'systemctl is-active k3s 2>/dev/null || echo inactive')
-        echo "Attempt $i/24: k3s status = $STATUS"
-        if [ "$STATUS" = "active" ]; then
-          echo "k3s is ready."
-          exit 0
-        fi
-        sleep 15
-      done
-      echo "ERROR: k3s did not become active within 6 minutes. Check /var/log/cloud-init-output.log on the server."
-      exit 1
-    EOT
+  # remote-exec blocks until the command exits; a non-zero exit fails tofu apply immediately.
+  # k3s kubectl wait replaces the bash polling loop — it blocks until the node is Ready
+  # or times out with a non-zero exit code.
+  provisioner "remote-exec" {
+    inline = [
+      "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION='${local.k3s_version}' INSTALL_K3S_EXEC='server --cluster-init --disable traefik --disable servicelb' sh -",
+      "k3s kubectl wait node --all --for condition=Ready --timeout=5m",
+    ]
   }
 
-  # NOTE: the ssh-ing into the server requires the ipv4 address.
   provisioner "local-exec" {
     command = <<-EOT
       ssh -o StrictHostKeyChecking=no \
@@ -78,8 +59,8 @@ resource "null_resource" "kubeconfig" {
           root@${hcloud_server.control_plane.ipv6_address} \
           "cat /etc/rancher/k3s/k3s.yaml" \
         | sed "s/127.0.0.1/[${hcloud_server.control_plane.ipv6_address}]/" \
-        > kubeconfig.yaml
-      chmod 600 kubeconfig.yaml
+        > ${path.module}/kubeconfig.yaml
+      chmod 600 ${path.module}/kubeconfig.yaml
     EOT
   }
 }
