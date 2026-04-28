@@ -10,10 +10,8 @@ spec:
     chart: argo-cd
     targetRevision: 9.5.6
     helm:
-      valuesObject:
-        configs:
-          params:
-            server.insecure: "true"
+      valueFiles:
+        - values.yaml
         # admin password is already set in the cluster from bootstrap
         # ArgoCD self-management does not re-set it
   destination:

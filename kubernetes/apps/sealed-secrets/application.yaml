@@ -10,8 +10,8 @@ spec:
     chart: sealed-secrets
     targetRevision: 2.18.5
     helm:
-      valuesObject:
-        fullnameOverride: sealed-secrets-controller
+      valueFiles:
+        - values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
