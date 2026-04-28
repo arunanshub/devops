@@ -8,7 +8,10 @@
     "age@latest",
     "gitleaks@latest",
     "terragrunt@latest",
-    "just@latest"
+    "just@latest",
+    "helmfile@latest",
+    "apacheHttpd@latest",
+    "kubeseal@latest"
   ],
   "shell": {
     "init_hook": [
