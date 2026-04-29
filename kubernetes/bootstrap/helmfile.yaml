@@ -12,4 +12,4 @@ releases:
     cascade: background
     values:
       - ../apps/argocd/values.yaml # single source of truth for values
-      - ./bootstrap-secret.yaml.gotmpl # secrets from bootstrap, rendered with sops
+      - ./bootstrap.yaml.gotmpl # secrets from bootstrap, rendered with sops
