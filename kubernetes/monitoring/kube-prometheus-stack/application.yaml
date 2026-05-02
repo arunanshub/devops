@@ -17,8 +17,8 @@ spec:
         valueFiles:
           - $values/kubernetes/monitoring/kube-prometheus-stack/values.yaml
 
-    - repoURL: git@github.com:YOUR_USER/YOUR_REPO.git
-      targetRevision: main
+    - repoURL: git@github.com:arunanshub/devops.git
+      targetRevision: master
       ref: values
 
   destination:
