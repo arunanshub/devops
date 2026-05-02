@@ -1,13 +1,12 @@
 configuration:
   # How often to poll for /var/run/reboot-required
-  period: 2m
+  period: 1h
   # Timezone for the maintenance window (set your actual TZ)
   timeZone: "Asia/Kolkata"
   # Only reboot during this window: 02:00–04:00 IST
   # kured uses cron syntax for the start; duration via end-time or rebootDays
-  # startTime: "02:00"
-  # endTime: "04:00"
-  # rebootSentinel: /var/run/reboot-required
+  startTime: "02:00"
+  endTime: "04:00"
 
 # Tolerate control-plane taint in case it ever gets added
 # k3s doesn't add it by default but this is forward-compatible
