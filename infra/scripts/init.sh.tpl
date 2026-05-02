@@ -13,7 +13,9 @@ k3s kubectl wait node --all --for condition=Ready --timeout=5m
 apt-get update -qq
 apt-get install -y unattended-upgrades lsb-release
 
+# shellcheck disable=SC2034
 DISTRO_ID=$(lsb_release -is)
+# shellcheck disable=SC2034
 DISTRO_CODENAME=$(lsb_release -cs)
 
 cat > /etc/apt/apt.conf.d/50unattended-upgrades <<EOF
