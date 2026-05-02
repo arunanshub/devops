@@ -11,5 +11,5 @@ releases:
     createNamespace: true
     cascade: background
     values:
-      - ../apps/argocd/values.yaml # single source of truth for values
-      - ./bootstrap.yaml.gotmpl # secrets from bootstrap, rendered with sops
+      - ./values/values.yaml # single source of truth for values
+      - ./values/bootstrap.yaml.gotmpl # secrets from bootstrap, rendered with sops
