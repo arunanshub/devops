@@ -11,7 +11,7 @@
     "just@latest",
     "helmfile@latest",
     "apacheHttpd@latest",
-    "kubeseal@latest",
+    "kubeseal@0.36.0",
     "shellcheck@latest",
     "yamlfmt@latest"
   ],
