@@ -382,9 +382,9 @@
         }
       }
     },
-    "kubeseal@latest": {
-      "last_modified": "2026-04-16T08:46:55Z",
-      "resolved": "github:NixOS/nixpkgs/b86751bc4085f48661017fa226dee99fab6c651b#kubeseal",
+    "kubeseal@0.36.0": {
+      "last_modified": "2026-04-23T13:07:47Z",
+      "resolved": "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30#kubeseal",
       "source": "devbox-search",
       "version": "0.36.0",
       "systems": {
@@ -392,41 +392,41 @@
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/cw51lrz707dx6yvpxi41rkr4gq9m8838-kubeseal-0.36.0",
+              "path": "/nix/store/vv5ywyp326lcj4l640p6935gzzyivcdj-kubeseal-0.36.0",
               "default": true
             }
           ],
-          "store_path": "/nix/store/cw51lrz707dx6yvpxi41rkr4gq9m8838-kubeseal-0.36.0"
+          "store_path": "/nix/store/vv5ywyp326lcj4l640p6935gzzyivcdj-kubeseal-0.36.0"
         },
         "aarch64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/19wh9r8p66s8vp0m49q10g2l1fcxm9qz-kubeseal-0.36.0",
+              "path": "/nix/store/y2xi8r5agji0f9029bpz3y867mm4jyyc-kubeseal-0.36.0",
               "default": true
             }
           ],
-          "store_path": "/nix/store/19wh9r8p66s8vp0m49q10g2l1fcxm9qz-kubeseal-0.36.0"
+          "store_path": "/nix/store/y2xi8r5agji0f9029bpz3y867mm4jyyc-kubeseal-0.36.0"
         },
         "x86_64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/5xln4alpc4gf6a6l0r3fscd7qcbw294w-kubeseal-0.36.0",
+              "path": "/nix/store/ipbhx1da4kahdmvjvp2i1bbf9s2c9hix-kubeseal-0.36.0",
               "default": true
             }
           ],
-          "store_path": "/nix/store/5xln4alpc4gf6a6l0r3fscd7qcbw294w-kubeseal-0.36.0"
+          "store_path": "/nix/store/ipbhx1da4kahdmvjvp2i1bbf9s2c9hix-kubeseal-0.36.0"
         },
         "x86_64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/fgpf54n4874fw5b3395v0ylilc094j6y-kubeseal-0.36.0",
+              "path": "/nix/store/h1mzc39qg5vsdm4ds7zszrdr69pyi8ba-kubeseal-0.36.0",
               "default": true
             }
           ],
-          "store_path": "/nix/store/fgpf54n4874fw5b3395v0ylilc094j6y-kubeseal-0.36.0"
+          "store_path": "/nix/store/h1mzc39qg5vsdm4ds7zszrdr69pyi8ba-kubeseal-0.36.0"
         }
       }
     },
