@@ -1,0 +1,10 @@
+formatter:
+  retain_line_breaks_single: true
+
+include:
+  - "**/*.yaml"
+  - "**/*.yml"
+
+exclude:
+  - "**/secrets.yaml"
+match_type: doublestar

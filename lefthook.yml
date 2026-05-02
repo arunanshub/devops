@@ -5,10 +5,12 @@ pre-commit:
       run: tofu fmt -recursive
       root: infra/
       stage_fixed: true
+      glob: ["*.tf", "*.tfvars"]
 
     tofu-validate:
       run: tofu validate
       root: infra/
+      glob: ["*.tf", "*.tfvars"]
 
     gitleaks:
       run: gitleaks git --pre-commit
@@ -16,8 +18,14 @@ pre-commit:
     just-fmt:
       run: just --fmt --unstable
       stage_fixed: true
+      glob: ["*.just", "{J,j}ustfile"]
 
     shell-script-check:
       run: shellcheck --enable=all --severity=style {staged_files}
-      glob: [ "*.sh", "*.bash", "*.sh.tpl", "*.bash.tpl" ]
+      glob: ["*.sh", "*.bash", "*.sh.tpl", "*.bash.tpl"]
       stage_fixed: true
+
+    yamlfmt:
+      run: yamlfmt {staged_files}
+      stage_fixed: true
+      glob: ["*.yaml", "*.yml"]

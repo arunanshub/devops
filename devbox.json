@@ -12,7 +12,8 @@
     "helmfile@latest",
     "apacheHttpd@latest",
     "kubeseal@latest",
-    "shellcheck@latest"
+    "shellcheck@latest",
+    "yamlfmt@latest"
   ],
   "shell": {
     "init_hook": [
