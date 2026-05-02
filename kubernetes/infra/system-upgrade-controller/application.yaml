@@ -10,7 +10,7 @@ spec:
 
   source:
     repoURL: https://github.com/rancher/system-upgrade-controller
-    targetRevision: v0.17.0
+    targetRevision: v0.19.2
     path: .
 
   destination:
