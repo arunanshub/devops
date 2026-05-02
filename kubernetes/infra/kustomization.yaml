@@ -1,6 +1,10 @@
+# kubernetes/infra/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - appproject.yaml
   - argocd/application.yaml
   - sealed-secrets/application.yaml
+  - system-upgrade-controller/application.yaml
+  - system-upgrade-controller/plans-application.yaml
+  - kured/application.yaml

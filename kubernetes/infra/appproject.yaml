@@ -13,12 +13,16 @@ spec:
     - git@github.com:arunanshub/devops.git
     - https://argoproj.github.io/argo-helm
     - https://bitnami-labs.github.io/sealed-secrets
+    - https://kubereboot.github.io/charts
+    - https://github.com/rancher/system-upgrade-controller
 
   destinations:
     - server: https://kubernetes.default.svc
       namespace: argocd
     - server: https://kubernetes.default.svc
       namespace: kube-system
+    - server: https://kubernetes.default.svc
+      namespace: system-upgrade
 
   clusterResourceWhitelist:
     - group: "*"
