@@ -1,6 +1,6 @@
 configuration:
   # How often to poll for /var/run/reboot-required
-  period: 1h
+  period: 2m
   # Timezone for the maintenance window (set your actual TZ)
   timeZone: "Asia/Kolkata"
   # Only reboot during this window: 02:00–04:00 IST
