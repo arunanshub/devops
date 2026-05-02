@@ -725,6 +725,54 @@
           "store_path": "/nix/store/srd83h6hkl2kn5j5j1m6i69hfdbg1j0r-terragrunt-1.0.1"
         }
       }
+    },
+    "yamlfmt@latest": {
+      "last_modified": "2026-04-23T13:07:47Z",
+      "resolved": "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30#yamlfmt",
+      "source": "devbox-search",
+      "version": "0.21.0",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/hzda9zv2cn0jmb6kxl3ias99zpiqsf8h-yamlfmt-0.21.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/hzda9zv2cn0jmb6kxl3ias99zpiqsf8h-yamlfmt-0.21.0"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/cn0a68gw9cj4y5pbww7az5kppamlnhpp-yamlfmt-0.21.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/cn0a68gw9cj4y5pbww7az5kppamlnhpp-yamlfmt-0.21.0"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/8jqds7wfd8b9gxx9jgg2axf23adhwj3k-yamlfmt-0.21.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/8jqds7wfd8b9gxx9jgg2axf23adhwj3k-yamlfmt-0.21.0"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/miqn9h2m15zwmwi61gbp302gqkf7ybh7-yamlfmt-0.21.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/miqn9h2m15zwmwi61gbp302gqkf7ybh7-yamlfmt-0.21.0"
+        }
+      }
     }
   }
 }
