@@ -1,0 +1,27 @@
+# kubernetes/infra/appproject.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: infra
+  namespace: argocd
+spec:
+  description: Core infrastructure components
+
+  sourceRepos:
+    - git@github.com:arunanshub/devops.git
+    - https://argoproj.github.io/argo-helm
+    - https://bitnami-labs.github.io/sealed-secrets
+
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+    - server: https://kubernetes.default.svc
+      namespace: kube-system
+
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

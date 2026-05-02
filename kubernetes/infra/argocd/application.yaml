@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  project: infra
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-cd
+      targetRevision: 9.5.6
+      helm:
+        releaseName: argocd
+        valueFiles:
+          - $values/kubernetes/infra/argocd/values.yaml
+
+    - repoURL: git@github.com:arunanshub/devops.git
+      targetRevision: master
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true # required for self-managing ArgoCD
+      # no automated sync, no prune — deliberate for self-management
