@@ -20,3 +20,8 @@ destroy:
     # This is a one-time operation that should be done after ArgoCD is installed and
     # before creating any applications that need to access the private repo.
     sops --decrypt "{{ k8s / "bootstrap/secrets/argocd-repo-ssh.sops.yaml" }}" | kubectl apply -f -
+
+@argocd-root-bootstrap:
+    # This is a one-time operation that should be done after ArgoCD is installed and
+    # before creating any applications that need to access the private repo.
+    kubectl apply -f "{{ k8s / "bootstrap/root-application.yaml" }}"
