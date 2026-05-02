@@ -19,6 +19,7 @@ tolerations:
 
 # Prepare for Phase 3 (kube-prometheus-stack)
 metrics:
-  create: true
-  labels:
-    release: kube-prometheus-stack
+  create: false
+  # create: true
+  # labels:
+  #   release: kube-prometheus-stack
