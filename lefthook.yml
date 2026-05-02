@@ -12,7 +12,12 @@ pre-commit:
 
     gitleaks:
       run: gitleaks git --pre-commit
-      
+
     just-fmt:
       run: just --fmt --unstable
+      stage_fixed: true
+
+    shell-script-check:
+      run: shellcheck --enable=all --severity=style {staged_files}
+      glob: [ "*.sh", "*.bash", "*.sh.tpl", "*.bash.tpl" ]
       stage_fixed: true
