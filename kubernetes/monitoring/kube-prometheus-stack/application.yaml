@@ -26,6 +26,9 @@ spec:
     namespace: monitoring
 
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
