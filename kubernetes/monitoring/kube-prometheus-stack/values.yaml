@@ -29,8 +29,9 @@ alertmanager:
   alertmanagerSpec:
     retention: 120h
 
+# embedded etcd runs inside the k3s server process, not as a visible static pod like kubeadm
 kubeEtcd:
-  enabled: true
+  enabled: false
 
 # disable these since we run k3s which doesn't have these components
 kubeControllerManager:
@@ -46,3 +47,4 @@ defaultRules:
     kubeSchedulerAlerting: false
     kubeSchedulerRecording: false
     kubeProxy: false
+    etcd: false
