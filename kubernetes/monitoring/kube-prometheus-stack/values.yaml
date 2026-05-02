@@ -39,3 +39,10 @@ kubeScheduler:
   enabled: false
 kubeProxy:
   enabled: false
+
+defaultRules:
+  rules:
+    kubeControllerManager: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+    kubeProxy: false
