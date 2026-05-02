@@ -7,4 +7,7 @@ include:
 
 exclude:
   - "**/secrets.yaml"
+  - "**/secrets.yml"
+  - "**/*.secrets.yaml"
+  - "**/*.secrets.yml"
 match_type: doublestar
