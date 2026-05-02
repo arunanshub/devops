@@ -1,0 +1,39 @@
+fullnameOverride: kube-prometheus-stack
+
+grafana:
+  enabled: true
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+
+  ingress:
+    enabled: false
+
+prometheus:
+  ingress:
+    enabled: false
+
+  prometheusSpec:
+    retention: 7d
+    retentionSize: 8GiB
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+alertmanager:
+  enabled: true
+  ingress:
+    enabled: false
+
+  alertmanagerSpec:
+    retention: 120h
+
+kubeEtcd:
+  enabled: true
+
+kubeControllerManager:
+  enabled: true
+
+kubeScheduler:
+  enabled: true
