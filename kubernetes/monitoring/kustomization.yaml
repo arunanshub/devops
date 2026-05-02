@@ -4,5 +4,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - appproject.yaml
+  - kube-prometheus-stack/alertmanager-smtp.sealedsecret.yaml
   - kube-prometheus-stack/grafana-admin.sealedsecret.yaml
   - kube-prometheus-stack/application.yaml
