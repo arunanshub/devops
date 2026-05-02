@@ -24,4 +24,4 @@ destroy:
 @argocd-root-bootstrap:
     # This is a one-time operation that should be done after ArgoCD is installed and
     # before creating any applications that need to access the private repo.
-    kubectl apply -f "{{ k8s / "bootstrap/root-application.yaml" }}"
+    kubectl apply -f "{{ k8s / "root-application.yaml" }}"
