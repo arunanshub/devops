@@ -1,5 +1,6 @@
 infra := justfile_dir() / "infra"
-bootstrap := justfile_dir() / "kubernetes/bootstrap"
+k8s := justfile_dir() / "kubernetes"
+export KUBECONFIG := infra / "kubeconfig.yaml"
 
 @plan:
     cd "{{ infra }}" && sops exec-env "{{ infra / "secrets.yaml" }}" "tofu plan"
@@ -10,11 +11,12 @@ apply:
 destroy:
     cd "{{ infra }}" && sops exec-env "{{ infra / "secrets.yaml" }}" "tofu destroy"
 
-argocd-bootstrap:
-    cd "{{ bootstrap }}" && sops exec-env "{{ bootstrap / "secrets.yaml" }}" "helmfile apply"
+@launch-argocd-ui:
+    echo "Launching ArgoCD UI at http://localhost:8080"
+    kubectl port-forward svc/argocd-server -n argocd 8080:443
 
-argocd-self-manage:
-    kubectl apply -f kubernetes/apps/argocd/application.yaml
-
-sealed-secrets-deploy:
-    kubectl apply -f kubernetes/apps/sealed-secrets/application.yaml
+# Bootstrap ArgoCD with the SSH key for accessing the private repo.
+@argocd-ssh-bootstrap:
+    # This is a one-time operation that should be done after ArgoCD is installed and
+    # before creating any applications that need to access the private repo.
+    sops --decrypt "{{ k8s / "bootstrap/secrets/argocd-repo-ssh.sops.yaml" }}" | kubectl apply -f -
