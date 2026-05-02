@@ -32,8 +32,10 @@ alertmanager:
 kubeEtcd:
   enabled: true
 
+# disable these since we run k3s which doesn't have these components
 kubeControllerManager:
-  enabled: true
-
+  enabled: false
 kubeScheduler:
-  enabled: true
+  enabled: false
+kubeProxy:
+  enabled: false
