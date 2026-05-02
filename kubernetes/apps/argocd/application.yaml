@@ -14,8 +14,8 @@ spec:
         configs:
           params:
             server.insecure: "true"
-        # admin password is already set in the cluster from bootstrap
-        # ArgoCD self-management does not re-set it
+            # admin password is already set in the cluster from bootstrap
+            # ArgoCD self-management does not re-set it
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
