@@ -4,15 +4,20 @@ metadata:
   name: sealed-secrets
   namespace: argocd
 spec:
-  project: default
+  project: infra
 
-  source:
-    repoURL: https://bitnami-labs.github.io/sealed-secrets
-    chart: sealed-secrets
-    targetRevision: 2.18.5
-    helm:
-      valuesObject:
-        fullnameOverride: sealed-secrets-controller
+  sources:
+    - repoURL: https://bitnami-labs.github.io/sealed-secrets
+      chart: sealed-secrets
+      targetRevision: 2.18.5
+      helm:
+        releaseName: sealed-secrets
+        valueFiles:
+          - $values/kubernetes/infra/sealed-secrets/values.yaml
+
+    - repoURL: git@github.com:arunanshub/devops.git
+      targetRevision: master
+      ref: values
 
   destination:
     server: https://kubernetes.default.svc

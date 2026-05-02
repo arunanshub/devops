@@ -4,22 +4,25 @@ metadata:
   name: argocd
   namespace: argocd
 spec:
-  project: default
-  source:
-    repoURL: https://argoproj.github.io/argo-helm
-    chart: argo-cd
-    targetRevision: 9.5.6
-    helm:
-      valuesObject:
-        configs:
-          params:
-            server.insecure: "true"
-            # admin password is already set in the cluster from bootstrap
-            # ArgoCD self-management does not re-set it
+  project: infra
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-cd
+      targetRevision: 9.5.6
+      helm:
+        releaseName: argocd
+        valueFiles:
+          - $values/kubernetes/infra/argocd/values.yaml
+
+    - repoURL: git@github.com:arunanshub/devops.git
+      targetRevision: master
+      ref: values
+
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
+
   syncPolicy:
     syncOptions:
       - ServerSideApply=true # required for self-managing ArgoCD
-    # no automated sync, no prune — deliberate for self-management
+      # no automated sync, no prune — deliberate for self-management
