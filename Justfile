@@ -15,6 +15,10 @@ destroy:
     echo "Launching ArgoCD UI at http://localhost:8080"
     kubectl port-forward svc/argocd-server -n argocd 8080:443
 
+@launch-grafana:
+    echo "Launching Grafana UI at http://localhost:3000"
+    kubectl port-forward svc/kube-prometheus-stack-grafana -n monitoring 3000:80
+
 # Bootstrap ArgoCD with the SSH key for accessing the private repo.
 @argocd-ssh-bootstrap:
     # This is a one-time operation that should be done after ArgoCD is installed and
