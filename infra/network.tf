@@ -3,12 +3,12 @@
 # Must be created before adding a second node. Do not defer until you need it.
 resource "hcloud_network" "main" {
   name     = "${local.cluster_name}-network"
-  ip_range = "10.0.0.0/16"
+  ip_range = local.network_cidr
 }
 
-resource "hcloud_network_subnet" "main" {
+resource "hcloud_network_subnet" "eu_central" {
   network_id   = hcloud_network.main.id
   type         = "cloud"
   network_zone = "eu-central"
-  ip_range     = "10.0.0.0/24"
+  ip_range     = cidrsubnet(local.network_cidr, 8, 0)
 }

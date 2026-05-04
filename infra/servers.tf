@@ -32,11 +32,8 @@ resource "hcloud_server" "control_plane" {
 resource "hcloud_server_network" "control_plane" {
   server_id  = hcloud_server.control_plane.id
   network_id = hcloud_network.main.id
-  ip         = "10.0.0.2"
-
-  depends_on = [hcloud_network_subnet.main]
+  ip         = cidrhost(hcloud_network_subnet.eu_central.ip_range, 2)
 }
-
 
 resource "terraform_data" "k3s" {
   triggers_replace = [hcloud_server.control_plane.id]

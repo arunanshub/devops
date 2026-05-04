@@ -30,8 +30,3 @@ terraform {
 provider "hcloud" {
   token = var.hcloud_token
 }
-
-locals {
-  cluster_name = "hetzner-k3s"
-  k3s_version  = "v1.32.3+k3s1"
-}
