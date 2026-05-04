@@ -5,7 +5,7 @@ metadata:
   name: infra
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   description: Core infrastructure components
 

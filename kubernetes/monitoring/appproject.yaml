@@ -3,8 +3,6 @@ kind: AppProject
 metadata:
   name: monitoring
   namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "-1"
 spec:
   sourceRepos:
     - https://prometheus-community.github.io/helm-charts
