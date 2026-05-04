@@ -6,7 +6,7 @@ resource "hcloud_network" "main" {
   ip_range = local.network_cidr
 }
 
-resource "hcloud_network_subnet" "eu_central" {
+resource "hcloud_network_subnet" "main" {
   network_id   = hcloud_network.main.id
   type         = "cloud"
   network_zone = "eu-central"
