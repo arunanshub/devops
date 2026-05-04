@@ -20,7 +20,7 @@ destroy:
     kubectl port-forward svc/kube-prometheus-stack-grafana -n monitoring 3000:80
 
 argocd-bootstrap:
-    cd "{{ k8s }}" && helmfile deps && sops exec-env "{{ k8s / "bootstrap/secrets/helmfile.secrets.yaml" }}" "helmfile apply"
+    cd "{{ k8s / "bootstrap/" }}" && helmfile deps && sops exec-env "{{ k8s / "bootstrap/secrets/helmfile.secrets.yaml" }}" "helmfile apply"
 
 # Bootstrap ArgoCD with the SSH key for accessing the private repo.
 @argocd-ssh-bootstrap:
@@ -35,4 +35,4 @@ argocd-bootstrap:
 
 # This is a one-time operation that should be done after the cluster is up and before applying any sealed secrets.
 restore-sealed-secrets-key:
-    sops --decrypt "{{ k8s / "bootstrap/secrets/sealed-secrets-key.sops.yaml" }}" | kubectl apply -f -
+    sops --decrypt "{{ k8s / "bootstrap/secrets/sealed-secrets-master-key.sops.yaml" }}" | kubectl apply -f -
