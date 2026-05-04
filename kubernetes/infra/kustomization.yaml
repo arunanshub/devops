@@ -8,3 +8,5 @@ resources:
   - system-upgrade-controller/application.yaml
   - system-upgrade-controller/plans-application.yaml
   - kured/application.yaml
+  - hcloud-secret/application.yaml
+  - hcloud-ccm/application.yaml

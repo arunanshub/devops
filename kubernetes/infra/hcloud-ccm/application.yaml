@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hcloud-ccm
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: infra
+
+  sources:
+    - repoURL: https://charts.hetzner.cloud
+      chart: hcloud-cloud-controller-manager
+      targetRevision: 1.30.1
+      helm:
+        releaseName: hcloud-ccm
+        valueFiles:
+          - $values/kubernetes/infra/hcloud-ccm/values.yaml
+
+    - repoURL: git@github.com:arunanshub/devops.git
+      targetRevision: master
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

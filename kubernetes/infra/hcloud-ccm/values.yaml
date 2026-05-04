@@ -1,0 +1,27 @@
+networking:
+  # Enable private network support. CCM will manage pod routing via Hetzner's
+  # private network instead of public interfaces.
+  enabled: true
+  # Must match k3s's pod CIDR. k3s default is 10.42.0.0/16.
+  clusterCIDR: 10.42.0.0/16
+  # Reads the network name/ID from the same hcloud secret.
+  # The chart's default already points to secret "hcloud", key "network" — kept explicit for clarity.
+  network:
+    valueFrom:
+      secretKeyRef:
+        name: hcloud
+        key: network
+
+monitoring:
+  enabled: true
+  podMonitor:
+    # kube-prometheus-stack is deployed, so PodMonitor CRD exists.
+    enabled: true
+    labels:
+      release: kube-prometheus-stack
+
+# Single node, single replica is correct. Leader election only kicks in at >1.
+replicaCount: 1
+
+# Already default, but explicit is better than implicit.
+priorityClassName: system-cluster-critical
