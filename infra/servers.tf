@@ -33,8 +33,8 @@ resource "hcloud_server" "control_plane" {
 
   # Enable once the cluster has any real workload on it.
   # Intentional friction: tofu destroy will fail until you set these to false.
-  delete_protection  = true
-  rebuild_protection = true
+  delete_protection  = false
+  rebuild_protection = false
 }
 
 resource "terraform_data" "k3s" {
