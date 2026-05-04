@@ -3,6 +3,13 @@ resource "hcloud_ssh_key" "main" {
   public_key = file(var.ssh_public_key_path)
 }
 
+resource "hcloud_server_network" "control_plane" {
+  server_id  = hcloud_server.control_plane.id
+  network_id = hcloud_network.main.id
+  ip         = local.control_plane_ip
+}
+
+
 resource "hcloud_server" "control_plane" {
   name        = "${local.cluster_name}-cp-1"
   image       = "ubuntu-24.04"
@@ -20,13 +27,14 @@ resource "hcloud_server" "control_plane" {
   }
 
   user_data = templatefile("${path.module}/scripts/init.sh.tpl", {
-    k3s_version = local.k3s_version,
+    k3s_version     = local.k3s_version,
+    node_private_ip = local.control_plane_ip,
   })
 
   # Enable once the cluster has any real workload on it.
   # Intentional friction: tofu destroy will fail until you set these to false.
-  delete_protection  = true
-  rebuild_protection = true
+  delete_protection  = false
+  rebuild_protection = false
 }
 
 resource "terraform_data" "k3s" {

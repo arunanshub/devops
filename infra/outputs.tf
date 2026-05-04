@@ -7,3 +7,8 @@ output "kubeconfig_path" {
   description = "Local path where kubeconfig was written by the null_resource."
   value       = "${path.module}/kubeconfig.yaml"
 }
+
+output "control_plane_private_ipv4" {
+  description = "Private IPv4 of the control plane on the Hetzner network."
+  value       = hcloud_server_network.control_plane.ip
+}
