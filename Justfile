@@ -19,6 +19,9 @@ destroy:
     echo "Launching Grafana UI at http://localhost:3000"
     kubectl port-forward svc/kube-prometheus-stack-grafana -n monitoring 3000:80
 
+argocd-bootstrap:
+    cd "{{ k8s }}" && helmfile deps && sops exec-env "{{ k8s / "bootstrap/secrets/helmfile.secrets.yaml" }}" "helmfile apply"
+
 # Bootstrap ArgoCD with the SSH key for accessing the private repo.
 @argocd-ssh-bootstrap:
     # This is a one-time operation that should be done after ArgoCD is installed and

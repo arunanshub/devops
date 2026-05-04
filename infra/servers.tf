@@ -3,10 +3,6 @@ resource "hcloud_ssh_key" "main" {
   public_key = file(var.ssh_public_key_path)
 }
 
-locals {
-  control_plane_ip = cidrhost(hcloud_network_subnet.main.ip_range, 2)
-}
-
 resource "hcloud_server_network" "control_plane" {
   server_id  = hcloud_server.control_plane.id
   network_id = hcloud_network.main.id
