@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hcloud-csi
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: infra
+
+  sources:
+    - repoURL: https://charts.hetzner.cloud
+      chart: hcloud-csi
+      targetRevision: 2.5.1
+      helm:
+        releaseName: hcloud-csi
+        valueFiles:
+          - $values/kubernetes/infra/hcloud-csi/values.yaml
+
+    - repoURL: git@github.com:arunanshub/devops.git
+      targetRevision: master
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

@@ -7,6 +7,14 @@ grafana:
     userKey: admin-user
     passwordKey: admin-password
 
+  # persist Grafana data in the hetzner volume instead of emptyDir to persist
+  # data across pod restarts
+  persistence:
+    enabled: true
+    storageClassName: hcloud-volumes
+    accessModes: ["ReadWriteOnce"]
+    size: 10Gi
+
   ingress:
     enabled: false
 
@@ -16,10 +24,20 @@ prometheus:
 
   prometheusSpec:
     retention: 7d
-    retentionSize: 8GiB
+    retentionSize: 6GiB
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
+    # store in the hetzner volume instead of emptyDir to persist data across pod
+    # restarts
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: hcloud-volumes
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
 
 alertmanager:
   ingress:
@@ -31,6 +49,15 @@ alertmanager:
     # Mount the SealedSecret into the Alertmanager pod
     secrets:
       - alertmanager-smtp
+    # store in the hetzner volume instead of emptyDir to persist data across pod
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: hcloud-volumes
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
 
   config:
     global:

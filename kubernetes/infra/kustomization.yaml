@@ -10,3 +10,4 @@ resources:
   - kured/application.yaml
   - hcloud-secret/application.yaml
   - hcloud-ccm/application.yaml
+  - hcloud-csi/application.yaml

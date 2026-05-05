@@ -1,0 +1,22 @@
+controller:
+  hcloudToken:
+    existingSecret:
+      name: hcloud
+      key: token
+
+# Not setting as default to avoid conflict with k3s's local-path default.
+# Always specify storageClassName: hcloud-volumes explicitly in PVC specs.
+storageClasses:
+  - name: hcloud-volumes
+    defaultStorageClass: false
+    reclaimPolicy: Delete
+    volumeBindingMode: WaitForFirstConsumer
+    allowVolumeExpansion: true
+
+metrics:
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: kube-prometheus-stack
+
+priorityClassName: system-cluster-critical
