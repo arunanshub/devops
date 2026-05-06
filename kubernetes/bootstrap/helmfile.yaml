@@ -3,13 +3,24 @@ repositories:
     url: https://argoproj.github.io/argo-helm
 
 releases:
+  - name: hccm
+    namespace: kube-system
+    chart: hcloud/hcloud-cloud-controller-manager
+    version: "1.30.1"
+    wait: true # block until CCM removes the taint
+    # needs:
+    #   - kube-system/cilium
+    values:
+      - values/ccm.yaml
+
   - name: argocd
     chart: argo/argo-cd
+    needs: [kube-system/hccm]
     version: 9.5.11
     namespace: argocd
     cleanupOnFail: true
     createNamespace: true
     cascade: background
     values:
-      - ./values/values.yaml # single source of truth for values
+      - ./values/argocd.yaml # single source of truth for values
       - ./values/bootstrap.yaml.gotmpl # secrets from bootstrap, rendered with sops
