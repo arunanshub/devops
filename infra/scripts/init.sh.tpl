@@ -14,19 +14,22 @@ public_ipv6="$(
 # shellcheck disable=SC2154
 cat > /etc/rancher/k3s/config.yaml <<EOF
 cluster-init: true
-disable:
-  - traefik
-  - servicelb
-disable-cloud-controller: true
 
 flannel-backend: none
 disable-kube-proxy: true
 disable-network-policy: true
 
+disable:
+  - traefik
+  - servicelb
+
+disable-cloud-controller: true
 kubelet-arg:
   - "cloud-provider=external"
+
 tls-san:
   - "$${public_ipv6}"
+
 node-ip: "${node_private_ip}"
 EOF
 

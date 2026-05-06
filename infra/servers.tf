@@ -52,7 +52,7 @@ resource "terraform_data" "k3s" {
   provisioner "remote-exec" {
     inline = [
       "cloud-init status --wait",
-      "k3s kubectl wait node --all --for condition=Ready --timeout=5m",
+      "until k3s kubectl get nodes >/dev/null 2>&1; do echo 'waiting for API server...'; sleep 5; done",
     ]
   }
 
