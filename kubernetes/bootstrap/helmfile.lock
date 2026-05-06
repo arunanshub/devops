@@ -3,5 +3,8 @@ dependencies:
   - name: argo-cd
     repository: https://argoproj.github.io/argo-helm
     version: 9.5.11
-digest: sha256:61ddf2ddd97d7853c1ddd93418d93dfe99c959e3db98e36a54efd3004c7c274d
-generated: "2026-05-01T12:40:23.263335218Z"
+  - name: hcloud-cloud-controller-manager
+    repository: https://charts.hetzner.cloud
+    version: 1.30.1
+digest: sha256:db52fc53b2b1c774c72c1bf6d559d8b78b221b60fe0f12228f4b00bb16f56efb
+generated: "2026-05-06T19:33:01.334111754+05:30"
