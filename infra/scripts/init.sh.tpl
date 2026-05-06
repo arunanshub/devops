@@ -18,6 +18,11 @@ disable:
   - traefik
   - servicelb
 disable-cloud-controller: true
+
+flannel-backend: none
+disable-kube-proxy: true
+disable-network-policy: true
+
 kubelet-arg:
   - "cloud-provider=external"
 tls-san:
@@ -29,8 +34,12 @@ EOF
 curl -sfL https://get.k3s.io \
   | INSTALL_K3S_VERSION='${k3s_version}' sh -
 
-# wait for the control plane to be ready
-k3s kubectl wait node --all --for condition=Ready --timeout=5m
+# wait for the API server to be reachable (node will be NotReady until Cilium
+# installs which is expected)
+until k3s kubectl get nodes &>/dev/null 2>&1; do
+  echo "waiting for API server..."
+  sleep 5
+done
 
 # enable hardening
 apt-get update -qq
