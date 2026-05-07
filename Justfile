@@ -2,6 +2,11 @@ infra := justfile_dir() / "infra"
 k8s := justfile_dir() / "kubernetes"
 export KUBECONFIG := infra / "kubeconfig.yaml"
 
+# API endpoint Cilium points at from inside the cluster. Today: private IP of
+# cp-1 (matches infra/locals.tf control_plane_ip). For HA: set this to the
+# private IP of a Hetzner LB sitting in front of all control planes.
+export K8S_API_ENDPOINT := "10.0.0.2"
+
 @plan:
     cd "{{ infra }}" && sops exec-env "{{ infra / "secrets.yaml" }}" "tofu plan"
 
@@ -19,7 +24,12 @@ destroy:
     echo "Launching Grafana UI at http://localhost:3000"
     kubectl port-forward svc/kube-prometheus-stack-grafana -n monitoring 3000:80
 
-argocd-bootstrap:
+# Apply the hcloud Secret to kube-system. Required before argocd-bootstrap
+# because hccm (installed by helmfile) reads this secret on startup. Idempotent.
+@hcloud-secret-bootstrap:
+    sops --decrypt "{{ k8s / "bootstrap/secrets/hcloud-ccm-secret.sops.yaml" }}" | kubectl apply -f -
+
+argocd-bootstrap: hcloud-secret-bootstrap
     cd "{{ k8s / "bootstrap/" }}" && helmfile deps && sops exec-env "{{ k8s / "bootstrap/secrets/helmfile.secrets.yaml" }}" "helmfile apply"
 
 # Bootstrap ArgoCD with the SSH key for accessing the private repo.

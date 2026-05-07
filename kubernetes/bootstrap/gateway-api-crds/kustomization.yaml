@@ -1,0 +1,13 @@
+# Gateway API standard channel CRDs (GatewayClass, Gateway, HTTPRoute,
+# GRPCRoute, ReferenceGrant). Cilium 1.19 supports v1.4.1.
+#
+# Helmfile wraps this kustomization as a synthetic Helm chart and installs it
+# as the release "gateway-api-crds" before Cilium, so gatewayAPI.enabled=true
+# can render GatewayClass resources.
+#
+# Bump the URL in lockstep with the Cilium minor version. Add the experimental
+# channel install URL alongside if TLSRoute is needed.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.1/standard-install.yaml

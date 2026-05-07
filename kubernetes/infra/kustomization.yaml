@@ -9,5 +9,6 @@ resources:
   - system-upgrade-controller/plans-application.yaml
   - kured/application.yaml
   - hcloud-secret/application.yaml
+  - cilium/application.yaml
   - hcloud-ccm/application.yaml
   - hcloud-csi/application.yaml
