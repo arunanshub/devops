@@ -25,7 +25,10 @@ destroy:
     kubectl port-forward svc/kube-prometheus-stack-grafana -n monitoring 3000:80
 
 # Apply the hcloud Secret to kube-system. Required before argocd-bootstrap
-# because hccm (installed by helmfile) reads this secret on startup. Idempotent.
+# because hccm (installed by helmfile) reads this secret on startup. The Secret
+# carries the `sealedsecrets.bitnami.com/managed: "true"` annotation in the
+# SOPS source, so the SealedSecret in kubernetes/infra/ can adopt it later
+# without conflict. Idempotent.
 @hcloud-secret-bootstrap:
     sops --decrypt "{{ k8s / "bootstrap/secrets/hcloud-ccm-secret.sops.yaml" }}" | kubectl apply -f -
 

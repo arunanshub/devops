@@ -100,22 +100,16 @@ failed update: Resource "hcloud" already exists and is not managed by SealedSecr
 
 **Cause.** During bootstrap, `just hcloud-secret-bootstrap` creates a vanilla Secret named `hcloud` (so hccm can start). Later, the SealedSecret in the GitOps tree tries to take ownership of the same Secret. By default, the sealed-secrets controller **refuses to overwrite** a Secret it didn't create, unless that Secret is annotated with `sealedsecrets.bitnami.com/managed: "true"`.
 
-**Fix (option A — what we did).** Delete the bootstrap Secret, let the controller create a fresh managed one:
+**Fix (current — baked into the SOPS source).** The `hcloud-ccm-secret.sops.yaml` Secret manifest carries the annotation `sealedsecrets.bitnami.com/managed: "true"` directly in its `metadata.annotations`. So whenever the Secret is applied — via Justfile, manually, or any future tooling — the controller sees a Secret it's allowed to adopt. On a fresh build this error cannot occur. When adding new SOPS-bootstrapped Secrets that will later be replaced by SealedSecrets, include the same annotation in their source.
+
+**Fix (recovery if you hit the error on an already-broken cluster).** Delete the unmanaged Secret and let the controller create a fresh managed one:
 
 ```sh
 kubectl -n kube-system delete secret hcloud
 kubectl -n kube-system rollout restart deploy/sealed-secrets-controller
 ```
 
-The rollout restart is necessary because the controller is event-driven on SealedSecret spec changes, not on the underlying Secret's deletion — without a restart, it won't realize the obstruction is gone.
-
-**Fix (option B — cleaner, no deletion gap).** Pre-annotate the bootstrap Secret so the controller adopts it without conflict:
-
-```sh
-kubectl -n kube-system annotate secret hcloud sealedsecrets.bitnami.com/managed=true --overwrite
-```
-
-Worth folding into `hcloud-secret-bootstrap` in the Justfile if rebuilding from scratch is on the menu.
+The rollout restart is necessary because the controller is event-driven on SealedSecret spec changes, not on the underlying Secret's deletion — without a restart, it won't realize the obstruction is gone. There's a brief window where hccm has no Secret; in practice it tolerates the gap fine.
 
 ---
 
