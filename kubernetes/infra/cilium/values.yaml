@@ -29,10 +29,21 @@ operator:
 gatewayAPI:
   enabled: true
 
-# Manage cilium-ca and hubble-server-certs via the certgen CronJob (not Helm's
-# genCA), so renders are deterministic and ArgoCD stays Synced. Auto-rotation
-# every 4 months by default; hot-reloaded without disruption.
+# Use host's cgroup2 mount; avoids the duplicate /run/cilium/cgroupv2 mount
+# and gives Hubble full host cgroup tree visibility.
+cgroup:
+  autoMount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
+
+# Hubble Relay aggregates flows; UI exposes a web visualizer.
+# certgen CronJob manages cilium-ca and hubble-server-certs (not Helm's genCA)
+# for deterministic ArgoCD renders; rotates every 4 months, hot-reloaded.
 hubble:
+  relay:
+    enabled: true
+  ui:
+    enabled: true
   tls:
     auto:
       method: cronJob

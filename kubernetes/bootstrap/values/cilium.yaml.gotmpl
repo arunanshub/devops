@@ -37,12 +37,23 @@ operator:
 gatewayAPI:
   enabled: true
 
-# Generate cilium-ca and hubble-server-certs via the certgen CronJob instead
-# of Helm's genCA. Helm-side generation is non-deterministic per render, which
-# makes ArgoCD perpetually OutOfSync. The CronJob manages both Secrets and
-# rotates them defensively (default: every 4 months). Hubble hot-reloads, so
-# rotation is non-disruptive.
+# Use the host's systemd-managed cgroup2 mount rather than Cilium's private
+# one. Both are v2; this just avoids the duplicate mount and gives Hubble
+# full visibility into the host cgroup tree for flow→process correlation.
+cgroup:
+  autoMount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
+
+# Hubble: enable Relay (flow aggregation) and UI (web visualizer). The certgen
+# CronJob (not Helm's genCA) generates cilium-ca and hubble-server-certs to
+# keep ArgoCD diffs deterministic; rotation every 4 months is non-disruptive
+# thanks to Hubble's hot-reload.
 hubble:
+  relay:
+    enabled: true
+  ui:
+    enabled: true
   tls:
     auto:
       method: cronJob

@@ -3,6 +3,10 @@ kind: AppProject
 metadata:
   name: monitoring
   namespace: argocd
+  annotations:
+    # AppProject must exist before any Application referencing it.
+    # Matches the pattern used by kubernetes/infra/appproject.yaml.
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   sourceRepos:
     - https://prometheus-community.github.io/helm-charts
