@@ -36,3 +36,13 @@ operator:
 
 gatewayAPI:
   enabled: true
+
+# Generate cilium-ca and hubble-server-certs via the certgen CronJob instead
+# of Helm's genCA. Helm-side generation is non-deterministic per render, which
+# makes ArgoCD perpetually OutOfSync. The CronJob manages both Secrets and
+# rotates them defensively (default: every 4 months). Hubble hot-reloads, so
+# rotation is non-disruptive.
+hubble:
+  tls:
+    auto:
+      method: cronJob

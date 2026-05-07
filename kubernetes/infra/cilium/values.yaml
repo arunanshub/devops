@@ -28,3 +28,11 @@ operator:
 
 gatewayAPI:
   enabled: true
+
+# Manage cilium-ca and hubble-server-certs via the certgen CronJob (not Helm's
+# genCA), so renders are deterministic and ArgoCD stays Synced. Auto-rotation
+# every 4 months by default; hot-reloaded without disruption.
+hubble:
+  tls:
+    auto:
+      method: cronJob
