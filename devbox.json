@@ -14,7 +14,8 @@
     "kubeseal@0.36.0",
     "shellcheck@latest",
     "yamlfmt@latest",
-    "kustomize@latest"
+    "kustomize@latest",
+    "hubble@latest"
   ],
   "shell": {
     "init_hook": [

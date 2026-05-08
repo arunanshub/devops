@@ -24,6 +24,10 @@ destroy:
     echo "Launching Grafana UI at http://localhost:3000"
     kubectl port-forward svc/kube-prometheus-stack-grafana -n monitoring 3000:80
 
+@launch-hubble-ui:
+    echo "Launching Hubble UI at http://localhost:12000"
+    kubectl port-forward svc/hubble-ui -n kube-system 12000:80
+
 # Apply the hcloud Secret to kube-system. Required before argocd-bootstrap
 # because hccm (installed by helmfile) reads this secret on startup. The Secret
 # carries the `sealedsecrets.bitnami.com/managed: "true"` annotation in the

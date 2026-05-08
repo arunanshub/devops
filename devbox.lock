@@ -298,6 +298,54 @@
         }
       }
     },
+    "hubble@latest": {
+      "last_modified": "2026-04-23T13:07:47Z",
+      "resolved": "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30#hubble",
+      "source": "devbox-search",
+      "version": "1.19.3",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/fp4fzsbyvkpn400slpagg7rg15vvslk8-hubble-1.19.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/fp4fzsbyvkpn400slpagg7rg15vvslk8-hubble-1.19.3"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/qq7i4irkwmj5v5czln4yv99slbql7m8y-hubble-1.19.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/qq7i4irkwmj5v5czln4yv99slbql7m8y-hubble-1.19.3"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/hpxvyr66a7hj93b4xhxcgpnysz32wb8n-hubble-1.19.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/hpxvyr66a7hj93b4xhxcgpnysz32wb8n-hubble-1.19.3"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/xgw42k2479qnzv7av34msdkr8yj83rf6-hubble-1.19.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/xgw42k2479qnzv7av34msdkr8yj83rf6-hubble-1.19.3"
+        }
+      }
+    },
     "just@latest": {
       "last_modified": "2026-04-23T13:07:47Z",
       "resolved": "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30#just",
