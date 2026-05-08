@@ -17,6 +17,7 @@ spec:
     - https://github.com/rancher/system-upgrade-controller
     - https://charts.hetzner.cloud
     - https://helm.cilium.io/
+    - https://charts.jetstack.io
 
   destinations:
     - server: https://kubernetes.default.svc
@@ -27,6 +28,8 @@ spec:
       namespace: system-upgrade
     - server: https://kubernetes.default.svc
       namespace: cilium-secrets
+    - server: https://kubernetes.default.svc
+      namespace: cert-manager
 
   clusterResourceWhitelist:
     - group: "*"

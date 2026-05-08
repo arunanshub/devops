@@ -12,3 +12,4 @@ resources:
   - cilium/application.yaml
   - hcloud-ccm/application.yaml
   - hcloud-csi/application.yaml
+  - cert-manager/application.yaml

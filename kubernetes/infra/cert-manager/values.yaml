@@ -1,0 +1,37 @@
+# Install CRDs via Helm so ArgoCD manages their lifecycle.
+# crds.keep: true (default) — CRDs are not deleted on chart uninstall,
+# which prevents accidental data loss of live Certificate resources.
+crds:
+  enabled: true
+
+# Enable Gateway API support via file-based ControllerConfiguration.
+# Required since cert-manager 1.15 — without this, cert-manager.io/cluster-issuer
+# annotations on Gateway resources are silently ignored.
+config:
+  apiVersion: "controller.config.cert-manager.io/v1alpha1"
+  kind: "ControllerConfiguration"
+  enableGatewayAPI: true
+
+# Resource limits — cert-manager is not resource-intensive.
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+webhook:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+cainjector:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
