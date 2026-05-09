@@ -14,14 +14,11 @@ k8sServicePort: 6443
 ipam:
   mode: kubernetes
 
-# Native routing over the Hetzner Cloud Network. hccm programs per-node
-# pod-CIDR routes on the Network, so packets traverse the private subnet
-# without VXLAN/Geneve encapsulation. Pod CIDR = k3s default.
-routingMode: native
-ipv4NativeRoutingCIDR: 10.42.0.0/16
-autoDirectNodeRoutes: false
-endpointRoutes:
-  enabled: true
+# VXLAN tunnel mode keeps cross-node pod traffic independent of Hetzner
+# Cloud Network pod-CIDR routing. This matches the boring default used by
+# established Hetzner k3s projects while retaining Cilium features.
+routingMode: tunnel
+tunnelProtocol: vxlan
 
 # WireGuard for node-to-node encryption. No-op on a single-node cluster, but
 # enabling now keeps the multi-node migration to a Terraform-only change.
@@ -35,6 +32,8 @@ operator:
 
 gatewayAPI:
   enabled: true
+  gatewayClass:
+    create: "true"
 
 # Use the host's systemd-managed cgroup2 mount rather than Cilium's private
 # one. Both are v2; this just avoids the duplicate mount and gives Hubble

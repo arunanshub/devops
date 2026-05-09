@@ -11,11 +11,10 @@ k8sServicePort: 6443
 ipam:
   mode: kubernetes
 
-routingMode: native
-ipv4NativeRoutingCIDR: 10.42.0.0/16
-autoDirectNodeRoutes: false
-endpointRoutes:
-  enabled: true
+# VXLAN tunnel mode keeps cross-node pod traffic independent of Hetzner
+# Cloud Network pod-CIDR routing. This matches bootstrap values exactly.
+routingMode: tunnel
+tunnelProtocol: vxlan
 
 encryption:
   enabled: true
@@ -27,6 +26,8 @@ operator:
 
 gatewayAPI:
   enabled: true
+  gatewayClass:
+    create: "true"
 
 # Use host's cgroup2 mount; avoids the duplicate /run/cilium/cgroupv2 mount
 # and gives Hubble full host cgroup tree visibility.
