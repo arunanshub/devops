@@ -88,3 +88,25 @@ check "bootstrap_node_has_cp_role" {
     error_message = "bootstrap_node '${var.bootstrap_node}' must have role cp_only or cp_worker."
   }
 }
+
+check "private_ips_are_in_subnet" {
+  assert {
+    condition = alltrue([
+      for k, v in var.nodes :
+      cidrcontains(local.subnet_cidr, v.private_ip)
+      && v.private_ip != cidrhost(local.subnet_cidr, 0)
+      && v.private_ip != cidrhost(local.subnet_cidr, -1)
+    ])
+    error_message = "Every node private_ip must be a usable host address within subnet ${local.subnet_cidr}."
+  }
+
+  assert {
+    condition = (
+      cidrcontains(local.subnet_cidr, local.lb_private_ip)
+      && local.lb_private_ip != cidrhost(local.subnet_cidr, 0)
+      && local.lb_private_ip != cidrhost(local.subnet_cidr, -1)
+      && !contains([for v in var.nodes : v.private_ip], local.lb_private_ip)
+    )
+    error_message = "local.lb_private_ip must be a usable, node-unique host address within subnet ${local.subnet_cidr}."
+  }
+}
