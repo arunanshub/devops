@@ -8,7 +8,7 @@ kubeProxyReplacement: true
 # API endpoint reached from inside the cluster. Today the static private IP of
 # the sole control plane; flip to a Hetzner LB IP when going HA without
 # touching anything else.
-k8sServiceHost: {{ requiredEnv "K8S_API_ENDPOINT" }}
+k8sServiceHost: {? {requiredEnv "K8S_API_ENDPOINT": ''} : ''}
 k8sServicePort: 6443
 
 ipam:
@@ -31,8 +31,7 @@ encryption:
   nodeEncryption: true
 
 operator:
-  # Bump to 2 when a second control plane joins.
-  replicas: 1
+  replicas: 2
 
 gatewayAPI:
   enabled: true

@@ -4,9 +4,8 @@
 
 kubeProxyReplacement: true
 
-# Private IP of cp-1 from infra/locals.tf (control_plane_ip).
-# Migrate to the Hetzner LB IP when adding a second control plane.
-k8sServiceHost: 10.0.0.2
+# Private IP of the API server load balancer from infra/locals.tf.
+k8sServiceHost: 10.0.0.100
 k8sServicePort: 6443
 
 ipam:
@@ -24,7 +23,7 @@ encryption:
   nodeEncryption: true
 
 operator:
-  replicas: 1
+  replicas: 2
 
 gatewayAPI:
   enabled: true

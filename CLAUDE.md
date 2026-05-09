@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A self-managed k3s cluster on Hetzner Cloud, declared in OpenTofu and reconciled by ArgoCD.
 
-- `infra/` — OpenTofu provisioning the Hetzner server, network, firewall, SSH key; writes `infra/kubeconfig.yaml` to disk for local use
+- `infra/` — OpenTofu provisioning the Hetzner nodes, network, firewall, SSH key, API load balancer; writes `infra/kubeconfig.yaml` to disk for local use
 - `kubernetes/bootstrap/` — helmfile + SOPS-encrypted secrets that run **once** to install the cluster's foundational components
 - `kubernetes/infra/` — ArgoCD `Application` manifests that take over after bootstrap (app-of-apps via `kubernetes/root-application.yaml`)
 - `kubernetes/monitoring/` — same pattern, but for kube-prometheus-stack
@@ -25,7 +25,7 @@ Pre-commit checks (`lefthook.yml`): `tofu fmt/validate`, `yamlfmt`, `shellcheck`
 
 This is what a clean cluster build looks like. Steps 3–5 are one-shots that **must run in order** — see `docs/bootstrap-pitfalls.md` for what goes wrong if order slips.
 
-1. `just apply` — provisions the Hetzner server, runs `infra/scripts/init.sh.tpl` as cloud-init, writes `infra/kubeconfig.yaml`
+1. `just apply` — provisions the Hetzner nodes and API load balancer, runs `infra/scripts/init.sh.tpl` as cloud-init, writes `infra/kubeconfig.yaml`
 2. `just argocd-bootstrap` — applies the SOPS-decrypted hcloud Secret (via dependency recipe), then `helmfile apply` installs Gateway API CRDs → Cilium → hccm → ArgoCD
 3. `just argocd-ssh-bootstrap` — applies the ArgoCD repo SSH key
 4. `just restore-sealed-secrets-key` — applies the sealed-secrets master key
@@ -72,8 +72,8 @@ When creating SealedSecret-bound or SOPS-bound Secret manifests, **strip runtime
 - k3s runs with `flannel-backend: none`, `disable-kube-proxy: true`, `disable-cloud-controller: true`
 - Cilium replaces all three: CNI, kube-proxy (`kubeProxyReplacement: true`), and works in **native routing** mode over the Hetzner Network (no VXLAN). hccm programs per-node pod-CIDR routes on the Cloud Network.
 - WireGuard node-to-node encryption is enabled (`encryption.type: wireguard`, `nodeEncryption: true`)
-- API endpoint reached by Cilium agents inside the cluster: `K8S_API_ENDPOINT` (exported in Justfile, default `10.0.0.2` = `local.control_plane_ip`). Migrate to a Hetzner LB IP for HA.
-- Public access to k3s API is gated on `var.home_ip` in `infra/firewall.tf` — if `kubectl` hangs on connect after a network change, your home IP is stale.
+- API endpoint reached by Cilium agents inside the cluster: `K8S_API_ENDPOINT` (exported in Justfile, default `10.0.0.100` = `local.lb_private_ip`). This is the private Hetzner API load balancer in front of all control planes.
+- Current admin access is Option B: generated kubeconfig points at the bootstrap control plane's public IPv6, and public `6443` on control-plane nodes is gated on `var.home_ip` in `infra/firewall.tf`. The API load balancer public IPv4 is included in K3s TLS SANs for a future switch to public-LB admin HA, but is not the current kubeconfig endpoint.
 
 ## Files worth reading once
 

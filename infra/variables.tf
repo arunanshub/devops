@@ -18,13 +18,13 @@ variable "ssh_public_key_path" {
 
 variable "ssh_private_key_path" {
   type        = string
-  description = "Path to the SSH private key used by null_resource local-exec to retrieve kubeconfig."
+  description = "Path to the SSH private key used for provisioning and kubeconfig retrieval."
   default     = "~/.ssh/id_ed25519"
 }
 
 variable "home_ip" {
   type        = string
-  description = "Your home public IP in CIDR notation (e.g. 1.2.3.4/32 or 2001:db8::1/128). Used to restrict firewall ingress for SSH and k3s API. Do not hardcode — put in secrets.yaml."
+  description = "Your home public IP in CIDR notation (e.g. 2001:db8::1/128). Restricts SSH ingress. Store in secrets.yaml."
 
   validation {
     condition     = can(cidrhost(var.home_ip, 0))
@@ -32,14 +32,59 @@ variable "home_ip" {
   }
 }
 
-variable "location" {
+variable "k3s_token" {
   type        = string
-  description = "Hetzner datacenter location (e.g. hel1, nbg1, fsn1)."
-  default     = "hel1"
+  description = "Static k3s cluster join token shared by all nodes. Generate: openssl rand -hex 32. Store in secrets.yaml."
+  sensitive   = true
 }
 
-variable "control_plane_server_type" {
+variable "nodes" {
+  type = map(object({
+    server_type = string
+    role        = string # cp_only | cp_worker | worker
+    location    = string
+    private_ip  = string
+  }))
+  description = "Declarative cluster topology. Each key becomes the node name suffix (e.g. 'cp-1')."
+
+  validation {
+    condition = alltrue([
+      for k, v in var.nodes : contains(["cp_only", "cp_worker", "worker"], v.role)
+    ])
+    error_message = "Each node role must be one of: cp_only, cp_worker, worker."
+  }
+
+  validation {
+    condition = (
+      length([for k, v in var.nodes : k if contains(["cp_only", "cp_worker"], v.role)]) % 2 == 1
+    )
+    error_message = "Control plane node count (cp_only + cp_worker) must be odd (1, 3, 5...)."
+  }
+
+  validation {
+    condition = (
+      length(values(var.nodes)) == length(toset([for v in var.nodes : v.private_ip]))
+    )
+    error_message = "All node private_ip values must be unique."
+  }
+}
+
+variable "bootstrap_node" {
   type        = string
-  description = "Hetzner server type for the control plane node."
-  default     = "cx43"
+  description = "Key from var.nodes that bootstraps the cluster with --cluster-init. Must have a CP role."
+
+  validation {
+    condition     = contains(keys(var.nodes), var.bootstrap_node)
+    error_message = "bootstrap_node must be a key in var.nodes."
+  }
+}
+
+# Cross-variable assertion: bootstrap node must have a CP role.
+# Cannot be expressed inside a variable{} validation block because HCL
+# does not allow referencing a second variable from within validation{}.
+check "bootstrap_node_has_cp_role" {
+  assert {
+    condition     = contains(["cp_only", "cp_worker"], var.nodes[var.bootstrap_node].role)
+    error_message = "bootstrap_node '${var.bootstrap_node}' must have role cp_only or cp_worker."
+  }
 }

@@ -2,10 +2,9 @@ infra := justfile_dir() / "infra"
 k8s := justfile_dir() / "kubernetes"
 export KUBECONFIG := infra / "kubeconfig.yaml"
 
-# API endpoint Cilium points at from inside the cluster. Today: private IP of
-# cp-1 (matches infra/locals.tf control_plane_ip). For HA: set this to the
-# private IP of a Hetzner LB sitting in front of all control planes.
-export K8S_API_ENDPOINT := "10.0.0.2"
+# Internal API endpoint used by Cilium and other in-cluster components.
+# Points at the API server LB private IP, not a specific node.
+export K8S_API_ENDPOINT := "10.0.0.100"
 
 @plan:
     cd "{{ infra }}" && sops exec-env "{{ infra / "secrets.yaml" }}" "tofu plan"
@@ -41,15 +40,14 @@ argocd-bootstrap: hcloud-secret-bootstrap
 
 # Bootstrap ArgoCD with the SSH key for accessing the private repo.
 @argocd-ssh-bootstrap:
-    # This is a one-time operation that should be done after ArgoCD is installed and
-    # before creating any applications that need to access the private repo.
     sops --decrypt "{{ k8s / "bootstrap/secrets/argocd-repo-ssh.sops.yaml" }}" | kubectl apply -f -
 
 @argocd-root-bootstrap:
-    # This is a one-time operation that should be done after ArgoCD is installed and
-    # before creating any applications that need to access the private repo.
     kubectl apply -f "{{ k8s / "root-application.yaml" }}"
 
-# This is a one-time operation that should be done after the cluster is up and before applying any sealed secrets.
+# Restore the sealed-secrets master key from the offline backup.
+# Must run BEFORE ArgoCD syncs any SealedSecret resources on a rebuilt cluster.
+# After applying, restart the controller so it picks up the restored key.
 restore-sealed-secrets-key:
     sops --decrypt "{{ k8s / "bootstrap/secrets/sealed-secrets-master-key.sops.yaml" }}" | kubectl apply -f -
+    kubectl rollout restart deployment sealed-secrets-controller -n kube-system
