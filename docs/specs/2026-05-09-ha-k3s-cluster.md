@@ -168,6 +168,18 @@ The bootstrap Cilium values and ArgoCD Cilium values must stay equivalent, becau
 
 For three control-plane nodes, Cilium operator replicas are set to `2`.
 
+During bootstrap, hccm must install before Helm waits for the Cilium release to become fully ready. Nodes start with the external-cloud-provider taint:
+
+```text
+node.cloudprovider.kubernetes.io/uninitialized=true:NoSchedule
+```
+
+hccm tolerates that taint and removes it after initializing the nodes. Cilium's DaemonSets can run while the taint exists, but Hubble relay/UI and CoreDNS are ordinary pods and will remain Pending until hccm removes the taint. Therefore the bootstrap order is:
+
+```text
+gateway-api-crds + hccm -> cilium -> argocd
+```
+
 ## Expected Plan Shape
 
 The current migration intentionally rebuilds the old singleton control-plane server instead of preserving it through state moves.

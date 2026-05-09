@@ -26,7 +26,7 @@ Pre-commit checks (`lefthook.yml`): `tofu fmt/validate`, `yamlfmt`, `shellcheck`
 This is what a clean cluster build looks like. Steps 3–5 are one-shots that **must run in order** — see `docs/bootstrap-pitfalls.md` for what goes wrong if order slips.
 
 1. `just apply` — provisions the Hetzner nodes and API load balancer, runs `infra/scripts/init.sh.tpl` as cloud-init, writes `infra/kubeconfig.yaml`
-2. `just argocd-bootstrap` — applies the SOPS-decrypted hcloud Secret (via dependency recipe), then `helmfile apply` installs Gateway API CRDs → Cilium → hccm → ArgoCD
+2. `just argocd-bootstrap` — applies the SOPS-decrypted hcloud Secret (via dependency recipe), then `helmfile apply` installs Gateway API CRDs + hccm before Cilium, then ArgoCD
 3. `just argocd-ssh-bootstrap` — applies the ArgoCD repo SSH key
 4. `just restore-sealed-secrets-key` — applies the sealed-secrets master key
 5. `just argocd-root-bootstrap` — applies `kubernetes/root-application.yaml`, kicking off ArgoCD reconciliation of everything

@@ -19,6 +19,7 @@ releases:
     wait: true
     needs:
       - kube-system/gateway-api-crds
+      - kube-system/hccm
     values:
       - values/cilium.yaml.gotmpl
 
@@ -27,8 +28,6 @@ releases:
     chart: hcloud/hcloud-cloud-controller-manager
     version: "1.30.1"
     wait: true
-    needs:
-      - kube-system/cilium
     values:
       - values/ccm.yaml
 
