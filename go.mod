@@ -1,4 +1,4 @@
-module github.com/arunanshub/arunanshu-infrastructure
+module github.com/arunanshub/devops
 
 go 1.26
 
