@@ -26,20 +26,31 @@ resource "hcloud_server" "nodes" {
   }
 
   user_data = templatefile("${path.module}/scripts/init.sh.tpl", {
-    k3s_config       = yamlencode(local.k3s_configs[each.key])
-    k3s_version      = local.k3s_version
-    is_bootstrap     = each.key == var.bootstrap_node
-    is_control_plane = contains(keys(local.cp_nodes), each.key)
-    lb_private_ip    = local.lb_private_ip
-    lb_public_ip     = hcloud_load_balancer.api.ipv4
-    node_private_ip  = each.value.private_ip
-    role             = each.value.role
+    k3s_config                  = yamlencode(local.k3s_configs[each.key])
+    k3s_version                 = local.k3s_version
+    is_bootstrap                = each.key == var.bootstrap_node
+    is_control_plane            = contains(keys(local.cp_nodes), each.key)
+    node_public_ipv6_san_marker = local.node_public_ipv6_san_marker
+    role                        = each.value.role
   })
 
   # Intentional friction: set these to true once the cluster carries real workloads.
   # tofu destroy will fail until explicitly set to false.
   delete_protection  = false
   rebuild_protection = false
+
+  # Replacing an embedded-etcd server is an operational event, not a routine
+  # apply. Let plans reveal replacement pressure, but block accidental destroys;
+  # rolling replacement requires an explicit runbook step to relax this guard.
+  lifecycle {
+    prevent_destroy = true
+
+    # user_data (cloud-init) runs once at first boot only — it has no effect on
+    # running nodes. Ignoring changes here prevents a script edit from issuing a
+    # simultaneous replacement plan for every node, which would take down the
+    # entire cluster. Script changes take effect only on newly created nodes.
+    ignore_changes = [user_data]
+  }
 
   # Nodes need their private interface and the API LB address available before
   # cloud-init starts k3s with node-ip/server settings.

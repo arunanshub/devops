@@ -10,21 +10,14 @@ ${k3s_config}
 K3SCFG
 
 %{ if is_control_plane ~}
-# Public IPv6 is assigned during server creation, so derive it on first boot.
-# It keeps Option B admin access valid while the LB private IP remains the
-# stable in-cluster API endpoint.
+# Public IPv6 is assigned during server creation, so derive it on first boot
+# and replace the marker rendered by Tofu in the tls-san list.
 public_ipv6="$(
   ip -6 addr show scope global dev eth0 |
     awk '/inet6/ { sub("/.*", "", $2); print $2; exit }'
 )"
 
-cat >> /etc/rancher/k3s/config.yaml << K3SCFG
-tls-san:
-  - "${lb_public_ip}"
-  - "${lb_private_ip}"
-  - "${node_private_ip}"
-  - "$${public_ipv6}"
-K3SCFG
+sed -i "s|${node_public_ipv6_san_marker}|$${public_ipv6}|g" /etc/rancher/k3s/config.yaml
 %{ endif ~}
 
 %{ if role == "worker" ~}
