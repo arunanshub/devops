@@ -1,0 +1,10 @@
+# Gateway API standard channel CRDs for ArgoCD steady-state reconciliation.
+# Keep this intentionally separate from kubernetes/bootstrap/gateway-api-crds
+# so bootstrap and ArgoCD ownership can evolve independently.
+#
+# Cilium 1.19.3 supports Gateway API v1.4.1. Bump this only after validating
+# the target Cilium version's Gateway API support.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.1/standard-install.yaml

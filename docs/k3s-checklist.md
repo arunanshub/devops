@@ -240,6 +240,7 @@ Operational note: eBPF means `iptables -L` is useless for debugging — use `cil
   - k3s `config.yaml` set at provision time via `init.sh.tpl`; node never ran Flannel
 - [x] Gateway API CRDs (standard channel v1.4.1) installed before Cilium bootstrap
   - Handled by `helmfile` via `gateway-api-crds` synthetic release; Cilium release has `needs: kube-system/gateway-api-crds`
+  - Reconciled after bootstrap by the separate `gateway-api-crds` ArgoCD Application; bootstrap and ArgoCD CRD paths intentionally evolve independently
 - [x] Cilium v1.19.3 (chart 1.19.3) deployed via helmfile bootstrap, adopted by ArgoCD
   - `kubeProxyReplacement: true`, `routingMode: native`, WireGuard encryption enabled
   - `hubble.tls.auto.method: cronJob` — deterministic cert renders, no ArgoCD OutOfSync churn

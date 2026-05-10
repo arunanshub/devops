@@ -209,7 +209,7 @@ Failed to pull image "quay.io/cilium/cilium:v1.19.3@sha256:...":
 
 **Cause.** Cilium's chart with `gatewayAPI.enabled: true` renders `GatewayClass` resources, but **does not install** the Gateway API CRDs themselves. Cilium 1.19 expects the **standard channel of v1.4.1**.
 
-**Fix.** Already wired in: `kubernetes/bootstrap/gateway-api-crds/kustomization.yaml` references the upstream `standard-install.yaml`, helmfile wraps the kustomization as a synthetic chart, and the cilium release `needs: kube-system/gateway-api-crds` so install order is enforced. If bumping Cilium past 1.19 in the future, **bump the URL** in that kustomization to match the new supported Gateway API version.
+**Fix.** Already wired in: `kubernetes/bootstrap/gateway-api-crds/kustomization.yaml` references the upstream `standard-install.yaml`, helmfile wraps the kustomization as a synthetic chart, and the cilium release `needs: kube-system/gateway-api-crds` so install order is enforced. ArgoCD steady-state reconciliation is intentionally separate under `kubernetes/infra/gateway-api-crds/`. If bumping Cilium past 1.19 in the future, **validate Cilium's supported Gateway API version and bump both URLs intentionally**.
 
 **Note.** This setup requires the `kustomize` CLI on `PATH` — already in `devbox.json`. If running outside `devbox shell`, you'll get a less-helpful error from helmfile.
 
