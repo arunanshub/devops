@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: git@github.com:arunanshub/devops.git
     targetRevision: master
-    path: kubernetes/monitoring/kube-prometheus-stack/secrets
+    path: kubernetes/monitoring/kube-prometheus-stack-secrets
 
   destination:
     server: https://kubernetes.default.svc
@@ -22,4 +22,5 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
+      - ServerSideApply=true
+      - CreateNamespace=false

@@ -5,4 +5,4 @@ resources:
   - namespace.yaml
   - appproject.yaml
   - kube-prometheus-stack/application.yaml
-  - sealedsecrets-application.yaml
+  - kube-prometheus-stack-secrets/application.yaml
