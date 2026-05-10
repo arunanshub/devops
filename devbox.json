@@ -2,6 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.17.0/.schema/devbox.schema.json",
   "packages": [
     "ansible@latest",
+    "go@1.26",
     "opentofu@latest",
     "hcloud@latest",
     "lefthook@latest",

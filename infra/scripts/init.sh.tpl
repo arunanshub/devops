@@ -36,23 +36,3 @@ until k3s kubectl get nodes &>/dev/null 2>&1; do
   sleep 5
 done
 %{ endif ~}
-
-# OS hardening: unattended security upgrades
-apt-get update -qq
-apt-get install -y --no-install-recommends unattended-upgrades lsb-release
-
-DISTRO_ID=$(lsb_release -is)
-DISTRO_CODENAME=$(lsb_release -cs)
-
-cat > /etc/apt/apt.conf.d/50unattended-upgrades << APTCONF
-Unattended-Upgrade::Allowed-Origins {
-    "$${DISTRO_ID}:$${DISTRO_CODENAME}-security";
-};
-Unattended-Upgrade::Automatic-Reboot "false";
-Unattended-Upgrade::Remove-Unused-Dependencies "true";
-APTCONF
-
-cat > /etc/apt/apt.conf.d/20auto-upgrades << 'APTCONF'
-APT::Periodic::Update-Package-Lists "1";
-APT::Periodic::Unattended-Upgrade "1";
-APTCONF

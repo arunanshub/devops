@@ -2,7 +2,7 @@ infra := justfile_dir() / "infra"
 k8s := justfile_dir() / "kubernetes"
 export KUBECONFIG := infra / "kubeconfig.yaml"
 ansible_dir := justfile_dir() / "ansible"
-ansible_inventory := ansible_dir / "inventory/tofu_inventory.py"
+ansible_inventory := ansible_dir / "inventory/tofu_inventory"
 ansible_playbooks := ansible_dir / "playbooks"
 ansible_env := "LC_ALL=C.UTF-8 LANG=C.UTF-8 ANSIBLE_CONFIG='" + ansible_dir / "ansible.cfg" + "'"
 
