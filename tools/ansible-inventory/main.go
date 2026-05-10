@@ -110,7 +110,7 @@ func main() {
 		SSHPrivateKeyPath: cfg.SSHPrivateKeyPath,
 		KnownHostsPath:    cfg.KnownHostsPath,
 	})
-	if err != nil {
+	if err != nil || inv == nil {
 		fmt.Fprintf(os.Stderr, "build inventory: %v\n", err)
 		os.Exit(1)
 	}
@@ -169,19 +169,19 @@ func loadOutputs(cfg config) (tofuOutputs, error) {
 	return outputs, nil
 }
 
-func buildInventory(outputs tofuOutputs, opts inventoryOptions) (inventory, error) {
+func buildInventory(outputs tofuOutputs, opts inventoryOptions) (*inventory, error) {
 	clusterName := cmp.Or(outputs.ClusterName.Value, defaultClusterName)
 	if len(outputs.NodeIPv6Addresses.Value) == 0 {
-		return inventory{}, errors.New("node_ipv6_addresses output is empty")
+		return nil, errors.New("node_ipv6_addresses output is empty")
 	}
 
 	sshPrivateKeyPath := cmp.Or(opts.SSHPrivateKeyPath, outputs.SSHPrivateKeyPath.Value, "~/.ssh/id_ed25519")
 	knownHostsPath, err := filepath.Abs(cmp.Or(opts.KnownHostsPath, defaultKnownHosts))
 	if err != nil {
-		return inventory{}, fmt.Errorf("resolve known hosts path: %w", err)
+		return nil, fmt.Errorf("resolve known hosts path: %w", err)
 	}
 
-	inv := inventory{
+	inv := &inventory{
 		Meta:          meta{Hostvars: map[string]hostvars{}},
 		K3sNodes:      group{Hosts: []string{}},
 		ControlPlanes: group{Hosts: []string{}},
@@ -196,12 +196,12 @@ func buildInventory(outputs tofuOutputs, opts inventoryOptions) (inventory, erro
 			role = inferredRole(nodeKey)
 		}
 		if !role.valid() {
-			return inventory{}, fmt.Errorf("node %q has unsupported role %q", nodeKey, role)
+			return nil, fmt.Errorf("node %q has unsupported role %q", nodeKey, role)
 		}
 
 		nodePrivateIP, ok := outputs.NodePrivateIPs.Value[nodeKey]
 		if !ok || nodePrivateIP == "" {
-			return inventory{}, fmt.Errorf("node %q is missing node_private_ips output", nodeKey)
+			return nil, fmt.Errorf("node %q is missing node_private_ips output", nodeKey)
 		}
 
 		inv.K3sNodes.Hosts = append(inv.K3sNodes.Hosts, hostname)
