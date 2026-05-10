@@ -2,7 +2,7 @@
   hosts: k3s_nodes
   gather_facts: true
   become: false
-  serial: 1
+  serial: "{{ baseline_batch_size | default('100%') }}"
   order: sorted
   roles:
     - baseline

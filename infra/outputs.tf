@@ -28,6 +28,11 @@ output "node_roles" {
   value       = { for k, v in var.nodes : k => v.role }
 }
 
+output "ssh_private_key_path" {
+  description = "Local private key path used for Ansible and kubeconfig retrieval."
+  value       = var.ssh_private_key_path
+}
+
 output "kubeconfig_path" {
   description = "Local path where kubeconfig was written."
   value       = "${path.module}/kubeconfig.yaml"

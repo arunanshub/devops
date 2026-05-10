@@ -15,6 +15,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TOFU_CHDIR = REPO_ROOT / "infra"
 DEFAULT_CLUSTER_NAME = "hetzner-k3s"
+KNOWN_HOSTS_FILE = REPO_ROOT / "infra" / ".ssh_known_hosts"
 
 
 def output_value(outputs: dict[str, Any], name: str, default: Any) -> Any:
@@ -43,6 +44,10 @@ def load_outputs() -> dict[str, Any]:
 def build_inventory(outputs: dict[str, Any]) -> dict[str, Any]:
     cluster_name = output_value(outputs, "cluster_name", DEFAULT_CLUSTER_NAME)
     api_lb_private_ip = output_value(outputs, "api_lb_private_ip", "")
+    ssh_private_key_path = os.environ.get(
+        "ANSIBLE_SSH_PRIVATE_KEY_FILE",
+        output_value(outputs, "ssh_private_key_path", "~/.ssh/id_ed25519"),
+    )
     node_ipv6_addresses = output_value(outputs, "node_ipv6_addresses", {})
     node_private_ips = output_value(outputs, "node_private_ips", {})
     node_roles = output_value(outputs, "node_roles", {})
@@ -67,7 +72,11 @@ def build_inventory(outputs: dict[str, Any]) -> dict[str, Any]:
         inventory["_meta"]["hostvars"][hostname] = {
             "ansible_host": node_ipv6_addresses[node_key],
             "ansible_user": "root",
-            "ansible_ssh_common_args": "-o StrictHostKeyChecking=accept-new",
+            "ansible_private_key_file": expand_home(ssh_private_key_path),
+            "ansible_ssh_common_args": (
+                "-o StrictHostKeyChecking=accept-new "
+                f"-o UserKnownHostsFile={KNOWN_HOSTS_FILE}"
+            ),
             "node_key": node_key,
             "node_role": role,
             "node_private_ip": node_private_ips.get(node_key, ""),
@@ -84,6 +93,10 @@ def inferred_role(node_key: str) -> str:
     if node_key.startswith("worker-"):
         return "worker"
     return "unknown"
+
+
+def expand_home(path: str) -> str:
+    return str(Path(path).expanduser())
 
 
 def main() -> int:

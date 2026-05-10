@@ -2,6 +2,9 @@ infra := justfile_dir() / "infra"
 k8s := justfile_dir() / "kubernetes"
 export KUBECONFIG := infra / "kubeconfig.yaml"
 ansible_dir := justfile_dir() / "ansible"
+ansible_inventory := ansible_dir / "inventory/tofu_inventory.py"
+ansible_playbooks := ansible_dir / "playbooks"
+ansible_env := "LC_ALL=C.UTF-8 LANG=C.UTF-8 ANSIBLE_CONFIG='" + ansible_dir / "ansible.cfg" + "'"
 
 # Internal API endpoint used by Cilium and other in-cluster components.
 # Points at the API server LB private IP, not a specific node.
@@ -48,15 +51,26 @@ argocd-bootstrap: hcloud-secret-bootstrap
 
 @ansible-inventory:
     cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
-        "ANSIBLE_CONFIG='{{ ansible_dir / "ansible.cfg" }}' '{{ ansible_dir / "inventory/tofu_inventory.py" }}' --list"
+        "{{ ansible_env }} '{{ ansible_inventory }}' --list"
+
+@ansible-check playbook="site":
+    test -f "{{ ansible_playbooks }}/{{ playbook }}.yml"
+    cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
+        "{{ ansible_env }} ansible-playbook -i '{{ ansible_inventory }}' '{{ ansible_playbooks }}/{{ playbook }}.yml' --check --diff"
+
+ansible-converge playbook="site":
+    test -f "{{ ansible_playbooks }}/{{ playbook }}.yml"
+    cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
+        "{{ ansible_env }} ansible-playbook -i '{{ ansible_inventory }}' '{{ ansible_playbooks }}/{{ playbook }}.yml'"
+
+ansible-apply playbook="site":
+    just ansible-converge "{{ playbook }}"
 
 @ansible-baseline-check:
-    cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
-        "ANSIBLE_CONFIG='{{ ansible_dir / "ansible.cfg" }}' ansible-playbook -i '{{ ansible_dir / "inventory/tofu_inventory.py" }}' '{{ ansible_dir / "playbooks/baseline.yml" }}' --check --diff"
+    just ansible-check baseline
 
 ansible-baseline:
-    cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
-        "ANSIBLE_CONFIG='{{ ansible_dir / "ansible.cfg" }}' ansible-playbook -i '{{ ansible_dir / "inventory/tofu_inventory.py" }}' '{{ ansible_dir / "playbooks/baseline.yml" }}'"
+    just ansible-converge baseline
 
 # Restore the sealed-secrets master key from the offline backup.
 # Must run BEFORE ArgoCD syncs any SealedSecret resources on a rebuilt cluster.

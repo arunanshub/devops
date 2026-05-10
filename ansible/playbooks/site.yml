@@ -1,0 +1,2 @@
+- name: Apply baseline host configuration
+  ansible.builtin.import_playbook: baseline.yml

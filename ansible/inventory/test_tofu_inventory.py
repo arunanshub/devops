@@ -42,6 +42,11 @@ def tofu_outputs(nodes: dict[str, dict[str, str]]) -> dict[str, object]:
             "type": ["object"],
             "value": {key: node["role"] for key, node in nodes.items()},
         },
+        "ssh_private_key_path": {
+            "sensitive": False,
+            "type": "string",
+            "value": "~/.ssh/id_ed25519",
+        },
     }
 
 
@@ -112,6 +117,7 @@ class TofuInventoryTest(unittest.TestCase):
         self.assertEqual(hostvars["node_private_ip"], "10.0.0.2")
         self.assertEqual(hostvars["kubernetes_node_name"], "hetzner-k3s-cp-1")
         self.assertEqual(hostvars["api_lb_private_ip"], "10.0.0.100")
+        self.assertTrue(hostvars["ansible_private_key_file"].endswith("/.ssh/id_ed25519"))
 
     def test_removed_nodes_disappear_when_outputs_change(self) -> None:
         inventory = render_inventory(
