@@ -1,0 +1,8 @@
+- name: Converge baseline host configuration
+  hosts: k3s_nodes
+  gather_facts: true
+  become: false
+  serial: 1
+  order: sorted
+  roles:
+    - baseline

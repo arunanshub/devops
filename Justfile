@@ -1,6 +1,7 @@
 infra := justfile_dir() / "infra"
 k8s := justfile_dir() / "kubernetes"
 export KUBECONFIG := infra / "kubeconfig.yaml"
+ansible_dir := justfile_dir() / "ansible"
 
 # Internal API endpoint used by Cilium and other in-cluster components.
 # Points at the API server LB private IP, not a specific node.
@@ -44,6 +45,18 @@ argocd-bootstrap: hcloud-secret-bootstrap
 
 @argocd-root-bootstrap:
     kubectl apply -f "{{ k8s / "root-application.yaml" }}"
+
+@ansible-inventory:
+    cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
+        "ANSIBLE_CONFIG='{{ ansible_dir / "ansible.cfg" }}' '{{ ansible_dir / "inventory/tofu_inventory.py" }}' --list"
+
+@ansible-baseline-check:
+    cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
+        "ANSIBLE_CONFIG='{{ ansible_dir / "ansible.cfg" }}' ansible-playbook -i '{{ ansible_dir / "inventory/tofu_inventory.py" }}' '{{ ansible_dir / "playbooks/baseline.yml" }}' --check --diff"
+
+ansible-baseline:
+    cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
+        "ANSIBLE_CONFIG='{{ ansible_dir / "ansible.cfg" }}' ansible-playbook -i '{{ ansible_dir / "inventory/tofu_inventory.py" }}' '{{ ansible_dir / "playbooks/baseline.yml" }}'"
 
 # Restore the sealed-secrets master key from the offline backup.
 # Must run BEFORE ArgoCD syncs any SealedSecret resources on a rebuilt cluster.

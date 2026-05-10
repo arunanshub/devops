@@ -1,6 +1,9 @@
 *.tfstate
 *.tfstate.backup
 kubeconfig.yaml
+*.retry
+.ansible/
+__pycache__/
  
 # OpenTofu working directory
 .terraform/

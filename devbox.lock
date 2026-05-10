@@ -49,6 +49,70 @@
         }
       }
     },
+    "ansible@latest": {
+      "last_modified": "2026-04-28T17:03:49Z",
+      "resolved": "github:NixOS/nixpkgs/e75f25705c2934955ee5075e62530d74aca973c6#ansible",
+      "source": "devbox-search",
+      "version": "2.20.5",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/403vsawq84i4wp671d31ai5aqx2f2m5z-python3.13-ansible-core-2.20.5",
+              "default": true
+            },
+            {
+              "name": "dist",
+              "path": "/nix/store/sb2mqvs46748xkbvhm1zjlwn1867b8yk-python3.13-ansible-core-2.20.5-dist"
+            }
+          ],
+          "store_path": "/nix/store/403vsawq84i4wp671d31ai5aqx2f2m5z-python3.13-ansible-core-2.20.5"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/isq8ia232pzg3d0j8jirpzg0vk2rkwqr-python3.13-ansible-core-2.20.5",
+              "default": true
+            },
+            {
+              "name": "dist",
+              "path": "/nix/store/dyxvjzzqv3xy00fki7h28ssrnhjkb4lj-python3.13-ansible-core-2.20.5-dist"
+            }
+          ],
+          "store_path": "/nix/store/isq8ia232pzg3d0j8jirpzg0vk2rkwqr-python3.13-ansible-core-2.20.5"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/9d5rcpl1v3kdhrb2i98mbszznahya95z-python3.13-ansible-core-2.20.5",
+              "default": true
+            },
+            {
+              "name": "dist",
+              "path": "/nix/store/ld4j29y7irnkyq218qlyz510jqwcbrnj-python3.13-ansible-core-2.20.5-dist"
+            }
+          ],
+          "store_path": "/nix/store/9d5rcpl1v3kdhrb2i98mbszznahya95z-python3.13-ansible-core-2.20.5"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/4h0my97h4r2k38h28nyb6ha2j29gzcc1-python3.13-ansible-core-2.20.5",
+              "default": true
+            },
+            {
+              "name": "dist",
+              "path": "/nix/store/8yb21vsljm78zcsmr06xlhgkq9j8vim7-python3.13-ansible-core-2.20.5-dist"
+            }
+          ],
+          "store_path": "/nix/store/4h0my97h4r2k38h28nyb6ha2j29gzcc1-python3.13-ansible-core-2.20.5"
+        }
+      }
+    },
     "apacheHttpd@latest": {
       "last_modified": "2026-04-27T06:11:55Z",
       "plugin_version": "0.0.2",
