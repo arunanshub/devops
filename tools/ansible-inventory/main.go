@@ -1,10 +1,12 @@
 package main
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,7 +18,7 @@ import (
 
 const (
 	defaultClusterName = "hetzner-k3s"
-	defaultTofuChdir   = "infra"
+	defaultKnownHosts  = "infra/.ssh_known_hosts"
 )
 
 type output[T any] struct {
@@ -76,14 +78,15 @@ type hostvars struct {
 }
 
 type inventoryOptions struct {
-	RepoRoot              string
-	SSHPrivateKeyOverride string
+	SSHPrivateKeyPath string
+	KnownHostsPath    string
 }
 
 type config struct {
-	TofuOutputsPath       string `env:"ANSIBLE_TOFU_OUTPUTS"`
-	TofuChdir             string `env:"TOFU_CHDIR"`
-	SSHPrivateKeyOverride string `env:"ANSIBLE_SSH_PRIVATE_KEY_FILE"`
+	TofuOutputsPath   string `env:"ANSIBLE_TOFU_OUTPUTS"`
+	TofuChdir         string `env:"TOFU_CHDIR" envDefault:"infra"`
+	SSHPrivateKeyPath string `env:"ANSIBLE_SSH_PRIVATE_KEY_FILE"`
+	KnownHostsPath    string `env:"ANSIBLE_KNOWN_HOSTS_FILE" envDefault:"infra/.ssh_known_hosts"`
 }
 
 func main() {
@@ -104,8 +107,8 @@ func main() {
 	}
 
 	inv, err := buildInventory(outputs, inventoryOptions{
-		RepoRoot:              repoRoot(),
-		SSHPrivateKeyOverride: cfg.SSHPrivateKeyOverride,
+		SSHPrivateKeyPath: cfg.SSHPrivateKeyPath,
+		KnownHostsPath:    cfg.KnownHostsPath,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "build inventory: %v\n", err)
@@ -154,12 +157,7 @@ func loadOutputs(cfg config) (tofuOutputs, error) {
 		return outputs, nil
 	}
 
-	tofuChdir := cfg.TofuChdir
-	if tofuChdir == "" {
-		tofuChdir = filepath.Join(repoRoot(), defaultTofuChdir)
-	}
-
-	cmd := exec.Command("tofu", "-chdir="+tofuChdir, "output", "-json")
+	cmd := exec.Command("tofu", "-chdir="+cfg.TofuChdir, "output", "-json")
 	cmd.Stderr = os.Stderr
 	data, err := cmd.Output()
 	if err != nil {
@@ -172,20 +170,15 @@ func loadOutputs(cfg config) (tofuOutputs, error) {
 }
 
 func buildInventory(outputs tofuOutputs, opts inventoryOptions) (inventory, error) {
-	clusterName := outputs.ClusterName.Value
-	if clusterName == "" {
-		clusterName = defaultClusterName
-	}
+	clusterName := cmp.Or(outputs.ClusterName.Value, defaultClusterName)
 	if len(outputs.NodeIPv6Addresses.Value) == 0 {
 		return inventory{}, errors.New("node_ipv6_addresses output is empty")
 	}
 
-	sshPrivateKeyPath := opts.SSHPrivateKeyOverride
-	if sshPrivateKeyPath == "" {
-		sshPrivateKeyPath = outputs.SSHPrivateKeyPath.Value
-	}
-	if sshPrivateKeyPath == "" {
-		sshPrivateKeyPath = "~/.ssh/id_ed25519"
+	sshPrivateKeyPath := cmp.Or(opts.SSHPrivateKeyPath, outputs.SSHPrivateKeyPath.Value, "~/.ssh/id_ed25519")
+	knownHostsPath, err := filepath.Abs(cmp.Or(opts.KnownHostsPath, defaultKnownHosts))
+	if err != nil {
+		return inventory{}, fmt.Errorf("resolve known hosts path: %w", err)
 	}
 
 	inv := inventory{
@@ -195,7 +188,7 @@ func buildInventory(outputs tofuOutputs, opts inventoryOptions) (inventory, erro
 		Workers:       group{Hosts: []string{}},
 	}
 
-	nodeKeys := sortedKeys(outputs.NodeIPv6Addresses.Value)
+	nodeKeys := slices.Sorted(maps.Keys(outputs.NodeIPv6Addresses.Value))
 	for _, nodeKey := range nodeKeys {
 		hostname := clusterName + "-" + string(nodeKey)
 		role := outputs.NodeRoles.Value[nodeKey]
@@ -223,7 +216,7 @@ func buildInventory(outputs tofuOutputs, opts inventoryOptions) (inventory, erro
 			AnsibleHost:           string(outputs.NodeIPv6Addresses.Value[nodeKey]),
 			AnsibleUser:           "root",
 			AnsiblePrivateKeyFile: expandHome(sshPrivateKeyPath),
-			AnsibleSSHCommonArgs:  sshCommonArgs(opts.RepoRoot),
+			AnsibleSSHCommonArgs:  sshCommonArgs(knownHostsPath),
 			NodeKey:               string(nodeKey),
 			NodeRole:              string(role),
 			NodePrivateIP:         string(nodePrivateIP),
@@ -233,15 +226,6 @@ func buildInventory(outputs tofuOutputs, opts inventoryOptions) (inventory, erro
 	}
 
 	return inv, nil
-}
-
-func sortedKeys(values nodeIPv6Addresses) []nodeKey {
-	keys := make([]nodeKey, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
 }
 
 func inferredRole(nodeKey nodeKey) nodeRole {
@@ -264,12 +248,8 @@ func (role nodeRole) valid() bool {
 	}
 }
 
-func sshCommonArgs(repoRootPath string) string {
-	if repoRootPath == "" {
-		repoRootPath = repoRoot()
-	}
-	knownHosts := filepath.Join(repoRootPath, "infra", ".ssh_known_hosts")
-	return "-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=" + knownHosts
+func sshCommonArgs(knownHostsPath string) string {
+	return "-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=" + knownHostsPath
 }
 
 func expandHome(path string) string {
@@ -286,30 +266,4 @@ func expandHome(path string) string {
 		}
 	}
 	return path
-}
-
-func repoRoot() string {
-	wd, err := os.Getwd()
-	if err != nil {
-		return "."
-	}
-	root, err := findUp(wd, "go.mod")
-	if err != nil {
-		return wd
-	}
-	return root
-}
-
-func findUp(start string, marker string) (string, error) {
-	current := start
-	for {
-		if _, err := os.Stat(filepath.Join(current, marker)); err == nil {
-			return current, nil
-		}
-		parent := filepath.Dir(current)
-		if parent == current {
-			return "", errors.New("repo root not found")
-		}
-		current = parent
-	}
 }
