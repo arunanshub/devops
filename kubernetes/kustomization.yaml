@@ -1,0 +1,11 @@
+# Safety redirect — ensures `kustomize build kubernetes/` always renders via the prod overlay
+# rather than falling back to ArgoCD plain-directory mode (which would apply root-application.yaml
+# as a raw resource and trigger a self-prune cascade).
+#
+# The canonical ArgoCD entry point is kubernetes/overlays/prod (set in root-application.yaml).
+# This file exists purely as a guard against accidental source-path reversion.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - overlays/prod

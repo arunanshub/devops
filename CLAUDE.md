@@ -8,10 +8,11 @@ A self-managed k3s cluster on Hetzner Cloud, declared in OpenTofu and reconciled
 
 - `infra/` — OpenTofu provisioning the Hetzner nodes, network, firewall, SSH key, API load balancer; writes `infra/kubeconfig.yaml` to disk for local use
 - `kubernetes/bootstrap/` — helmfile + SOPS-encrypted secrets that run **once** to install the cluster's foundational components
-- `kubernetes/infra/` — ArgoCD `Application` manifests that take over after bootstrap (app-of-apps via `kubernetes/root-application.yaml`)
-- `kubernetes/monitoring/` — same pattern, but for kube-prometheus-stack
+- `kubernetes/base/infra/` — ArgoCD `Application` manifests that take over after bootstrap (app-of-apps via `kubernetes/root-application.yaml`)
+- `kubernetes/base/monitoring/` — same pattern, but for kube-prometheus-stack
+- `kubernetes/overlays/prod/` — production kustomize overlay; this is what `kubernetes/root-application.yaml` points ArgoCD at (`path: kubernetes/overlays/prod`)
 
-A second repo (`git@github.com:arunanshub/devops.git`) holds the non-secret Helm values consumed by the ArgoCD Applications via the multi-source `$values` pattern. The Applications reference values files at paths like `$values/kubernetes/infra/<app>/values.yaml`, which resolve into that other repo.
+This repo's git remote is `git@github.com:arunanshub/devops.git` — the same URL ArgoCD reads from. The multi-source `$values` pattern references values files at paths like `$values/kubernetes/base/infra/<app>/values.yaml` from this repo.
 
 ## Tooling
 
@@ -37,7 +38,7 @@ After step 5, ArgoCD owns the cluster. **Do not re-run `just argocd-bootstrap` a
 
 ### Helmfile→ArgoCD adoption
 
-Cilium, hccm, and ArgoCD are installed by `kubernetes/bootstrap/helmfile.yaml`, then **adopted** by ArgoCD via `Application` manifests under `kubernetes/infra/<app>/`. For adoption to be a no-op diff under `ServerSideApply=true`:
+Cilium, hccm, and ArgoCD are installed by `kubernetes/bootstrap/helmfile.yaml`, then **adopted** by ArgoCD via `Application` manifests under `kubernetes/base/infra/<app>/`. For adoption to be a no-op diff under `ServerSideApply=true`:
 
 - `helm.releaseName` in the ArgoCD `Application` must equal the helmfile release `name`. Helm derives `app.kubernetes.io/instance` (a selector label) from this — selectors are immutable, so a mismatch produces a permanent reconcile failure on `Deployment.spec.selector`.
 - The bootstrap values file and the ArgoCD values file must **render to identical manifests**. The bootstrap file may be `.yaml.gotmpl` (helmfile-rendered, e.g. reading `K8S_API_ENDPOINT` from env); the ArgoCD file is plain YAML with the literal value. Both must produce the same output.
@@ -60,11 +61,11 @@ When creating SealedSecret-bound or SOPS-bound Secret manifests, **strip runtime
 
 ## Adding a new app under ArgoCD
 
-1. Create `kubernetes/infra/<app>/application.yaml` and a sibling `values.yaml` (the values file is also referenced from `git@github.com:arunanshub/devops.git` via `$values` — keep both repos in sync if it's also referenced there)
-2. Add the new path to `kubernetes/infra/kustomization.yaml`
-3. Add the chart's `repoURL` to `kubernetes/infra/appproject.yaml` `sourceRepos`
+1. Create `kubernetes/base/infra/<app>/application.yaml` and a sibling `values.yaml`
+2. Add the new path to `kubernetes/base/infra/kustomization.yaml`
+3. Add the chart's `repoURL` to `kubernetes/base/infra/appproject.yaml` `sourceRepos`
 4. If the app deploys to a namespace not yet in the AppProject `destinations`, add it
-5. Commit; ArgoCD picks it up on next reconcile
+5. Commit; ArgoCD picks it up on next reconcile via `kubernetes/overlays/prod`
 
 ## Network architecture (Hetzner-specific)
 
@@ -88,3 +89,4 @@ When creating SealedSecret-bound or SOPS-bound Secret manifests, **strip runtime
 - Do not commit kubeconfig.yaml (already in `.gitignore`).
 - Do not generate SOPS-encrypted Secret YAMLs from `kubectl get -o yaml` without stripping runtime metadata first.
 - Do not change `helm.releaseName` on a live ArgoCD Application without also expecting to delete and recreate the underlying `Deployment` (selector immutability).
+- Do not change the kustomize source path of the root Application (in `kubernetes/root-application.yaml`) and push in the same commit that restructures the directory layout. ArgoCD reads the in-cluster Application object's source, not the file. If the in-cluster source still points at the old path and the old `kustomization.yaml` is gone, ArgoCD falls back to plain-directory mode, applies any YAML it finds directly (including `root-application.yaml`), and with `prune: true` can delete all managed apps — and the root Application itself. The safe order: re-apply `kubernetes/root-application.yaml` via `just argocd-root-bootstrap` **before** pushing the commit that removes the old kustomization entry point. See `docs/kustomize-overlay-restructure.md`.
