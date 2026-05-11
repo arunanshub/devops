@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: git@github.com:arunanshub/devops.git
     targetRevision: master
-    path: kubernetes/infra/hcloud-secret
+    path: kubernetes/base/infra/hcloud-secret
 
   destination:
     server: https://kubernetes.default.svc

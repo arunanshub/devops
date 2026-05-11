@@ -1,21 +1,21 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: kured
+  name: kube-prometheus-stack
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-wave: "1"
 spec:
-  project: infra
+  project: monitoring
 
   sources:
-    - repoURL: https://kubereboot.github.io/charts
-      chart: kured
-      targetRevision: 5.11.0
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 84.5.0
       helm:
-        releaseName: kured
+        releaseName: kube-prometheus-stack
         valueFiles:
-          - $values/kubernetes/infra/kured/values.yaml
+          - $values/kubernetes/base/monitoring/kube-prometheus-stack/values.yaml
 
     - repoURL: git@github.com:arunanshub/devops.git
       targetRevision: master
@@ -23,7 +23,7 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: kube-system
+    namespace: monitoring
 
   syncPolicy:
     automated:

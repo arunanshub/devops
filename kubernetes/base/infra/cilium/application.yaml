@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cilium
+  namespace: argocd
+  annotations:
+    # Cilium is the cluster network — must reconcile before hccm (wave 2) and
+    # before any workload-bearing app.
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: infra
+
+  sources:
+    - repoURL: https://helm.cilium.io/
+      chart: cilium
+      targetRevision: 1.19.3
+      helm:
+        releaseName: cilium
+        valueFiles:
+          - $values/kubernetes/base/infra/cilium/values.yaml
+
+    - repoURL: git@github.com:arunanshub/devops.git
+      targetRevision: master
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      # Required to adopt the Helm release installed by helmfile during bootstrap.
+      - ServerSideApply=true

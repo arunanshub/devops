@@ -1,4 +1,4 @@
-# kubernetes/infra/appproject.yaml
+# kubernetes/base/infra/appproject.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:

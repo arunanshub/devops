@@ -15,7 +15,7 @@ spec:
       helm:
         releaseName: hccm
         valueFiles:
-          - $values/kubernetes/infra/hcloud-ccm/values.yaml
+          - $values/kubernetes/base/infra/hcloud-ccm/values.yaml
 
     - repoURL: git@github.com:arunanshub/devops.git
       targetRevision: master

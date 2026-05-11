@@ -1,23 +1,26 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: k3s-upgrade-plans
+  name: monitoring-secrets
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: infra
+  project: monitoring
 
   source:
     repoURL: git@github.com:arunanshub/devops.git
     targetRevision: master
-    path: kubernetes/infra/system-upgrade-controller/plans
+    path: kubernetes/base/monitoring/kube-prometheus-stack-secrets
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: system-upgrade
+    namespace: monitoring
 
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=false

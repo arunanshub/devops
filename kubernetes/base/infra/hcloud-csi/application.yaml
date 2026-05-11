@@ -15,7 +15,7 @@ spec:
       helm:
         releaseName: hcloud-csi
         valueFiles:
-          - $values/kubernetes/infra/hcloud-csi/values.yaml
+          - $values/kubernetes/base/infra/hcloud-csi/values.yaml
 
     - repoURL: git@github.com:arunanshub/devops.git
       targetRevision: master

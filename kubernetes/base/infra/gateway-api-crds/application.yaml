@@ -1,26 +1,27 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: monitoring-secrets
+  name: gateway-api-crds
   namespace: argocd
   annotations:
+    # Gateway API CRDs must exist before Cilium renders GatewayClass resources.
     argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: monitoring
+  project: infra
 
   source:
     repoURL: git@github.com:arunanshub/devops.git
     targetRevision: master
-    path: kubernetes/monitoring/kube-prometheus-stack-secrets
+    path: kubernetes/base/infra/gateway-api-crds
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: monitoring
+    namespace: kube-system
 
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - ServerSideApply=true
       - CreateNamespace=false
+      - ServerSideApply=true

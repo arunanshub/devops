@@ -14,7 +14,7 @@ spec:
       helm:
         releaseName: argocd
         valueFiles:
-          - $values/kubernetes/infra/argocd/values.yaml
+          - $values/kubernetes/base/infra/argocd/values.yaml
 
     - repoURL: git@github.com:arunanshub/devops.git
       targetRevision: master

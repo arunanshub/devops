@@ -5,7 +5,7 @@
 # as the release "gateway-api-crds" before Cilium, so gatewayAPI.enabled=true
 # can render GatewayClass resources.
 #
-# Keep this intentionally separate from kubernetes/infra/gateway-api-crds so
+# Keep this intentionally separate from kubernetes/base/infra/gateway-api-crds so
 # bootstrap and ArgoCD ownership can evolve independently.
 #
 # Bump the URL in lockstep with the Cilium minor version. Add the experimental
