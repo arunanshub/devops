@@ -20,8 +20,16 @@ monitoring:
     labels:
       release: kube-prometheus-stack
 
-# Single node, single replica is correct. Leader election only kicks in at >1.
-replicaCount: 1
+replicaCount: 3
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: hcloud-cloud-controller-manager
+            app.kubernetes.io/instance: hccm
+        topologyKey: kubernetes.io/hostname
 
 # Already default, but explicit is better than implicit.
 priorityClassName: system-cluster-critical
