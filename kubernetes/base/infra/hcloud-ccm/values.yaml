@@ -20,6 +20,12 @@ monitoring:
     labels:
       release: kube-prometheus-stack
 
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
+
 replicaCount: 3
 
 affinity:
