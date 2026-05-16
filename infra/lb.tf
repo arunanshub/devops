@@ -11,10 +11,8 @@ resource "hcloud_load_balancer" "api" {
   name               = "${local.cluster_name}-api-lb"
   load_balancer_type = "lb11"
 
-  # Colocate with the bootstrap node — LB and targets must be in the same
-  # network zone (eu-central). Using bootstrap node's location avoids
-  # hardcoding while keeping the value declarative.
-  location = var.nodes[var.bootstrap_node].location
+  # Must be in the same network zone (eu-central) as all nodes.
+  location = "hel1"
 
   labels = { cluster = local.cluster_name }
 }

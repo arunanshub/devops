@@ -69,6 +69,12 @@ variable "nodes" {
   }
 }
 
+variable "is_cluster_initialized" {
+  type        = bool
+  default     = false
+  description = "Set to true after initial bootstrap. Prevents cluster-init on bootstrap node recreation, avoiding split-brain if the bootstrap node is ever destroyed and rebuilt."
+}
+
 variable "bootstrap_node" {
   type        = string
   description = "Key from var.nodes that bootstraps the cluster with --cluster-init. Must have a CP role."

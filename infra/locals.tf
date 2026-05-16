@@ -37,8 +37,8 @@ locals {
       "disable"                  = contains(keys(local.cp_nodes), k) ? ["traefik", "servicelb"] : null
       "disable-cloud-controller" = contains(keys(local.cp_nodes), k) ? true : null
       "tls-san"                  = contains(keys(local.cp_nodes), k) ? local.cp_tls_sans[k] : null
-      "cluster-init"             = k == var.bootstrap_node ? true : null
-      "server"                   = k == var.bootstrap_node ? null : "https://${local.lb_private_ip}:6443"
+      "cluster-init"             = (k == var.bootstrap_node && !var.is_cluster_initialized) ? true : null
+      "server"                   = (k == var.bootstrap_node && !var.is_cluster_initialized) ? null : "https://${local.lb_private_ip}:6443"
     }
   }
 

@@ -31,7 +31,7 @@ curl -sfL https://get.k3s.io \
 %{ if is_bootstrap ~}
 # Bootstrap node only: wait until the API server is reachable.
 # Joining nodes will retry their connection to the LB naturally — no wait needed.
-until k3s kubectl get nodes &>/dev/null 2>&1; do
+until k3s kubectl get nodes &>/dev/null; do
   echo "waiting for API server..."
   sleep 5
 done

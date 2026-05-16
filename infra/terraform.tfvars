@@ -1,4 +1,5 @@
-bootstrap_node = "cp-1"
+bootstrap_node         = "cp-1"
+is_cluster_initialized = true
 
 # Cluster topology. To add a node: add an entry, run tofu apply.
 # To remove a node: drain it first, then remove the entry and apply.
