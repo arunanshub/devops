@@ -1,8 +1,3 @@
-output "api_lb_public_ip" {
-  description = "Public IPv4 of the API server load balancer. Reserved for future admin HA; current kubeconfig uses the bootstrap CP IPv6."
-  value       = hcloud_load_balancer.api.ipv4
-}
-
 output "api_lb_private_ip" {
   description = "Private IPv4 of the API server load balancer within the cluster network."
   value       = local.lb_private_ip
@@ -31,14 +26,4 @@ output "node_roles" {
 output "ssh_private_key_path" {
   description = "Local private key path used for Ansible and kubeconfig retrieval."
   value       = var.ssh_private_key_path
-}
-
-output "kubeconfig_path" {
-  description = "Local path where kubeconfig was written."
-  value       = "${path.module}/kubeconfig.yaml"
-}
-
-output "bootstrap_node_ipv6" {
-  description = "Public IPv6 of the bootstrap control plane used by the generated kubeconfig."
-  value       = hcloud_server.nodes[var.bootstrap_node].ipv6_address
 }

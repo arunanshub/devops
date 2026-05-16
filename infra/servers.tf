@@ -29,7 +29,6 @@ resource "hcloud_server" "nodes" {
     k3s_config                  = yamlencode(local.k3s_configs[each.key])
     k3s_version                 = local.k3s_version
     is_bootstrap                = each.key == var.bootstrap_node
-    is_control_plane            = contains(keys(local.cp_nodes), each.key)
     node_public_ipv6_san_marker = local.node_public_ipv6_san_marker
     role                        = each.value.role
   })

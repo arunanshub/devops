@@ -83,13 +83,8 @@ variable "bootstrap_node" {
     condition     = contains(keys(var.nodes), var.bootstrap_node)
     error_message = "bootstrap_node must be a key in var.nodes."
   }
-}
 
-# Cross-variable assertion: bootstrap node must have a CP role.
-# Cannot be expressed inside a variable{} validation block because HCL
-# does not allow referencing a second variable from within validation{}.
-check "bootstrap_node_has_cp_role" {
-  assert {
+  validation {
     condition     = contains(["cp_only", "cp_worker"], var.nodes[var.bootstrap_node].role)
     error_message = "bootstrap_node '${var.bootstrap_node}' must have role cp_only or cp_worker."
   }

@@ -22,7 +22,7 @@ resource "hcloud_firewall" "main" {
 
 resource "hcloud_firewall_attachment" "main" {
   firewall_id = hcloud_firewall.main.id
-  server_ids  = [for k, v in hcloud_server.nodes : v.id]
+  server_ids  = values(hcloud_server.nodes)[*].id
 }
 
 resource "hcloud_firewall" "control_plane_api" {
@@ -40,5 +40,5 @@ resource "hcloud_firewall" "control_plane_api" {
 
 resource "hcloud_firewall_attachment" "control_plane_api" {
   firewall_id = hcloud_firewall.control_plane_api.id
-  server_ids  = [for k, v in hcloud_server.nodes : v.id if contains(keys(local.cp_nodes), k)]
+  server_ids  = [for k in keys(local.cp_nodes) : hcloud_server.nodes[k].id]
 }
