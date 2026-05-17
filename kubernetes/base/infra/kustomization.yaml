@@ -14,3 +14,4 @@ resources:
   - hcloud-ccm/application.yaml
   - hcloud-csi/application.yaml
   - cert-manager/application.yaml
+  - vpa/application.yaml
