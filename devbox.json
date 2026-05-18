@@ -12,7 +12,7 @@
     "terragrunt@latest",
     "just@latest",
     "helmfile@latest",
-    "apacheHttpd@latest",
+    "apacheHttpd@2.4.67",
     "kubeseal@0.36.0",
     "shellcheck@latest",
     "yamlfmt@latest",

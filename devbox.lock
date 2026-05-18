@@ -113,104 +113,104 @@
         }
       }
     },
-    "apacheHttpd@latest": {
-      "last_modified": "2026-04-27T06:11:55Z",
+    "apacheHttpd@2.4.67": {
+      "last_modified": "2026-05-15T18:21:44Z",
       "plugin_version": "0.0.2",
-      "resolved": "github:NixOS/nixpkgs/6368eda62c9775c38ef7f714b2555a741c20c72d#apacheHttpd",
+      "resolved": "github:NixOS/nixpkgs/d233902339c02a9c334e7e593de68855ad26c4cb#apacheHttpd",
       "source": "devbox-search",
-      "version": "2.4.66",
+      "version": "2.4.67",
       "systems": {
         "aarch64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/n1mn3dikgcyiv19jh9mpx97rdfxpbp99-apache-httpd-2.4.66",
+              "path": "/nix/store/6w0znv3vka1shyh131xyahjca3nl53fp-apache-httpd-2.4.67",
               "default": true
             },
             {
               "name": "man",
-              "path": "/nix/store/45036fix4mj02v0kcw3cb6j9x4h9d74b-apache-httpd-2.4.66-man",
+              "path": "/nix/store/q6s5x95nrb1f5zhlxgcgj8z7w9gpl26i-apache-httpd-2.4.67-man",
               "default": true
             },
             {
               "name": "dev",
-              "path": "/nix/store/hhxkrkz3inghwwwizgjdxd0wvqkz59xc-apache-httpd-2.4.66-dev"
+              "path": "/nix/store/kmah3jhfb0xb5x11ypmxi0jqy91qnng4-apache-httpd-2.4.67-dev"
             },
             {
               "name": "doc",
-              "path": "/nix/store/cyh72kj31rrb7ca2c04w3z7q77msdmjm-apache-httpd-2.4.66-doc"
+              "path": "/nix/store/vdx0sgkc108ig3ljndgz32h24syjhbsx-apache-httpd-2.4.67-doc"
             }
           ],
-          "store_path": "/nix/store/n1mn3dikgcyiv19jh9mpx97rdfxpbp99-apache-httpd-2.4.66"
+          "store_path": "/nix/store/6w0znv3vka1shyh131xyahjca3nl53fp-apache-httpd-2.4.67"
         },
         "aarch64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/bxhlhzgkn3kmi5qy2mgkf85579w6xhfm-apache-httpd-2.4.66",
+              "path": "/nix/store/5f4g09aqdbj88kh8589nciyhipijkbnd-apache-httpd-2.4.67",
               "default": true
             },
             {
               "name": "man",
-              "path": "/nix/store/zav9b4c4l85y5yk0gjmnxwjgl8axl7nw-apache-httpd-2.4.66-man",
+              "path": "/nix/store/rxdkz9va6g4i8i0yr8bzdz39wrybiwg9-apache-httpd-2.4.67-man",
               "default": true
             },
             {
               "name": "dev",
-              "path": "/nix/store/yl1p5rhcz0aglh7glf1jprsaaripk52y-apache-httpd-2.4.66-dev"
+              "path": "/nix/store/7gk8z8xgrv0ycsr8cjadqw9g955y2ypi-apache-httpd-2.4.67-dev"
             },
             {
               "name": "doc",
-              "path": "/nix/store/7022gd9yh34h6pw6q83h290im9r8xgii-apache-httpd-2.4.66-doc"
+              "path": "/nix/store/xbj9fxyw0nz6bm9jsbh53lvn8fzfm4a6-apache-httpd-2.4.67-doc"
             }
           ],
-          "store_path": "/nix/store/bxhlhzgkn3kmi5qy2mgkf85579w6xhfm-apache-httpd-2.4.66"
+          "store_path": "/nix/store/5f4g09aqdbj88kh8589nciyhipijkbnd-apache-httpd-2.4.67"
         },
         "x86_64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/ndz7hra3d4xrqwr8lxqd36xshmm91r9d-apache-httpd-2.4.66",
+              "path": "/nix/store/mc0c1r1wciblbym644njavac3ii1aqzd-apache-httpd-2.4.67",
               "default": true
             },
             {
               "name": "man",
-              "path": "/nix/store/zp24yd6j2k6pm1p42wsm5b7jhwv1sscb-apache-httpd-2.4.66-man",
+              "path": "/nix/store/4fkj559mplr0wzzpw4fmlbi9j51f9n26-apache-httpd-2.4.67-man",
               "default": true
             },
             {
               "name": "dev",
-              "path": "/nix/store/5pfq3dy7kdwp0d7wy9830k900pibgqq6-apache-httpd-2.4.66-dev"
+              "path": "/nix/store/m9b69br0bvm7m7rk1n9j0ds9zsl6hr87-apache-httpd-2.4.67-dev"
             },
             {
               "name": "doc",
-              "path": "/nix/store/nd2xkxqj16mqa705ik4ras31js86ydcw-apache-httpd-2.4.66-doc"
+              "path": "/nix/store/iwpmxkrjblqbksrwwh7plp610224ri49-apache-httpd-2.4.67-doc"
             }
           ],
-          "store_path": "/nix/store/ndz7hra3d4xrqwr8lxqd36xshmm91r9d-apache-httpd-2.4.66"
+          "store_path": "/nix/store/mc0c1r1wciblbym644njavac3ii1aqzd-apache-httpd-2.4.67"
         },
         "x86_64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/87gripsyfn82y9k2zpsbl4y7mbzfjp95-apache-httpd-2.4.66",
+              "path": "/nix/store/4fwxi7zp2j113j5cdnkyh6jfb878q49h-apache-httpd-2.4.67",
               "default": true
             },
             {
               "name": "man",
-              "path": "/nix/store/7k5rvhsb7zgkp647nzb3aznr2x0r2ji8-apache-httpd-2.4.66-man",
+              "path": "/nix/store/vglb87knvxldf8xcgdb6isia77bv00wa-apache-httpd-2.4.67-man",
               "default": true
             },
             {
-              "name": "dev",
-              "path": "/nix/store/9r3k6pqd07pm77ssfh43bfm2wk5fibsn-apache-httpd-2.4.66-dev"
+              "name": "doc",
+              "path": "/nix/store/08wl98wmpmch01y2vlqq30gmzdpka150-apache-httpd-2.4.67-doc"
             },
             {
-              "name": "doc",
-              "path": "/nix/store/0qyaw8qnhl8nmpac8x37ff79yh7kivr8-apache-httpd-2.4.66-doc"
+              "name": "dev",
+              "path": "/nix/store/frfih22jdc411i0dykqj2ply822cd605-apache-httpd-2.4.67-dev"
             }
           ],
-          "store_path": "/nix/store/87gripsyfn82y9k2zpsbl4y7mbzfjp95-apache-httpd-2.4.66"
+          "store_path": "/nix/store/4fwxi7zp2j113j5cdnkyh6jfb878q49h-apache-httpd-2.4.67"
         }
       }
     },
