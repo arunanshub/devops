@@ -5,7 +5,7 @@
     "go@1.26",
     "opentofu@latest",
     "hcloud@latest",
-    "lefthook@latest",
+    "lefthook@0.8.0",
     "sops@latest",
     "age@latest",
     "gitleaks@latest",
