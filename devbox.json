@@ -10,7 +10,7 @@
     "age@latest",
     "gitleaks@latest",
     "terragrunt@latest",
-    "just@latest",
+    "just@0.11.2",
     "helmfile@latest",
     "apacheHttpd@latest",
     "kubeseal@0.36.0",
