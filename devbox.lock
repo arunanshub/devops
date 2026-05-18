@@ -314,51 +314,51 @@
         }
       }
     },
-    "hcloud@latest": {
-      "last_modified": "2026-04-23T13:07:47Z",
-      "resolved": "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30#hcloud",
+    "hcloud@1.64.1": {
+      "last_modified": "2026-05-03T08:31:49Z",
+      "resolved": "github:NixOS/nixpkgs/90c100cb48d61a0316b9479bb03f1be36d34b92a#hcloud",
       "source": "devbox-search",
-      "version": "1.62.2",
+      "version": "1.64.1",
       "systems": {
         "aarch64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/9803w8bjbibka1vk03nd2096h0sayzkm-hcloud-1.62.2",
+              "path": "/nix/store/avi87nd2ib365xhdczjd698hcz94amm3-hcloud-1.64.1",
               "default": true
             }
           ],
-          "store_path": "/nix/store/9803w8bjbibka1vk03nd2096h0sayzkm-hcloud-1.62.2"
+          "store_path": "/nix/store/avi87nd2ib365xhdczjd698hcz94amm3-hcloud-1.64.1"
         },
         "aarch64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/j6sxw60hlrvx6bfjs11akvjdbm569w3h-hcloud-1.62.2",
+              "path": "/nix/store/bwn8vhycr7xkf9bkf2l980sxw44gid3p-hcloud-1.64.1",
               "default": true
             }
           ],
-          "store_path": "/nix/store/j6sxw60hlrvx6bfjs11akvjdbm569w3h-hcloud-1.62.2"
+          "store_path": "/nix/store/bwn8vhycr7xkf9bkf2l980sxw44gid3p-hcloud-1.64.1"
         },
         "x86_64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/lymj151xd11s7ndxld6lfc9lc4j5k45n-hcloud-1.62.2",
+              "path": "/nix/store/79grldrsxm81hq0z7f9dycrzcn9yfydn-hcloud-1.64.1",
               "default": true
             }
           ],
-          "store_path": "/nix/store/lymj151xd11s7ndxld6lfc9lc4j5k45n-hcloud-1.62.2"
+          "store_path": "/nix/store/79grldrsxm81hq0z7f9dycrzcn9yfydn-hcloud-1.64.1"
         },
         "x86_64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/hqwmb3x3f8h2i7r7p04yzm6ybff7g4ic-hcloud-1.62.2",
+              "path": "/nix/store/3g4kgg9alm2ck558cl9mzgl7r4p48spg-hcloud-1.64.1",
               "default": true
             }
           ],
-          "store_path": "/nix/store/hqwmb3x3f8h2i7r7p04yzm6ybff7g4ic-hcloud-1.62.2"
+          "store_path": "/nix/store/3g4kgg9alm2ck558cl9mzgl7r4p48spg-hcloud-1.64.1"
         }
       }
     },

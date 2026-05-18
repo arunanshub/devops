@@ -4,7 +4,7 @@
     "ansible@latest",
     "go@1.26",
     "opentofu@latest",
-    "hcloud@latest",
+    "hcloud@1.64.1",
     "lefthook@latest",
     "sops@latest",
     "age@latest",
