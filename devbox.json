@@ -3,7 +3,7 @@
   "packages": [
     "ansible@latest",
     "go@1.26",
-    "opentofu@latest",
+    "opentofu@1.11.8",
     "hcloud@latest",
     "lefthook@latest",
     "sops@latest",
