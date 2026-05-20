@@ -23,8 +23,8 @@ prometheus:
     enabled: false
 
   prometheusSpec:
-    retention: 7d
-    retentionSize: 6GiB
+    retention: 14d
+    retentionSize: 9GiB
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
