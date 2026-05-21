@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: git@github.com:arunanshub/devops.git
     targetRevision: master
-    path: kubernetes/components/prometheus-vpa
+    path: kubernetes/components/kube-prometheus-stack-vpa
 
   destination:
     server: https://kubernetes.default.svc
