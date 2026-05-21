@@ -6,8 +6,8 @@ metadata:
 spec:
   targetRef:
     apiVersion: apps/v1
-    kind: StatefulSet
-    name: prometheus-kube-prometheus-stack-prometheus
+    kind: Prometheus
+    name: kube-prometheus-stack-prometheus
   updatePolicy:
     updateMode: "Off"
   resourcePolicy:
