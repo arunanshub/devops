@@ -6,3 +6,4 @@ resources:
 
 components:
   - ../../components/argocd-app-controller-vpa
+  - ../../components/kube-prometheus-stack-vpa
