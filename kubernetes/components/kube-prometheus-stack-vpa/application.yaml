@@ -4,8 +4,6 @@ metadata:
   name: kube-prometheus-stack-vpa
   namespace: argocd
   annotations:
-    # wave 2: kube-prometheus-stack (wave 1) must be running before VPA
-    # targets it. selfHeal retries until the StatefulSet and CRDs exist.
     argocd.argoproj.io/sync-wave: "2"
 spec:
   project: monitoring
@@ -13,7 +11,7 @@ spec:
   source:
     repoURL: git@github.com:arunanshub/devops.git
     targetRevision: master
-    path: kubernetes/components/kube-prometheus-stack-vpa
+    path: kubernetes/components/kube-prometheus-stack-vpa/resources
 
   destination:
     server: https://kubernetes.default.svc

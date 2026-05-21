@@ -4,8 +4,6 @@ metadata:
   name: argocd-app-controller-vpa
   namespace: argocd
   annotations:
-    # wave 2: after vpa (wave 1) has installed the CRDs.
-    # selfHeal retries until VerticalPodAutoscaler CRD exists.
     argocd.argoproj.io/sync-wave: "2"
 spec:
   project: infra
@@ -13,7 +11,7 @@ spec:
   source:
     repoURL: git@github.com:arunanshub/devops.git
     targetRevision: master
-    path: kubernetes/components/argocd-app-controller-vpa
+    path: kubernetes/components/argocd-app-controller-vpa/resources
 
   destination:
     server: https://kubernetes.default.svc
