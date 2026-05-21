@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus-vpa
+  namespace: argocd
+  annotations:
+    # wave 2: after vpa (wave 1) has installed the CRDs.
+    # selfHeal retries until VerticalPodAutoscaler CRD exists.
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: infra
+
+  source:
+    repoURL: git@github.com:arunanshub/devops.git
+    targetRevision: master
+    path: kubernetes/components/argocd-app-controller-vpa
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
