@@ -3,3 +3,4 @@ kind: Component
 
 resources:
   - vpa.yaml
+  - pdb.yaml

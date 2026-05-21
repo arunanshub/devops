@@ -9,7 +9,7 @@ spec:
     kind: StatefulSet
     name: argocd-application-controller
   updatePolicy:
-    updateMode: "Off"
+    updateMode: InPlaceOrRecreate
   resourcePolicy:
     containerPolicies:
       - containerName: application-controller
