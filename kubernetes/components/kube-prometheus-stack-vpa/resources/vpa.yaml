@@ -5,7 +5,7 @@ metadata:
   namespace: monitoring
 spec:
   targetRef:
-    apiVersion: apps/v1
+    apiVersion: monitoring.coreos.com/v1
     kind: Prometheus
     name: kube-prometheus-stack-prometheus
   updatePolicy:
