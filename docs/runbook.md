@@ -265,6 +265,132 @@ For host-state-sensitive work, run:
 just ansible-check
 ```
 
+## Debugging: Node Stuck Unschedulable / Pod Pending
+
+Symptom: a pod is `Pending`, a node shows `SchedulingDisabled`. Often surfaces at
+night after kured runs its maintenance window reboot.
+
+### Step 1 — find what is broken
+
+```bash
+kubectl get pods -A | grep -v Running | grep -v Completed
+kubectl describe pod <pending-pod> -n <ns>
+```
+
+Read the `Events` section. The scheduler spells out the reason:
+
+```text
+0/3 nodes are available: 1 node(s) were unschedulable,
+2 node(s) didn't have free ports for the requested pod ports.
+```
+
+"Unschedulable" = a node is cordoned. "Free ports" = another node already has a
+`hostPort`-using pod on that port (e.g. hccm's metrics port 8233 with
+`hostNetwork: true`).
+
+### Step 2 — identify the cordoned node and who owns the cordon
+
+```bash
+kubectl get nodes
+# look for SchedulingDisabled in the STATUS column
+```
+
+Two things cordon nodes in this cluster: kured (node reboot) and
+system-upgrade-controller (k3s upgrade). Check kured first when the time is
+inside the 02:00–04:00 IST maintenance window.
+
+```bash
+# Is kured holding a lock on this node?
+kubectl get ds kured -n kube-system \
+  -o jsonpath='{.metadata.annotations.weave\.works/kured-node-lock}'
+```
+
+If `nodeID` matches the cordoned node, kured is responsible. The `unschedulable`
+field records the node's state *before* kured cordoned it — `false` means the
+node was healthy and kured cordoned it for a routine reboot.
+
+If kured is not the owner, check system-upgrade-controller:
+
+```bash
+kubectl logs -n system-upgrade \
+  -l app=system-upgrade-controller --tail=50 | grep -i 'cordon\|uncordon\|error'
+```
+
+A recurring `jobs.batch "<job>" not found, requeuing` error means the SUC
+controller restarted mid-upgrade, lost its reference to the completed job, and
+never ran the uncordon step. Since all nodes will already be at the target k3s
+version in this case, it is safe to uncordon manually (see Step 4).
+
+### Step 3 — if kured is stuck, find what is blocking the drain
+
+```bash
+kubectl logs -n kube-system <kured-pod-on-cordoned-node> --tail=30
+```
+
+If you see:
+
+```text
+Cannot evict pod as it would violate the pod's disruption budget.
+```
+
+repeating every 5 seconds, a PDB is blocking the drain. Find which one:
+
+```bash
+kubectl get pdb -A
+```
+
+Look for `ALLOWED DISRUPTIONS: 0`. This means the PDB's `minAvailable` equals
+the current running pod count — eviction would breach the minimum, so Kubernetes
+blocks it indefinitely. The drain never completes, the node stays cordoned.
+
+**Root cause:** `minAvailable: 1` on a single-replica workload. When there is
+only one pod, evicting it would drop the count to zero, which always violates
+`minAvailable: 1`. The correct setting for single-replica workloads is
+`maxUnavailable: 1` — this permits eviction while accepting a brief reschedule
+window (typically 30–60 s). See `docs/bootstrap-pitfalls.md` for context on
+why `minAvailable` vs `maxUnavailable` matters.
+
+Also check: when overriding a Helm chart's PDB values, always explicitly set
+`minAvailable: null` when adding `maxUnavailable`, otherwise Helm merges both
+from the chart defaults and Kubernetes rejects the object.
+
+### Step 4 — fix and recover
+
+**PDB blocking drain (kured stuck):**
+
+Fix the PDB in the relevant values or manifest file, push, and wait for ArgoCD
+to apply. Once `ALLOWED DISRUPTIONS` becomes 1, kured's next retry will succeed,
+the reboot will proceed, and kured will uncordon the node automatically after
+the node comes back.
+
+Do not manually release the kured lock or uncordon while kured is mid-drain —
+let kured finish its cycle so the reboot actually happens.
+
+**SUC stuck cordon (controller restarted mid-upgrade):**
+
+Confirm all nodes are already at the target k3s version:
+
+```bash
+kubectl get nodes -o custom-columns='NAME:.metadata.name,VERSION:.status.nodeInfo.kubeletVersion,UNSCHEDULABLE:.spec.unschedulable'
+```
+
+If the stuck node matches the others, the upgrade is complete. Uncordon manually:
+
+```bash
+kubectl uncordon <node>
+```
+
+### Step 5 — verify recovery
+
+```bash
+kubectl get nodes
+kubectl get pods -A | grep -v Running | grep -v Completed
+kubectl get pdb -A
+```
+
+All nodes should be `Ready` (no `SchedulingDisabled`), all pods running, and
+`ALLOWED DISRUPTIONS` ≥ 1 on every PDB.
+
 ## Hard Rules
 
 - Read `just plan` before applying.

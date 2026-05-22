@@ -105,6 +105,15 @@ alertmanager:
           - to: "mydellpc07@gmail.com" # ← your actual email
             send_resolved: true
 
+prometheusOperator:
+  admissionWebhooks:
+    patch:
+      # "hook-succeeded" (chart default) deletes the job immediately after completion,
+      # before ArgoCD can observe the Complete condition — causing infinite sync retries.
+      # "before-hook-creation" keeps the completed job until the next sync, giving
+      # ArgoCD time to register success.
+      hookDeletePolicy: before-hook-creation
+
 # embedded etcd runs inside the k3s server process, not as a visible static pod like kubeadm
 kubeEtcd:
   enabled: false
