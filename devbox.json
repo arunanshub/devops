@@ -6,7 +6,7 @@
     "opentofu@latest",
     "hcloud@latest",
     "lefthook@latest",
-    "sops@latest",
+    "sops@3.13.1",
     "age@latest",
     "gitleaks@latest",
     "terragrunt@latest",
