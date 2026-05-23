@@ -24,10 +24,12 @@ encryption:
 operator:
   replicas: 2
 
+# TODO: enable cilium GAPI once it has support for ClusterIP type in CiliumGatewayClassConfig.
+# ref: https://claude.ai/share/589a7ce8-eea1-4043-aaab-69d4d6ee9333
 gatewayAPI:
-  enabled: true
-  gatewayClass:
-    create: "true"
+  enabled: false
+  # gatewayClass:
+  #   create: "true"
 
 # Use host's cgroup2 mount; avoids the duplicate /run/cilium/cgroupv2 mount
 # and gives Hubble full host cgroup tree visibility.
