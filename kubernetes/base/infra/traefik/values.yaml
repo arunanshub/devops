@@ -2,6 +2,25 @@ ingressRoute:
   dashboard:
     enabled: true
 
+# Expose the Traefik API/dashboard port (8080) as a ClusterIP Service so
+# an HTTPRoute can route external traffic through the Access-gated tunnel.
+extraObjects:
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: traefik-dashboard
+      namespace: traefik
+    spec:
+      type: ClusterIP
+      selector:
+        app.kubernetes.io/name: traefik
+        app.kubernetes.io/instance: traefik-traefik
+      ports:
+        - port: 8080
+          name: traefik
+          targetPort: 8080
+          protocol: TCP
+
 providers:
   kubernetesGateway:
     enabled: true

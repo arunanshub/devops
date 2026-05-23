@@ -9,3 +9,5 @@ components:
   - ../../components/cainjector-vpa
   - ../../components/traefik-scaling
   - ../../components/tempo-vpa
+  - ../../components/traefik-route
+  - ../../components/hubble-route

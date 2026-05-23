@@ -101,6 +101,40 @@ resource "cloudflare_zero_trust_access_application" "argocd" {
   ]
 }
 
+resource "cloudflare_zero_trust_access_application" "traefik" {
+  account_id       = var.cloudflare_account_id
+  name             = "Traefik Dashboard"
+  domain           = "traefik.arunanshu.dev"
+  type             = "self_hosted"
+  session_duration = "24h"
+
+  policies = [
+    {
+      name       = "allow-owner"
+      decision   = "allow"
+      precedence = 1
+      include    = [{ email = { email = var.owner_email } }]
+    },
+  ]
+}
+
+resource "cloudflare_zero_trust_access_application" "hubble" {
+  account_id       = var.cloudflare_account_id
+  name             = "Hubble UI"
+  domain           = "hubble.arunanshu.dev"
+  type             = "self_hosted"
+  session_duration = "24h"
+
+  policies = [
+    {
+      name       = "allow-owner"
+      decision   = "allow"
+      precedence = 1
+      include    = [{ email = { email = var.owner_email } }]
+    },
+  ]
+}
+
 # Retrieve the tunnel token — used to authenticate cloudflared with Cloudflare's edge.
 # Output via `just seal-cloudflared-token` to produce the SealedSecret.
 data "cloudflare_zero_trust_tunnel_cloudflared_token" "main" {
