@@ -68,11 +68,12 @@ resource "cloudflare_dns_record" "wildcard" {
 # per-app access control is needed (different users, different session length).
 # Auth: OTP email to owner_email. No IdP configured.
 resource "cloudflare_zero_trust_access_application" "wildcard" {
-  account_id       = var.cloudflare_account_id
-  name             = "*.arunanshu.dev"
-  domain           = "*.arunanshu.dev"
-  type             = "self_hosted"
-  session_duration = "24h"
+  account_id            = var.cloudflare_account_id
+  name                  = "*.arunanshu.dev"
+  domain                = "*.arunanshu.dev"
+  type                  = "self_hosted"
+  session_duration      = "24h"
+  enable_binding_cookie = true
 
   policies = [
     {
