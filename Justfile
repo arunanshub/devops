@@ -84,5 +84,26 @@ restore-sealed-secrets-key:
     just _sops-apply "{{ k8s / "bootstrap/secrets/sealed-secrets-master-key.sops.yaml" }}"
     kubectl rollout restart deployment sealed-secrets-controller -n kube-system
 
+# Seal the Cloudflare Tunnel token as a SealedSecret.
+# Run AFTER `just apply` creates the tunnel. Requires cluster access.
+# After running, add sealed-tunnel-token.yaml to the kustomization resources list and commit.
+seal-cloudflared-token:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    token=$(cd "{{ infra }}" && sops exec-env "{{ infra / "secrets.yaml" }}" "tofu output -raw tunnel_token")
+    out="{{ k8s / "base/infra/cloudflared/resources/sealed-tunnel-token.yaml" }}"
+    printf '%s' "$token" | \
+        kubectl create secret generic cloudflared-tunnel-token \
+            --namespace cloudflared \
+            --from-file=token=/dev/stdin \
+            --dry-run=client -o yaml | \
+        kubeseal \
+            --controller-namespace kube-system \
+            --controller-name sealed-secrets-controller \
+            --format yaml \
+            > "$out"
+    echo "Sealed token written to $out"
+    echo "Next: add 'sealed-tunnel-token.yaml' to kubernetes/base/infra/cloudflared/resources/kustomization.yaml, then commit both."
+
 @_sops-apply file:
     sops --decrypt "{{ file }}" | kubectl apply -f -

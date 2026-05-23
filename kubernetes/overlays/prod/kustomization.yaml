@@ -8,3 +8,4 @@ components:
   - ../../components/argocd-app-controller-vpa
   - ../../components/cainjector-vpa
   - ../../components/traefik-scaling
+  - ../../components/tempo-vpa

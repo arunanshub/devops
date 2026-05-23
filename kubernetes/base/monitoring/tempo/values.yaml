@@ -8,9 +8,9 @@ tempo:
   resources:
     requests:
       cpu: 50m
-      memory: 128Mi
+      memory: 192Mi
     limits:
-      memory: 256Mi
+      memory: 512Mi
 
   # Only accept OTLP — drop jaeger/opencensus to reduce attack surface
   receivers:
