@@ -16,3 +16,4 @@ resources:
   - cert-manager/application.yaml
   - vpa/application.yaml
   - traefik/application.yaml
+  - keda/application.yaml
