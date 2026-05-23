@@ -24,3 +24,6 @@ autoscaling:
 resources:
   requests:
     cpu: 10m
+    memory: 32Mi # conservative floor, slightly above idle 23Mi
+  limits:
+    memory: 128Mi # cap; no CPU limit intentionally
