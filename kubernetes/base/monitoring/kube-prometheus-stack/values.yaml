@@ -11,6 +11,7 @@ grafana:
   # data across pod restarts
   deploymentStrategy:
     type: Recreate
+    rollingUpdate: null
 
   persistence:
     enabled: true
