@@ -1,8 +1,8 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: grafana
-  namespace: monitoring
+  name: argocd
+  namespace: argocd
 spec:
   parentRefs:
     - group: gateway.networking.k8s.io
@@ -11,7 +11,7 @@ spec:
       namespace: traefik
       sectionName: web
   hostnames:
-    - grafana.arunanshu.dev
+    - argocd.arunanshu.dev
   rules:
     - matches:
         - path:
@@ -20,6 +20,6 @@ spec:
       backendRefs:
         - group: ""
           kind: Service
-          name: kube-prometheus-stack-grafana
+          name: argocd-server
           port: 80
           weight: 1

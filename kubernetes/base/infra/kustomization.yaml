@@ -18,3 +18,4 @@ resources:
   - traefik/application.yaml
   - keda/application.yaml
   - cloudflared/application.yaml
+  - argocd-route/application.yaml
