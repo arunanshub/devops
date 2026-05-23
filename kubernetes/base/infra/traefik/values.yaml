@@ -20,3 +20,7 @@ autoscaling:
   enabled: true
   minReplicas: 1
   maxReplicas: 5
+
+resources:
+  requests:
+    cpu: 10m
