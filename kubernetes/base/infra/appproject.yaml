@@ -19,6 +19,7 @@ spec:
     - https://helm.cilium.io/
     - https://charts.jetstack.io
     - https://charts.fairwinds.com/stable
+    - https://traefik.github.io/charts
 
   destinations:
     - server: https://kubernetes.default.svc
@@ -33,6 +34,8 @@ spec:
       namespace: cert-manager
     - server: https://kubernetes.default.svc
       namespace: vpa
+    - server: https://kubernetes.default.svc
+      namespace: traefik
 
   clusterResourceWhitelist:
     - group: "*"
