@@ -90,6 +90,27 @@ variable "bootstrap_node" {
   }
 }
 
+variable "cloudflare_api_token" {
+  type        = string
+  description = "Cloudflare API token. Needs: Tunnel:Edit, Access:Edit, DNS:Edit. Injected via sops exec-env."
+  sensitive   = true
+}
+
+variable "cloudflare_account_id" {
+  type        = string
+  description = "Cloudflare account ID (visible in the Cloudflare dashboard URL)."
+}
+
+variable "cloudflare_zone_id" {
+  type        = string
+  description = "Cloudflare zone ID for arunanshu.dev."
+}
+
+variable "owner_email" {
+  type        = string
+  description = "Email address allowed through Cloudflare Access for all protected applications."
+}
+
 check "private_ips_are_in_subnet" {
   assert {
     condition = alltrue([

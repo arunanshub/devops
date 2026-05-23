@@ -1,3 +1,7 @@
+cloudflare_account_id = "TODO: paste from dash.cloudflare.com (top-right, Account ID)"
+cloudflare_zone_id    = "TODO: paste from Websites → arunanshu.dev → Overview (API section)"
+owner_email           = "arunanshu.biswas@safedep.io"
+
 bootstrap_node         = "cp-1"
 is_cluster_initialized = true
 

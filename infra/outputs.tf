@@ -27,3 +27,9 @@ output "ssh_private_key_path" {
   description = "Local private key path used for Ansible and kubeconfig retrieval."
   value       = var.ssh_private_key_path
 }
+
+output "tunnel_token" {
+  description = "Cloudflare Tunnel token for cloudflared. Pipe through kubeseal via `just seal-cloudflared-token`."
+  value       = data.cloudflare_zero_trust_tunnel_cloudflared_token.main.token
+  sensitive   = true
+}

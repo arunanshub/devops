@@ -6,6 +6,16 @@ terraform {
       source  = "hetznercloud/hcloud"
       version = "~> 1.61"
     }
+
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 5.0"
+    }
+
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 
   encryption {
