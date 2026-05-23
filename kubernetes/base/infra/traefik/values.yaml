@@ -27,6 +27,7 @@ tracing:
   otlp:
     enabled: true
     http:
+      enabled: true
       endpoint: http://tempo.monitoring.svc.cluster.local:4318/v1/traces
 
 metrics:
