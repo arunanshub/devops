@@ -27,3 +27,15 @@ resources:
     memory: 32Mi # conservative floor, slightly above idle 23Mi
   limits:
     memory: 128Mi # cap; no CPU limit intentionally
+
+metrics:
+  prometheus:
+    entryPoint: metrics
+    addRoutersLabels: true # per-route metrics, useful for KEDA query
+    service:
+      enabled: true # creates a dedicated metrics Service
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus-stack # must match your Prometheus selector
+      interval: "30s"
