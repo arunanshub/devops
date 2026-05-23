@@ -8,7 +8,7 @@
     "lefthook@latest",
     "sops@latest",
     "age@latest",
-    "gitleaks@latest",
+    "gitleaks@7.6.1",
     "terragrunt@latest",
     "just@latest",
     "helmfile@latest",
