@@ -7,3 +7,4 @@ resources:
   - kube-prometheus-stack/application.yaml
   - kube-prometheus-stack-secrets/application.yaml
   - tempo/application.yaml
+  - grafana-route/application.yaml

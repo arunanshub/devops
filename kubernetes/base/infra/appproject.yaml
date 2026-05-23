@@ -39,6 +39,8 @@ spec:
       namespace: traefik
     - server: https://kubernetes.default.svc
       namespace: keda
+    - server: https://kubernetes.default.svc
+      namespace: cloudflared
 
   clusterResourceWhitelist:
     - group: "*"

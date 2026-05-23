@@ -17,3 +17,4 @@ resources:
   - vpa/application.yaml
   - traefik/application.yaml
   - keda/application.yaml
+  - cloudflared/application.yaml
