@@ -11,3 +11,7 @@ gateway:
     web:
       namespacePolicy:
         from: All
+
+service:
+  spec:
+    type: ClusterIP
