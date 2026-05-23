@@ -1,5 +1,5 @@
-cloudflare_account_id = "TODO: paste from dash.cloudflare.com (top-right, Account ID)"
-cloudflare_zone_id    = "TODO: paste from Websites → arunanshu.dev → Overview (API section)"
+cloudflare_account_id = "2f120b3588f24bba8666100a3da52e02"
+cloudflare_zone_id    = "9d7653ab8d3a31bc36ddebc0e9b02e96"
 owner_email           = "arunanshu.biswas@safedep.io"
 
 bootstrap_node         = "cp-1"
