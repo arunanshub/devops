@@ -1,6 +1,8 @@
 ingressRoute:
   dashboard:
     enabled: true
+    matchRule: Host(`traefik.arunanshu.dev`)
+    entryPoints: ["traefik"]
 
 # Expose the Traefik API/dashboard port (8080) as a ClusterIP Service so
 # an HTTPRoute can route external traffic through the Access-gated tunnel.
