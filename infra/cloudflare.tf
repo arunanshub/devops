@@ -63,87 +63,14 @@ resource "cloudflare_dns_record" "wildcard" {
   ttl     = 1
 }
 
-# Cloudflare Access — identity gate for all tunnel traffic.
-#
-# Default-deny: the wildcard app below blocks every subdomain that does not
-# have a more-specific Access application. Cloudflare resolves applications by
-# specificity — an exact hostname (e.g. grafana.arunanshu.dev) always wins over
-# *.arunanshu.dev. This means a new HTTPRoute is unreachable until a matching
-# Access app is added and `just apply` is run.
-#
-# Auth method: OTP email sent to owner_email (no IdP configured). Session
-# duration 24h on per-service apps; the wildcard deny has no session.
-resource "cloudflare_zero_trust_access_application" "default_deny" {
-  account_id = var.cloudflare_account_id
-  name       = "Default Deny"
-  domain     = "*.arunanshu.dev"
-  type       = "self_hosted"
-
-  policies = [
-    {
-      name       = "deny-all"
-      decision   = "deny"
-      precedence = 1
-      include    = [{ everyone = {} }]
-    },
-  ]
-}
-
-resource "cloudflare_zero_trust_access_application" "grafana" {
+# Cloudflare Access — single wildcard app gates all *.arunanshu.dev traffic.
+# New services only need an HTTPRoute; no Terraform change required unless
+# per-app access control is needed (different users, different session length).
+# Auth: OTP email to owner_email. No IdP configured.
+resource "cloudflare_zero_trust_access_application" "wildcard" {
   account_id       = var.cloudflare_account_id
-  name             = "Grafana"
-  domain           = "grafana.arunanshu.dev"
-  type             = "self_hosted"
-  session_duration = "24h"
-
-  policies = [
-    {
-      name       = "allow-owner"
-      decision   = "allow"
-      precedence = 1
-      include    = [{ email = { email = var.owner_email } }]
-    },
-  ]
-}
-
-resource "cloudflare_zero_trust_access_application" "argocd" {
-  account_id       = var.cloudflare_account_id
-  name             = "ArgoCD"
-  domain           = "argocd.arunanshu.dev"
-  type             = "self_hosted"
-  session_duration = "24h"
-
-  policies = [
-    {
-      name       = "allow-owner"
-      decision   = "allow"
-      precedence = 1
-      include    = [{ email = { email = var.owner_email } }]
-    },
-  ]
-}
-
-resource "cloudflare_zero_trust_access_application" "traefik" {
-  account_id       = var.cloudflare_account_id
-  name             = "Traefik Dashboard"
-  domain           = "traefik.arunanshu.dev"
-  type             = "self_hosted"
-  session_duration = "24h"
-
-  policies = [
-    {
-      name       = "allow-owner"
-      decision   = "allow"
-      precedence = 1
-      include    = [{ email = { email = var.owner_email } }]
-    },
-  ]
-}
-
-resource "cloudflare_zero_trust_access_application" "hubble" {
-  account_id       = var.cloudflare_account_id
-  name             = "Hubble UI"
-  domain           = "hubble.arunanshu.dev"
+  name             = "*.arunanshu.dev"
+  domain           = "*.arunanshu.dev"
   type             = "self_hosted"
   session_duration = "24h"
 
