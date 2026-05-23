@@ -6,3 +6,4 @@ resources:
   - appproject.yaml
   - kube-prometheus-stack/application.yaml
   - kube-prometheus-stack-secrets/application.yaml
+  - tempo/application.yaml

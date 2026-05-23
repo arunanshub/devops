@@ -7,6 +7,18 @@ grafana:
     userKey: admin-user
     passwordKey: admin-password
 
+  additionalDataSources:
+    - name: Tempo
+      type: tempo
+      uid: tempo
+      url: http://tempo.monitoring.svc.cluster.local:3200
+      access: proxy
+      jsonData:
+        nodeGraph:
+          enabled: true
+        serviceMap:
+          datasourceUid: prometheus
+
   # persist Grafana data in the hetzner volume instead of emptyDir to persist
   # data across pod restarts
   deploymentStrategy:
@@ -44,6 +56,7 @@ prometheus:
       updateMode: InPlaceOrRecreate
 
   prometheusSpec:
+    enableRemoteWriteReceiver: true
     retention: 14d
     retentionSize: 9GiB
     serviceMonitorSelectorNilUsesHelmValues: false

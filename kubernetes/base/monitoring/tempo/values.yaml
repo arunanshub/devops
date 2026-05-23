@@ -1,0 +1,58 @@
+fullnameOverride: tempo
+
+tempo:
+  reportingEnabled: false
+  memBallastSizeMbs: 64
+  retention: 48h
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+  # Only accept OTLP — drop jaeger/opencensus to reduce attack surface
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
+
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write"
+    processor:
+      service_graphs:
+        wait: 10s
+        max_items: 10000
+    storage:
+      path: /var/tempo/metrics
+    traces_storage:
+      path: /var/tempo/metrics-wal
+
+  overrides:
+    defaults:
+      metrics_generator:
+        processors:
+          - service-graphs
+
+serviceMonitor:
+  enabled: true
+
+persistence:
+  enabled: true
+  storageClassName: hcloud-volumes
+  accessModes:
+    - ReadWriteOnce
+  size: 10Gi
