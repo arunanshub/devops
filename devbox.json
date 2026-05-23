@@ -17,7 +17,8 @@
     "shellcheck@latest",
     "yamlfmt@latest",
     "kustomize@latest",
-    "hubble@latest"
+    "hubble@latest",
+    "ansible-lint@latest"
   ],
   "shell": {
     "init_hook": [

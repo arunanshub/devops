@@ -9,6 +9,9 @@ grafana:
 
   # persist Grafana data in the hetzner volume instead of emptyDir to persist
   # data across pod restarts
+  deploymentStrategy:
+    type: Recreate
+
   persistence:
     enabled: true
     storageClassName: hcloud-volumes
