@@ -33,6 +33,11 @@ grafana:
   ingress:
     enabled: false
 
+  resources:
+    requests:
+      cpu: 25m
+      memory: 384Mi
+
 prometheus:
   ingress:
     enabled: false

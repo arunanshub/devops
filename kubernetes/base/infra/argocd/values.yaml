@@ -9,3 +9,39 @@ controller:
       memory: 768Mi
     limits:
       memory: 2Gi
+
+server:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 128Mi
+
+repoServer:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+
+redis:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+
+dex:
+  resources:
+    requests:
+      cpu: 5m
+      memory: 32Mi
+
+applicationSet:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 128Mi
+
+notifications:
+  resources:
+    requests:
+      cpu: 5m
+      memory: 64Mi
