@@ -63,10 +63,32 @@ resource "cloudflare_dns_record" "wildcard" {
   ttl     = 1
 }
 
-# Cloudflare Access — identity gate for internal tools.
-# Access apps are per-service; public services need no Access app and will flow
-# through the wildcard tunnel directly. Default auth (no IdP configured) sends
-# an OTP email to the declared address.
+# Cloudflare Access — identity gate for all tunnel traffic.
+#
+# Default-deny: the wildcard app below blocks every subdomain that does not
+# have a more-specific Access application. Cloudflare resolves applications by
+# specificity — an exact hostname (e.g. grafana.arunanshu.dev) always wins over
+# *.arunanshu.dev. This means a new HTTPRoute is unreachable until a matching
+# Access app is added and `just apply` is run.
+#
+# Auth method: OTP email sent to owner_email (no IdP configured). Session
+# duration 24h on per-service apps; the wildcard deny has no session.
+resource "cloudflare_zero_trust_access_application" "default_deny" {
+  account_id = var.cloudflare_account_id
+  name       = "Default Deny"
+  domain     = "*.arunanshu.dev"
+  type       = "self_hosted"
+
+  policies = [
+    {
+      name       = "deny-all"
+      decision   = "deny"
+      precedence = 1
+      include    = [{ everyone = {} }]
+    },
+  ]
+}
+
 resource "cloudflare_zero_trust_access_application" "grafana" {
   account_id       = var.cloudflare_account_id
   name             = "Grafana"
