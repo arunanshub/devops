@@ -15,3 +15,8 @@ gateway:
 service:
   spec:
     type: ClusterIP
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
