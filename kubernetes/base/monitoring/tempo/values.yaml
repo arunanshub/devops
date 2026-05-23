@@ -36,6 +36,10 @@ tempo:
       service_graphs:
         wait: 10s
         max_items: 10000
+      local_blocks:
+        flush_to_storage: true
+        filter_server_spans: false
+        max_block_duration: 5m
     storage:
       path: /var/tempo/metrics
     traces_storage:
@@ -46,6 +50,7 @@ tempo:
       metrics_generator:
         processors:
           - service-graphs
+          - local-blocks
 
 serviceMonitor:
   enabled: true
