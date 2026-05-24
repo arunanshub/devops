@@ -56,11 +56,16 @@
     - name: Trigger a manual etcd snapshot to verify S3 upload
       ansible.builtin.command:
         cmd: k3s etcd-snapshot save
-      when: etcd_snapshot_config.changed and not ansible_check_mode
+      when:
+        - etcd_snapshot_config.changed
+        - not ansible_check_mode
+        - inventory_hostname == ansible_play_hosts_all[0]
       register: snapshot_result
-      run_once: true
 
     - name: Show snapshot result
       ansible.builtin.debug:
         var: snapshot_result.stdout_lines
-      when: snapshot_result is defined and not ansible_check_mode
+      when:
+        - etcd_snapshot_config.changed
+        - not ansible_check_mode
+        - inventory_hostname == ansible_play_hosts_all[0]
