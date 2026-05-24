@@ -12,3 +12,6 @@ __pycache__/
 .ssh_known_hosts
 
 devbox.d/
+
+# Implementation plans — local development aid, not for version control
+docs/plans/
