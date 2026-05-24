@@ -1,0 +1,66 @@
+# One-shot playbook — do NOT import into site.yml.
+# Deploys etcd S3 snapshot config drop-in and restarts k3s on CP nodes.
+# REQUIRES: k3s-etcd-snapshot-s3-config SealedSecret already applied in kube-system.
+- name: Configure k3s etcd S3 snapshot upload
+  hosts: control_planes
+  gather_facts: false
+  become: true
+  serial: 1
+  max_fail_percentage: 0
+  order: sorted
+  tasks:
+    - name: Set k3s service name
+      ansible.builtin.set_fact:
+        k3s_service_name: k3s
+
+    - name: Create k3s config drop-in directory
+      ansible.builtin.file:
+        path: /etc/rancher/k3s/config.yaml.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy etcd S3 snapshot config drop-in
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml.d/etcd-snapshots.yaml
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          etcd-s3: true
+          etcd-s3-config-secret: k3s-etcd-snapshot-s3-config
+          etcd-snapshot-schedule-cron: "0 */6 * * *"
+          etcd-snapshot-retention: 24
+          etcd-s3-retention: 48
+          etcd-snapshot-compress: true
+      register: etcd_snapshot_config
+
+    - name: Restart k3s to apply etcd snapshot config
+      ansible.builtin.systemd:
+        name: "{{ k3s_service_name }}"
+        state: restarted
+      when: etcd_snapshot_config.changed and not ansible_check_mode
+
+    - name: Wait for node to be Ready
+      ansible.builtin.command:
+        cmd: kubectl get node {{ kubernetes_node_name }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      delegate_to: localhost
+      become: false
+      register: node_ready
+      until: node_ready.stdout == "True"
+      retries: 30
+      delay: 10
+      when: etcd_snapshot_config.changed and not ansible_check_mode
+
+    - name: Trigger a manual etcd snapshot to verify S3 upload
+      ansible.builtin.command:
+        cmd: k3s etcd-snapshot save
+      when: etcd_snapshot_config.changed and not ansible_check_mode
+      register: snapshot_result
+      run_once: true
+
+    - name: Show snapshot result
+      ansible.builtin.debug:
+        var: snapshot_result.stdout_lines
+      when: snapshot_result is defined and not ansible_check_mode
