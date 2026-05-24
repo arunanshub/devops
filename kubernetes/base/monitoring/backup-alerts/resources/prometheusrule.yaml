@@ -1,0 +1,49 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: backup-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: backup
+      interval: 5m
+      rules:
+        - alert: VeleroBackupMissed
+          expr: (time() - velero_backup_last_successful_timestamp{schedule!=""}) > 90000
+          labels:
+            severity: warning
+          annotations:
+            summary: "Velero scheduled backup missed"
+            description: "No successful backup for schedule {{ $labels.schedule }} in over 25 hours."
+
+        - alert: VeleroBackupFailed
+          expr: increase(velero_backup_failure_total[2h]) > 0
+          labels:
+            severity: critical
+          annotations:
+            summary: "Velero backup failed"
+            description: "{{ $value }} backup failure(s) in the last 2 hours."
+
+        - alert: VeleroBSLUnavailable
+          expr: velero_backup_storage_location_available{location="default"} == 0
+          labels:
+            severity: critical
+          annotations:
+            summary: "Velero backup storage location unavailable"
+            description: "The default R2 BackupStorageLocation is not reachable."
+
+        - alert: EtcdSnapshotStale
+          expr: (time() - kube_cronjob_status_last_successful_time{cronjob="etcd-snapshot-health", namespace="kube-system"}) > 36000
+          labels:
+            severity: warning
+          annotations:
+            summary: "etcd snapshot health check has not succeeded"
+            description: "The etcd-snapshot-health CronJob last succeeded more than 10 hours ago."
+
+        - alert: VeleroRestoreDrillMissed
+          expr: (time() - kube_cronjob_status_last_successful_time{cronjob="velero-restore-drill", namespace="velero"}) > 2678400
+          labels:
+            severity: warning
+          annotations:
+            summary: "Monthly Velero restore drill has not run"
+            description: "No successful restore drill in over 31 days. Verify backup integrity manually."
