@@ -1,0 +1,96 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: velero-restore-drill
+  namespace: velero
+spec:
+  schedule: "0 8 1 * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: velero-restore-drill
+          automountServiceAccountToken: true
+          containers:
+            - name: drill
+              image: bitnami/kubectl:1.31
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                seccompProfile:
+                  type: RuntimeDefault
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  memory: 256Mi
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  RESTORE_NAME="drill-$(date +%Y%m%d%H%M%S)"
+                  TEST_NS="velero-restore-test"
+
+                  # Find latest completed daily-full backup (name sorting = time sorting for velero schedule names)
+                  LATEST=$(kubectl get backup -n velero \
+                    -l velero.io/schedule-name=daily-full \
+                    -o jsonpath='{range .items[*]}{.status.phase}{"|"}{.metadata.name}{"\n"}{end}' | \
+                    grep "^Completed" | cut -d'|' -f2 | sort | tail -1)
+
+                  if [ -z "$LATEST" ]; then
+                    echo "ERROR: no completed daily-full backup found"
+                    exit 1
+                  fi
+                  echo "Using backup: $LATEST"
+
+                  # Idempotent cleanup
+                  kubectl delete namespace "$TEST_NS" --ignore-not-found --wait=true
+
+                  # Create Restore CR
+                  cat <<EOF | kubectl apply -f -
+                  apiVersion: velero.io/v1
+                  kind: Restore
+                  metadata:
+                    name: $RESTORE_NAME
+                    namespace: velero
+                  spec:
+                    backupName: $LATEST
+                    includedNamespaces:
+                      - monitoring
+                    includeClusterResources: false
+                    namespaceMapping:
+                      monitoring: velero-restore-test
+                  EOF
+
+                  # Poll until terminal phase (up to 15 minutes)
+                  i=0
+                  while [ $i -lt 30 ]; do
+                    PHASE=$(kubectl get restore "$RESTORE_NAME" -n velero \
+                      -o jsonpath='{.status.phase}' 2>/dev/null || echo "New")
+                    echo "Phase: $PHASE"
+                    case "$PHASE" in
+                      Completed|Failed|PartiallyFailed) break ;;
+                    esac
+                    sleep 30
+                    i=$((i + 1))
+                  done
+
+                  # Cleanup
+                  kubectl delete namespace "$TEST_NS" --ignore-not-found
+                  kubectl delete restore "$RESTORE_NAME" -n velero --ignore-not-found
+
+                  if [ "$PHASE" != "Completed" ]; then
+                    echo "ERROR: restore phase was '$PHASE', expected 'Completed'"
+                    exit 1
+                  fi
+                  echo "Restore drill succeeded"

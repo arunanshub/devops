@@ -1,0 +1,27 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: velero-restore-drill
+rules:
+  - apiGroups: ["velero.io"]
+    resources: ["backups"]
+    verbs: ["get", "list"]
+  - apiGroups: ["velero.io"]
+    resources: ["restores"]
+    verbs: ["create", "get", "list", "delete", "patch"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["create", "delete", "get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: velero-restore-drill
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: velero-restore-drill
+subjects:
+  - kind: ServiceAccount
+    name: velero-restore-drill
+    namespace: velero
