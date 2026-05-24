@@ -26,6 +26,7 @@ spec:
 
         - alert: VeleroBSLUnavailable
           expr: velero_backup_storage_location_available{location="default"} == 0
+          for: 10m
           labels:
             severity: critical
           annotations:
