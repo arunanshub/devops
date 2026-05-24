@@ -2,5 +2,41 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "argocd": {
+    "managerFilePatterns": ["/^kubernetes/.+\\.ya?ml$/"]
+  },
+  "packageRules": [
+    {
+      "description": "Group infra kernel updates: ArgoCD, Cilium, sealed-secrets, hcloud-ccm/csi, kured, system-upgrade",
+      "matchManagers": ["argocd"],
+      "matchFileNames": [
+        "kubernetes/base/infra/**",
+        "kubernetes/components/hcloud-ccm/**",
+        "kubernetes/components/hcloud-csi/**",
+        "kubernetes/components/hcloud-secret/**",
+        "kubernetes/components/kured/**",
+        "kubernetes/components/system-upgrade-controller/**",
+        "kubernetes/components/system-upgrade-plans/**"
+      ],
+      "groupName": "infra"
+    },
+    {
+      "description": "Group platform service updates: traefik, cert-manager, keda, vpa, cloudflared",
+      "matchManagers": ["argocd"],
+      "matchFileNames": [
+        "kubernetes/base/platform/**",
+        "kubernetes/components/cloudflared/**"
+      ],
+      "groupName": "platform"
+    },
+    {
+      "description": "Group monitoring stack updates: kube-prometheus-stack, tempo",
+      "matchManagers": ["argocd"],
+      "matchFileNames": [
+        "kubernetes/base/monitoring/**"
+      ],
+      "groupName": "monitoring"
+    }
   ]
 }
