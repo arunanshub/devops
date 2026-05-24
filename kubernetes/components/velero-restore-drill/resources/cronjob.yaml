@@ -53,8 +53,8 @@ spec:
                   fi
                   echo "Using backup: $LATEST"
 
-                  # Idempotent cleanup
-                  kubectl delete namespace "$TEST_NS" --ignore-not-found --wait=true
+                  # Idempotent cleanup — --wait=false avoids hanging on slow PVC/finalizer teardown
+                  kubectl delete namespace "$TEST_NS" --ignore-not-found --wait=false
 
                   # Create Restore CR
                   cat <<EOF | kubectl apply -f -
@@ -88,12 +88,12 @@ spec:
                   # Check result BEFORE cleanup so cleanup failures don't mask it
                   if [ "$PHASE" != "Completed" ]; then
                     echo "ERROR: restore phase was '$PHASE', expected 'Completed'"
-                    kubectl delete namespace "$TEST_NS" --ignore-not-found || true
+                    kubectl delete namespace "$TEST_NS" --ignore-not-found --wait=false || true
                     kubectl delete restore "$RESTORE_NAME" -n velero --ignore-not-found || true
                     exit 1
                   fi
 
-                  # Cleanup
-                  kubectl delete namespace "$TEST_NS" --ignore-not-found || true
+                  # Cleanup — --wait=false avoids hanging on slow PVC/finalizer teardown
+                  kubectl delete namespace "$TEST_NS" --ignore-not-found --wait=false || true
                   kubectl delete restore "$RESTORE_NAME" -n velero --ignore-not-found || true
                   echo "Restore drill succeeded"
