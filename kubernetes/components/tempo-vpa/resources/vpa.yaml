@@ -14,7 +14,7 @@ spec:
     containerPolicies:
       - containerName: tempo
         minAllowed:
-          cpu: 50m
+          cpu: 10m
           memory: 192Mi
         maxAllowed:
           cpu: 1
