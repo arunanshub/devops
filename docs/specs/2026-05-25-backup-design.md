@@ -71,7 +71,7 @@ etcd-snapshot-compress: true
 
 **Bootstrap ordering constraint:** This playbook must run *after* ArgoCD has reconciled the sealed-secrets controller AND the `k3s-etcd-snapshot-s3-config` SealedSecret has been applied in `kube-system`. Running it before the Secret exists is safe (k3s starts and retries), but the first snapshot uploads will fail until the Secret appears. Do not run during bootstrap before step 5 (`just argocd-root-bootstrap`).
 
-**k3s + R2 compatibility:** k3s uses the minio Go S3 client. A `ListObjectsV2` metadata incompatibility with R2 was fixed in k3s 1.27; this cluster runs 1.35.4. The Secret must include `etcd-s3-bucket-lookup-type: path` (R2 requires path-style URLs). No checksum header issue (unlike Velero's AWS plugin — different code path).
+**k3s + R2 compatibility:** k3s uses the minio Go S3 client. A `ListObjectsV2` metadata incompatibility with R2 was fixed in k3s 1.27; this cluster runs 1.35.4. The Secret must include `etcd-s3-bucket-lookup-type: path` (R2 requires path-style URLs). No checksum header issue (unlike Velero's AWS plugin — different code path). **The `etcd-s3-endpoint` value must be the bare hostname only — no `https://` scheme prefix.** The scheme is controlled by `etcd-s3-insecure: "false"` (use TLS). Including the scheme produces `"Endpoint url cannot have fully qualified paths"` from the minio client.
 
 The `k3s-etcd-snapshot-s3-config` Secret shape:
 
@@ -83,7 +83,7 @@ metadata:
   namespace: kube-system
 type: etcd.k3s.cattle.io/s3-config-secret
 stringData:
-  etcd-s3-endpoint: "https://<account_id>.r2.cloudflarestorage.com"
+  etcd-s3-endpoint: "<account_id>.r2.cloudflarestorage.com"
   etcd-s3-access-key: "<ACCESS_KEY>"
   etcd-s3-secret-key: "<SECRET_KEY>"
   etcd-s3-bucket: "arunanshu-etcd-snapshots"

@@ -116,7 +116,7 @@ seal-etcd-s3:
         'kubectl create secret generic k3s-etcd-snapshot-s3-config \
             --namespace kube-system \
             --type etcd.k3s.cattle.io/s3-config-secret \
-            --from-literal=etcd-s3-endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+            --from-literal=etcd-s3-endpoint="${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
             --from-literal=etcd-s3-access-key="${R2_ETCD_ACCESS_KEY}" \
             --from-literal=etcd-s3-secret-key="${R2_ETCD_SECRET_KEY}" \
             --from-literal=etcd-s3-bucket=arunanshu-etcd-snapshots \
