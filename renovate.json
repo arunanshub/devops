@@ -3,6 +3,10 @@
   "extends": [
     "config:recommended"
   ],
+  "schedule": ["before 9am on monday"],
+  "vulnerabilityAlerts": {
+    "schedule": []
+  },
   "devbox": {
     "enabled": false
   },
