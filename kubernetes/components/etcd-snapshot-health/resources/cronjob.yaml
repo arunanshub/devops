@@ -53,6 +53,8 @@ spec:
                 seccompProfile:
                   type: RuntimeDefault
               env:
+                - name: HOME
+                  value: /tmp
                 - name: AWS_ACCESS_KEY_ID
                   valueFrom:
                     secretKeyRef:

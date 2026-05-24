@@ -69,3 +69,4 @@
         - etcd_snapshot_config.changed
         - not ansible_check_mode
         - inventory_hostname == ansible_play_hosts_all[0]
+        - snapshot_result is defined

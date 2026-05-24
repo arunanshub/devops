@@ -19,7 +19,7 @@ data:
         {
           "id": 1, "type": "stat", "title": "Velero BSL Status",
           "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
-          "targets": [{"expr": "velero_backup_storage_location_available{location=\"default\"}", "legendFormat": "BSL"}],
+          "targets": [{"expr": "velero_backup_location_status_gauge{backup_location_name=\"default\"}", "legendFormat": "BSL"}],
           "fieldConfig": {"defaults": {
             "mappings": [{"type": "value", "options": {"0": {"text": "Unavailable", "color": "red"}, "1": {"text": "Available", "color": "green"}}}],
             "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}

@@ -25,7 +25,7 @@ spec:
             description: "{{ $value }} backup failure(s) in the last 2 hours."
 
         - alert: VeleroBSLUnavailable
-          expr: velero_backup_storage_location_available{location="default"} == 0
+          expr: velero_backup_location_status_gauge{backup_location_name="default"} == 0
           for: 10m
           labels:
             severity: critical
@@ -34,15 +34,21 @@ spec:
             description: "The default R2 BackupStorageLocation is not reachable."
 
         - alert: EtcdSnapshotStale
-          expr: (time() - kube_cronjob_status_last_successful_time{cronjob="etcd-snapshot-health", namespace="kube-system"}) > 36000
+          expr: |
+            absent(kube_cronjob_status_last_successful_time{cronjob="etcd-snapshot-health", namespace="kube-system"})
+            or
+            (time() - kube_cronjob_status_last_successful_time{cronjob="etcd-snapshot-health", namespace="kube-system"}) > 36000
           labels:
             severity: warning
           annotations:
             summary: "etcd snapshot health check has not succeeded"
-            description: "The etcd-snapshot-health CronJob last succeeded more than 10 hours ago."
+            description: "The etcd-snapshot-health CronJob has never run or last succeeded more than 10 hours ago."
 
         - alert: VeleroRestoreDrillMissed
-          expr: (time() - kube_cronjob_status_last_successful_time{cronjob="velero-restore-drill", namespace="velero"}) > 2678400
+          expr: |
+            absent(kube_cronjob_status_last_successful_time{cronjob="velero-restore-drill", namespace="velero"})
+            or
+            (time() - kube_cronjob_status_last_successful_time{cronjob="velero-restore-drill", namespace="velero"}) > 2678400
           labels:
             severity: warning
           annotations:
