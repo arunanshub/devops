@@ -1,5 +1,5 @@
 # Bootstrap-only values. ArgoCD takes over after first sync via
-# kubernetes/infra/cilium/values.yaml — keep the two in sync so the adoption
+# kubernetes/base/infra/cilium/values.yaml — keep the two in sync so the adoption
 # under ServerSideApply is a no-op diff.
 
 # k3s runs with --disable-kube-proxy, so Cilium provides all service routing.
@@ -30,10 +30,10 @@ encryption:
 operator:
   replicas: 2
 
+# Traefik owns the GatewayClass; Cilium Gateway API disabled.
+# ref: https://claude.ai/share/589a7ce8-eea1-4043-aaab-69d4d6ee9333
 gatewayAPI:
-  enabled: true
-  gatewayClass:
-    create: "true"
+  enabled: false
 
 # Use the host's systemd-managed cgroup2 mount rather than Cilium's private
 # one. Both are v2; this just avoids the duplicate mount and gives Hubble

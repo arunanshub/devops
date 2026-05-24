@@ -1,16 +1,15 @@
-# Gateway API standard channel CRDs for one-time bootstrap. Cilium 1.19.3
-# supports Gateway API v1.4.1.
+# Gateway API standard channel CRDs for one-time bootstrap.
 #
 # Helmfile wraps this kustomization as a synthetic Helm chart and installs it
-# as the release "gateway-api-crds" before Cilium, so gatewayAPI.enabled=true
-# can render GatewayClass resources.
+# as the release "gateway-api-crds" before Cilium. Traefik owns the GatewayClass;
+# Cilium Gateway API is disabled.
 #
 # Keep this intentionally separate from kubernetes/base/infra/gateway-api-crds so
 # bootstrap and ArgoCD ownership can evolve independently.
 #
-# Bump the URL in lockstep with the Cilium minor version. Add the experimental
-# channel install URL alongside if TLSRoute is needed.
+# Keep this version in sync with kubernetes/base/infra/gateway-api-crds/kustomization.yaml.
+# Validate against the Traefik minor version's Gateway API support matrix.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.1/standard-install.yaml
+  - https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml

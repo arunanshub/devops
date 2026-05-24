@@ -2,8 +2,9 @@
 # Keep this intentionally separate from kubernetes/bootstrap/gateway-api-crds
 # so bootstrap and ArgoCD ownership can evolve independently.
 #
-# Cilium 1.19.3 supports Gateway API v1.4.1. Bump this only after validating
-# the target Cilium version's Gateway API support.
+# Traefik owns the GatewayClass; Cilium Gateway API is disabled. Bump this
+# version in sync with kubernetes/bootstrap/gateway-api-crds/kustomization.yaml,
+# validating against the Traefik minor version's Gateway API support matrix.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
