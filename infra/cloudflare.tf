@@ -91,3 +91,13 @@ data "cloudflare_zero_trust_tunnel_cloudflared_token" "main" {
   account_id = var.cloudflare_account_id
   tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.main.id
 }
+
+resource "cloudflare_r2_bucket" "etcd_snapshots" {
+  account_id = var.cloudflare_account_id
+  name       = "arunanshu-etcd-snapshots"
+}
+
+resource "cloudflare_r2_bucket" "velero_backups" {
+  account_id = var.cloudflare_account_id
+  name       = "arunanshu-velero-backups"
+}
