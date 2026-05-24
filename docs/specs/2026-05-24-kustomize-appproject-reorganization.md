@@ -19,6 +19,7 @@ Secondary inconsistency: `argocd-route` lives in `base/infra/` while functionall
 - **AppProject ↔ namespace group.** One AppProject per distinct namespace-ownership boundary. Don't create an AppProject just because a directory moved.
 - **`base/` is cloud-agnostic.** Anything that requires a specific cloud provider (Hetzner API, cloud metadata service, block storage driver) belongs in a component enabled by the prod overlay.
 - **Components are the opt-in layer.** `kind: Component` kustomizations in `components/` let the prod overlay explicitly list what it wants. A future `dev` overlay can compose a different subset.
+- **One workload per directory.** Two resources of the same `kind` in the same directory is a smell — they likely belong in separate directories. Exception: a single workload that genuinely requires multiple resources of the same kind (e.g., a Deployment backed by two Services).
 
 ## AppProject Split
 
@@ -129,7 +130,10 @@ kubernetes/
     system-upgrade-controller/      ← NEW (moved from base/infra/, project: infra)
       kustomization.yaml            (kind: Component)
       application.yaml
-      plans-application.yaml
+
+    system-upgrade-plans/           ← NEW (split from system-upgrade-controller/, project: infra)
+      kustomization.yaml            (kind: Component)
+      application.yaml
 
     argocd-route/                   ← NEW (moved from base/infra/, project: infra)
       kustomization.yaml            (kind: Component)
@@ -162,7 +166,8 @@ kubernetes/
 - `components/hcloud-secret/` — new component (whole dir moved from `base/infra/hcloud-secret/`)
 - `components/cloudflared/` — new component (whole dir moved from `base/infra/cloudflared/`)
 - `components/kured/` — new component (whole dir moved from `base/infra/kured/`)
-- `components/system-upgrade-controller/` — new component (whole dir moved from `base/infra/system-upgrade-controller/`)
+- `components/system-upgrade-controller/` — new component (controller only, split from `base/infra/system-upgrade-controller/`)
+- `components/system-upgrade-plans/` — new component (Plans only, split from `base/infra/system-upgrade-controller/`)
 - `components/argocd-route/` — new component (whole dir moved from `base/infra/argocd-route/`)
 
 Each moved directory gains a `kustomization.yaml` with `kind: Component`.
@@ -171,7 +176,7 @@ Each moved directory gains a `kustomization.yaml` with `kind: Component`.
 - `base/infra/kustomization.yaml` — retain only: appproject, argocd, gateway-api-crds, sealed-secrets, cilium
 - `base/infra/appproject.yaml` — remove destinations: traefik, cert-manager, keda, vpa, cloudflared; remove sourceRepos: traefik chart, cert-manager chart, keda chart, vpa chart
 - `base/kustomization.yaml` — add `platform/` to resources
-- `overlays/prod/kustomization.yaml` — add 7 new components (hcloud-ccm, hcloud-csi, hcloud-secret, cloudflared, kured, system-upgrade-controller, argocd-route)
+- `overlays/prod/kustomization.yaml` — add 8 new components (hcloud-ccm, hcloud-csi, hcloud-secret, cloudflared, kured, system-upgrade-controller, system-upgrade-plans, argocd-route)
 - `components/hcloud-ccm/application.yaml` — update `$values` path from `kubernetes/base/infra/hcloud-ccm/values.yaml` → `kubernetes/components/hcloud-ccm/values.yaml`
 - `components/hcloud-csi/application.yaml` — update `$values` path similarly
 - `components/kured/application.yaml` — update `$values` path from `kubernetes/base/infra/kured/values.yaml` → `kubernetes/components/kured/values.yaml`
