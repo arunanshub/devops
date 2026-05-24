@@ -27,9 +27,6 @@ spec:
     - server: https://kubernetes.default.svc
       namespace: cilium-secrets
 
-  orphanedResources:
-    warn: true
-
   clusterResourceWhitelist:
     - group: "*"
       kind: "*"

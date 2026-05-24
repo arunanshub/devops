@@ -31,6 +31,15 @@ spec:
 
   orphanedResources:
     warn: true
+    ignore:
+      - group: autoscaling
+        kind: HorizontalPodAutoscaler
+      - group: ""
+        kind: ConfigMap
+        name: kube-root-ca.crt
+      - group: ""
+        kind: ServiceAccount
+        name: default
 
   clusterResourceWhitelist:
     - group: "*"

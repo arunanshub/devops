@@ -21,6 +21,15 @@ spec:
 
   orphanedResources:
     warn: true
+    ignore:
+      - group: ""
+        kind: PersistentVolumeClaim
+      - group: ""
+        kind: ConfigMap
+        name: kube-root-ca.crt
+      - group: ""
+        kind: ServiceAccount
+        name: default
 
   clusterResourceWhitelist:
     - group: "*"
