@@ -6,3 +6,4 @@ resources:
   - cert-manager/application.yaml
   - keda/application.yaml
   - vpa/application.yaml
+  - velero/application.yaml

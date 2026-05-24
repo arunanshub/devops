@@ -1,0 +1,44 @@
+nodeAgent:
+  enabled: false
+
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.12.0
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+configuration:
+  backupStorageLocation:
+    - name: default
+      provider: aws
+      bucket: arunanshu-velero-backups
+      credential:
+        name: velero-r2-credentials
+        key: cloud
+      config:
+        region: auto
+        # Replace 'placeholder' with your R2 account ID: sops exec-env infra/secrets.yaml 'echo $R2_ACCOUNT_ID'
+        s3Url: "https://placeholder.r2.cloudflarestorage.com"
+        s3ForcePathStyle: "true"
+        checksumAlgorithm: ""
+
+  volumeSnapshotLocation: []
+
+schedules:
+  daily-full:
+    schedule: "0 2 * * *"
+    template:
+      ttl: 720h
+      includedNamespaces:
+        - "*"
+      includeClusterResources: true
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+
+credentials:
+  useSecret: true
+  existingSecret: velero-r2-credentials
