@@ -255,6 +255,30 @@ Don't do this without first reading the diff (`argocd app diff cilium`) — `--r
 
 ---
 
+## Velero BSL s3Url placeholder must be replaced before sync
+
+**Symptom.** After `just argocd-root-bootstrap`, the `velero` Application syncs but the BackupStorageLocation reports `Unavailable`, and all backup jobs fail with connection errors to a non-existent domain.
+
+**Cause.** `kubernetes/base/platform/velero/values.yaml` ships with `s3Url: "https://placeholder.r2.cloudflarestorage.com"` intentionally — the R2 account ID is not committed to the repo. The placeholder must be replaced with the actual account ID before ArgoCD reconciles the Application.
+
+**Fix.**
+
+```sh
+sops exec-env infra/secrets.yaml 'echo $R2_ACCOUNT_ID'
+# copy the account ID, then edit:
+sops kubernetes/base/platform/velero/values.yaml
+# find the line: s3Url: "https://placeholder.r2.cloudflarestorage.com"
+# replace 'placeholder' with the account ID, save (re-encrypts on close)
+git add kubernetes/base/platform/velero/values.yaml
+git commit -m "velero: substitute R2 account ID in s3Url"
+```
+
+ArgoCD picks up the commit on the next reconcile, and the BackupStorageLocation becomes `Available`.
+
+**Prevention.** Check the s3Url placeholder substitution as a pre-sync checklist before running `just argocd-root-bootstrap` on a fresh cluster.
+
+---
+
 ## Quick reference: things that look broken but aren't
 
 - `coredns`, `local-path-provisioner`, `metrics-server` `Pending` early in bootstrap → expected, no CNI yet, they schedule once Cilium is up
