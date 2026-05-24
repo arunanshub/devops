@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: git@github.com:arunanshub/devops.git
     targetRevision: master
-    path: kubernetes/base/infra/argocd-route/resources
+    path: kubernetes/components/argocd-route/resources
 
   destination:
     server: https://kubernetes.default.svc

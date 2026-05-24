@@ -1,21 +1,21 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: kured
+  name: keda
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: infra
+  project: platform
 
   sources:
-    - repoURL: https://kubereboot.github.io/charts
-      chart: kured
-      targetRevision: 5.11.0
+    - repoURL: https://kedacore.github.io/charts
+      chart: keda
+      targetRevision: 2.19.0
       helm:
-        releaseName: kured
+        releaseName: keda
         valueFiles:
-          - $values/kubernetes/base/infra/kured/values.yaml
+          - $values/kubernetes/base/platform/keda/values.yaml
 
     - repoURL: git@github.com:arunanshub/devops.git
       targetRevision: master
@@ -23,12 +23,12 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: kube-system
+    namespace: keda
 
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
       - ServerSideApply=true
+      - CreateNamespace=true

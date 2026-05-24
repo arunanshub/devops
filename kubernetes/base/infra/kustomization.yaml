@@ -1,21 +1,8 @@
-# kubernetes/base/infra/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - appproject.yaml
   - argocd/application.yaml
-  - sealed-secrets/application.yaml
-  - system-upgrade-controller/application.yaml
-  - system-upgrade-controller/plans-application.yaml
-  - kured/application.yaml
-  - hcloud-secret/application.yaml
   - gateway-api-crds/application.yaml
+  - sealed-secrets/application.yaml
   - cilium/application.yaml
-  - hcloud-ccm/application.yaml
-  - hcloud-csi/application.yaml
-  - cert-manager/application.yaml
-  - vpa/application.yaml
-  - traefik/application.yaml
-  - keda/application.yaml
-  - cloudflared/application.yaml
-  - argocd-route/application.yaml

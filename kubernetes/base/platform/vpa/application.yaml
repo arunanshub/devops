@@ -1,21 +1,21 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: hcloud-ccm
+  name: vpa
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "1"
 spec:
-  project: infra
+  project: platform
 
   sources:
-    - repoURL: https://charts.hetzner.cloud
-      chart: hcloud-cloud-controller-manager
-      targetRevision: 1.30.1
+    - repoURL: https://charts.fairwinds.com/stable
+      chart: vpa
+      targetRevision: 4.11.0
       helm:
-        releaseName: hccm
+        releaseName: vpa
         valueFiles:
-          - $values/kubernetes/base/infra/hcloud-ccm/values.yaml
+          - $values/kubernetes/base/platform/vpa/values.yaml
 
     - repoURL: git@github.com:arunanshub/devops.git
       targetRevision: master
@@ -23,12 +23,12 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: kube-system
+    namespace: vpa
 
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false
+      - CreateNamespace=true
       - ServerSideApply=true

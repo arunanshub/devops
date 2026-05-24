@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - appproject.yaml
+  - traefik/application.yaml
+  - cert-manager/application.yaml
+  - keda/application.yaml
+  - vpa/application.yaml

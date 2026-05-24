@@ -1,21 +1,21 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: traefik
+  name: hcloud-csi
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "3"
 spec:
   project: infra
 
   sources:
-    - repoURL: https://traefik.github.io/charts
-      chart: traefik
-      targetRevision: 40.2.0
+    - repoURL: https://charts.hetzner.cloud
+      chart: hcloud-csi
+      targetRevision: 2.5.1
       helm:
-        releaseName: traefik
+        releaseName: hcloud-csi
         valueFiles:
-          - $values/kubernetes/base/infra/traefik/values.yaml
+          - $values/kubernetes/components/hcloud-csi/values.yaml
 
     - repoURL: git@github.com:arunanshub/devops.git
       targetRevision: master
@@ -23,12 +23,12 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: traefik
+    namespace: kube-system
 
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
+      - CreateNamespace=false
       - ServerSideApply=true

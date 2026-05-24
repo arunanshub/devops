@@ -1,31 +1,31 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: infra
+  name: platform
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "-2"
 spec:
-  description: Core infrastructure components — cluster kernel, networking, secret management
+  description: Cloud-agnostic service platform — ingress, TLS, autoscaling, external access
 
   sourceRepos:
     - git@github.com:arunanshub/devops.git
-    - https://argoproj.github.io/argo-helm
-    - https://bitnami-labs.github.io/sealed-secrets
-    - https://kubereboot.github.io/charts
-    - https://github.com/rancher/system-upgrade-controller
-    - https://charts.hetzner.cloud
-    - https://helm.cilium.io/
+    - https://traefik.github.io/charts
+    - https://charts.jetstack.io
+    - https://charts.fairwinds.com/stable
+    - https://kedacore.github.io/charts
 
   destinations:
     - server: https://kubernetes.default.svc
-      namespace: argocd
+      namespace: traefik
     - server: https://kubernetes.default.svc
-      namespace: kube-system
+      namespace: cert-manager
     - server: https://kubernetes.default.svc
-      namespace: system-upgrade
+      namespace: vpa
     - server: https://kubernetes.default.svc
-      namespace: cilium-secrets
+      namespace: keda
+    - server: https://kubernetes.default.svc
+      namespace: cloudflared
 
   clusterResourceWhitelist:
     - group: "*"

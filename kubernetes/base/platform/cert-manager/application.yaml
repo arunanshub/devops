@@ -1,20 +1,21 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: keda
+  name: cert-manager
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "1"
 spec:
-  project: infra
+  project: platform
+
   sources:
-    - repoURL: https://kedacore.github.io/charts
-      chart: keda
-      targetRevision: 2.19.0
+    - repoURL: https://charts.jetstack.io
+      chart: cert-manager
+      targetRevision: 1.20.2
       helm:
-        releaseName: keda
+        releaseName: cert-manager
         valueFiles:
-          - $values/kubernetes/base/infra/keda/values.yaml
+          - $values/kubernetes/base/platform/cert-manager/values.yaml
 
     - repoURL: git@github.com:arunanshub/devops.git
       targetRevision: master
@@ -22,12 +23,12 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: keda
+    namespace: cert-manager
 
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - ServerSideApply=true
       - CreateNamespace=true
+      - ServerSideApply=true

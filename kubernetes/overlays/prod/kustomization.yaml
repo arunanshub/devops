@@ -11,3 +11,11 @@ components:
   - ../../components/tempo-vpa
   - ../../components/traefik-route
   - ../../components/hubble-route
+  - ../../components/hcloud-ccm
+  - ../../components/hcloud-csi
+  - ../../components/hcloud-secret
+  - ../../components/cloudflared
+  - ../../components/kured
+  - ../../components/system-upgrade-controller
+  - ../../components/system-upgrade-plans
+  - ../../components/argocd-route

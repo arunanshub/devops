@@ -1,21 +1,21 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cert-manager
+  name: traefik
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: infra
+  project: platform
 
   sources:
-    - repoURL: https://charts.jetstack.io
-      chart: cert-manager
-      targetRevision: 1.20.2
+    - repoURL: https://traefik.github.io/charts
+      chart: traefik
+      targetRevision: 40.2.0
       helm:
-        releaseName: cert-manager
+        releaseName: traefik
         valueFiles:
-          - $values/kubernetes/base/infra/cert-manager/values.yaml
+          - $values/kubernetes/base/platform/traefik/values.yaml
 
     - repoURL: git@github.com:arunanshub/devops.git
       targetRevision: master
@@ -23,7 +23,7 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: cert-manager
+    namespace: traefik
 
   syncPolicy:
     automated:
