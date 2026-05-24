@@ -112,7 +112,7 @@ seal-etcd-s3:
     #!/usr/bin/env bash
     set -euo pipefail
     out="{{ k8s / "components/etcd-snapshot-health/resources/sealedsecret-etcd-s3.yaml" }}"
-    sops exec-env "{{ infra / "secrets.yaml" }}" bash -c \
+    sops exec-env "{{ infra / "secrets.yaml" }}" \
         'kubectl create secret generic k3s-etcd-snapshot-s3-config \
             --namespace kube-system \
             --type etcd.k3s.cattle.io/s3-config-secret \
@@ -140,7 +140,7 @@ seal-velero-s3:
     set -euo pipefail
     out="{{ k8s / "components/velero-restore-drill/resources/sealedsecret-velero-r2.yaml" }}"
     creds=$'[default]\naws_access_key_id=${R2_VELERO_ACCESS_KEY}\naws_secret_access_key=${R2_VELERO_SECRET_KEY}'
-    sops exec-env "{{ infra / "secrets.yaml" }}" bash -c \
+    sops exec-env "{{ infra / "secrets.yaml" }}" \
         'kubectl create secret generic velero-r2-credentials \
             --namespace velero \
             --from-literal=cloud="'"$creds"'" \
