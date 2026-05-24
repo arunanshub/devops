@@ -17,7 +17,7 @@ spec:
           automountServiceAccountToken: true
           containers:
             - name: drill
-              image: bitnami/kubectl:1.31
+              image: bitnami/kubectl:1.35.5
               securityContext:
                 runAsNonRoot: true
                 runAsUser: 1000
