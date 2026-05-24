@@ -8,7 +8,7 @@ rules:
     verbs: ["get", "list"]
   - apiGroups: ["velero.io"]
     resources: ["restores"]
-    verbs: ["create", "get", "list", "delete", "patch"]
+    verbs: ["create", "get", "list", "delete", "patch", "watch"]
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["create", "delete", "get", "list", "watch"]
