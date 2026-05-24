@@ -19,7 +19,7 @@ configuration:
       config:
         region: auto
         # Replace 'placeholder' with your R2 account ID: sops exec-env infra/secrets.yaml 'echo $R2_ACCOUNT_ID'
-        s3Url: "https://placeholder.r2.cloudflarestorage.com"
+        s3Url: "https://2f120b3588f24bba8666100a3da52e02.r2.cloudflarestorage.com"
         s3ForcePathStyle: "true"
         checksumAlgorithm: ""
 
