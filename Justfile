@@ -105,5 +105,93 @@ seal-cloudflared-token:
     echo "Sealed token written to $out"
     echo "Next: add 'sealed-tunnel-token.yaml' to kubernetes/base/infra/cloudflared/resources/kustomization.yaml, then commit both."
 
+# Seal R2 credentials for k3s etcd snapshot S3 upload.
+# Run AFTER Task 2 (R2 buckets created, credentials in secrets.yaml).
+# Requires cluster access (kubeseal reads the sealed-secrets controller pubkey).
+seal-etcd-s3:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out="{{ k8s / "components/etcd-snapshot-health/resources/sealedsecret-etcd-s3.yaml" }}"
+    sops exec-env "{{ infra / "secrets.yaml" }}" bash -c \
+        'kubectl create secret generic k3s-etcd-snapshot-s3-config \
+            --namespace kube-system \
+            --type etcd.k3s.cattle.io/s3-config-secret \
+            --from-literal=etcd-s3-endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+            --from-literal=etcd-s3-access-key="${R2_ETCD_ACCESS_KEY}" \
+            --from-literal=etcd-s3-secret-key="${R2_ETCD_SECRET_KEY}" \
+            --from-literal=etcd-s3-bucket=arunanshu-etcd-snapshots \
+            --from-literal=etcd-s3-region=auto \
+            --from-literal=etcd-s3-bucket-lookup-type=path \
+            --from-literal=etcd-s3-folder=prod \
+            --from-literal=etcd-s3-insecure=false \
+            --from-literal=etcd-s3-timeout=5m \
+            --dry-run=client -o yaml | \
+        kubeseal \
+            --controller-namespace kube-system \
+            --controller-name sealed-secrets-controller \
+            --format yaml' \
+        > "$out"
+    printf 'Sealed to %s - add sealedsecret-etcd-s3.yaml to resources/kustomization.yaml and commit.\n' "$out"
+
+# Seal R2 credentials for Velero BackupStorageLocation.
+# Run AFTER Task 2. Requires cluster access.
+seal-velero-s3:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out="{{ k8s / "components/velero-restore-drill/resources/sealedsecret-velero-r2.yaml" }}"
+    creds=$'[default]\naws_access_key_id=${R2_VELERO_ACCESS_KEY}\naws_secret_access_key=${R2_VELERO_SECRET_KEY}'
+    sops exec-env "{{ infra / "secrets.yaml" }}" bash -c \
+        'kubectl create secret generic velero-r2-credentials \
+            --namespace velero \
+            --from-literal=cloud="'"$creds"'" \
+            --dry-run=client -o yaml | \
+        kubeseal \
+            --controller-namespace kube-system \
+            --controller-name sealed-secrets-controller \
+            --format yaml' \
+        > "$out"
+    printf 'Sealed to %s - add sealedsecret-velero-r2.yaml to velero-restore-drill/resources/kustomization.yaml and commit.\n' "$out"
+
+# Show current Velero backup and restore status.
+@velero-status:
+    @echo "=== Backups ==="
+    kubectl exec -n velero deploy/velero -- velero backup get
+    @echo ""
+    @echo "=== Restores ==="
+    kubectl exec -n velero deploy/velero -- velero restore get
+    @echo ""
+    @echo "=== Backup Storage Location ==="
+    kubectl exec -n velero deploy/velero -- velero backup-location get
+
+# Create a Velero restore from a named backup into a target namespace.
+# IMPORTANT: disable ArgoCD auto-sync on NAMESPACE before running; re-enable after verifying.
+# Usage: just velero-restore <backup-name> <namespace>
+velero-restore backup namespace:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    printf '>> Disable ArgoCD auto-sync first:\n'
+    printf '   kubectl patch application {{ namespace }} -n argocd --type merge\n'
+    printf '\n'
+    read -r -p "Confirm auto-sync is disabled for '{{ namespace }}' [y/N]: " confirm
+    [[ "$confirm" == "y" ]] || { printf 'Aborted.\n'; exit 1; }
+    kubectl exec -n velero deploy/velero -- velero restore create \
+        --from-backup "{{ backup }}" \
+        --include-namespaces "{{ namespace }}" \
+        --wait
+    printf '\n'
+    printf '>> Restore complete. Verify state, then re-enable auto-sync:\n'
+    printf '   kubectl patch application {{ namespace }} -n argocd --type merge\n'
+
+# Print the manual etcd restore procedure. Credentials must be passed directly via CLI.
+@etcd-restore:
+    @echo "=== Manual etcd restore procedure ==="
+    @echo ""
+    @echo "Refer to docs/bootstrap-pitfalls.md for detailed etcd recovery instructions"
+    @echo ""
+    @echo "Quick summary: download snapshot, stop k3s, reset etcd on one CP node,"
+    @echo "start k3s on reset node first, then start remaining CP nodes."
+    @echo ""
+    @echo "Note: S3 credentials unavailable during restore; pass directly via CLI."
+
 @_sops-apply file:
     sops --decrypt "{{ file }}" | kubectl apply -f -
