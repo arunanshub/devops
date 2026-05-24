@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-health-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  backup-health.json: |
+    {
+      "title": "Backup Health",
+      "uid": "backup-health",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "5m",
+      "time": {"from": "now-7d", "to": "now"},
+      "tags": ["backup", "velero"],
+      "panels": [
+        {
+          "id": 1, "type": "stat", "title": "Velero BSL Status",
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+          "targets": [{"expr": "velero_backup_storage_location_available{location=\"default\"}", "legendFormat": "BSL"}],
+          "fieldConfig": {"defaults": {
+            "mappings": [{"type": "value", "options": {"0": {"text": "Unavailable", "color": "red"}, "1": {"text": "Available", "color": "green"}}}],
+            "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+          }},
+          "options": {"colorMode": "background", "reduceOptions": {"calcs": ["lastNotNull"]}}
+        },
+        {
+          "id": 2, "type": "stat", "title": "Last Velero Backup",
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+          "targets": [{"expr": "velero_backup_last_successful_timestamp{schedule=\"daily-full\"} * 1000", "legendFormat": "Last backup"}],
+          "fieldConfig": {"defaults": {
+            "unit": "dateTimeFromNow",
+            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": -86400000}, {"color": "red", "value": -90000000}]}
+          }},
+          "options": {"colorMode": "background", "reduceOptions": {"calcs": ["lastNotNull"]}}
+        },
+        {
+          "id": 3, "type": "stat", "title": "Last etcd Snapshot Check",
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+          "targets": [{"expr": "kube_cronjob_status_last_successful_time{cronjob=\"etcd-snapshot-health\", namespace=\"kube-system\"} * 1000", "legendFormat": "Last check"}],
+          "fieldConfig": {"defaults": {
+            "unit": "dateTimeFromNow",
+            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": -28800000}, {"color": "red", "value": -36000000}]}
+          }},
+          "options": {"colorMode": "background", "reduceOptions": {"calcs": ["lastNotNull"]}}
+        },
+        {
+          "id": 4, "type": "stat", "title": "Last Restore Drill",
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+          "targets": [{"expr": "kube_cronjob_status_last_successful_time{cronjob=\"velero-restore-drill\", namespace=\"velero\"} * 1000", "legendFormat": "Last drill"}],
+          "fieldConfig": {"defaults": {
+            "unit": "dateTimeFromNow",
+            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": -2332800000}, {"color": "red", "value": -2678400000}]}
+          }},
+          "options": {"colorMode": "background", "reduceOptions": {"calcs": ["lastNotNull"]}}
+        },
+        {
+          "id": 5, "type": "timeseries", "title": "Velero Backup Attempts vs Successes (24h buckets)",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+          "targets": [
+            {"expr": "increase(velero_backup_attempt_total[24h])", "legendFormat": "Attempts"},
+            {"expr": "increase(velero_backup_success_total[24h])", "legendFormat": "Successes"}
+          ]
+        },
+        {
+          "id": 6, "type": "timeseries", "title": "Velero Backup Failures (24h buckets)",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+          "targets": [
+            {"expr": "increase(velero_backup_failure_total[24h])", "legendFormat": "Failures"},
+            {"expr": "increase(velero_backup_partial_failure_total[24h])", "legendFormat": "Partial Failures"}
+          ]
+        }
+      ]
+    }
