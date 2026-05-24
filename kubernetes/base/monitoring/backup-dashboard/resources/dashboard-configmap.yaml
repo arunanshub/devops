@@ -29,30 +29,30 @@ data:
         {
           "id": 2, "type": "stat", "title": "Last Velero Backup",
           "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
-          "targets": [{"expr": "velero_backup_last_successful_timestamp{schedule=\"daily-full\"} * 1000", "legendFormat": "Last backup"}],
+          "targets": [{"expr": "time() - velero_backup_last_successful_timestamp{schedule=\"daily-full\"}", "legendFormat": "Age"}],
           "fieldConfig": {"defaults": {
-            "unit": "dateTimeFromNow",
-            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": -86400000}, {"color": "red", "value": -90000000}]}
+            "unit": "s",
+            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 86400}, {"color": "red", "value": 90000}]}
           }},
           "options": {"colorMode": "background", "reduceOptions": {"calcs": ["lastNotNull"]}}
         },
         {
           "id": 3, "type": "stat", "title": "Last etcd Snapshot Check",
           "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
-          "targets": [{"expr": "kube_cronjob_status_last_successful_time{cronjob=\"etcd-snapshot-health\", namespace=\"kube-system\"} * 1000", "legendFormat": "Last check"}],
+          "targets": [{"expr": "time() - kube_cronjob_status_last_successful_time{cronjob=\"etcd-snapshot-health\", namespace=\"kube-system\"}", "legendFormat": "Age"}],
           "fieldConfig": {"defaults": {
-            "unit": "dateTimeFromNow",
-            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": -28800000}, {"color": "red", "value": -36000000}]}
+            "unit": "s",
+            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 28800}, {"color": "red", "value": 36000}]}
           }},
           "options": {"colorMode": "background", "reduceOptions": {"calcs": ["lastNotNull"]}}
         },
         {
           "id": 4, "type": "stat", "title": "Last Restore Drill",
           "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
-          "targets": [{"expr": "kube_cronjob_status_last_successful_time{cronjob=\"velero-restore-drill\", namespace=\"velero\"} * 1000", "legendFormat": "Last drill"}],
+          "targets": [{"expr": "time() - kube_cronjob_status_last_successful_time{cronjob=\"velero-restore-drill\", namespace=\"velero\"}", "legendFormat": "Age"}],
           "fieldConfig": {"defaults": {
-            "unit": "dateTimeFromNow",
-            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": -2332800000}, {"color": "red", "value": -2678400000}]}
+            "unit": "s",
+            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 2332800}, {"color": "red", "value": 2678400}]}
           }},
           "options": {"colorMode": "background", "reduceOptions": {"calcs": ["lastNotNull"]}}
         },
