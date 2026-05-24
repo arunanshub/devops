@@ -13,6 +13,7 @@ spec:
       template:
         spec:
           restartPolicy: OnFailure
+          automountServiceAccountToken: false
           containers:
             - name: health-check
               image: amazon/aws-cli:2.22.0
@@ -23,7 +24,7 @@ spec:
                   set -euo pipefail
                   BUCKET="arunanshu-etcd-snapshots"
                   MAX_AGE=36000
-                  LATEST=$(aws s3 ls "s3://${BUCKET}/prod/" --region auto | sort -k1,2 | tail -1)
+                  LATEST=$(aws s3 ls "s3://${BUCKET}/prod/" --region auto | grep -v ' PRE ' | sort -k1,2 | tail -1)
                   if [[ -z "$LATEST" ]]; then
                     echo "ERROR: no snapshots found in s3://${BUCKET}/prod/"
                     exit 1
@@ -36,6 +37,21 @@ spec:
                     exit 1
                   fi
                   echo "OK"
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  memory: 128Mi
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                seccompProfile:
+                  type: RuntimeDefault
               env:
                 - name: AWS_ACCESS_KEY_ID
                   valueFrom:
