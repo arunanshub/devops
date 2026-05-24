@@ -19,3 +19,5 @@ components:
   - ../../components/system-upgrade-controller
   - ../../components/system-upgrade-plans
   - ../../components/argocd-route
+  - ../../components/etcd-snapshot-health
+  - ../../components/velero-restore-drill

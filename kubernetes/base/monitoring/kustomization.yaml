@@ -9,3 +9,4 @@ resources:
   - tempo/application.yaml
   - grafana-route/application.yaml
   - backup-alerts/application.yaml
+  - backup-dashboard/application.yaml
