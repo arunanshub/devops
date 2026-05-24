@@ -15,6 +15,7 @@ A secondary goal is operational confidence: backup health must be observable thr
 ## Scope
 
 **Covered:**
+
 - etcd snapshots → Cloudflare R2 (k3s built-in S3 upload, every 6h)
 - Full-cluster Kubernetes object backups → Cloudflare R2 (Velero, daily, no FSB)
 - Observability: Velero Prometheus metrics + kube-state-metrics CronJob health → PrometheusRules → existing Alertmanager email pipeline
@@ -22,6 +23,7 @@ A secondary goal is operational confidence: backup health must be observable thr
 - Manual restore runbooks as `just` recipes
 
 **Explicitly not covered:**
+
 - Persistent volume data backup (FSB off — Prometheus/Tempo/Grafana accept data loss on cluster rebuild)
 - Tempo S3 backend migration (deferred until object storage budget allows)
 - Automated etcd restore drill (cluster-reset is live-cluster-destructive; manual runbook only)
@@ -31,7 +33,7 @@ A secondary goal is operational confidence: backup health must be observable thr
 Two Cloudflare R2 buckets provisioned in `infra/cloudflare.tf`:
 
 | Bucket | Contents | Retention |
-|---|---|---|
+| --- | --- | --- |
 | `arunanshu-etcd-snapshots` | Compressed etcd snapshots | 24 local / 48 S3 (≈12 days at 6h cadence) |
 | `arunanshu-velero-backups` | Velero backup tarballs + metadata | 30 daily backups |
 
@@ -57,6 +59,7 @@ Eight components across four areas of the repo.
 Same pattern as `k3s-eviction.yml`: targets CP nodes only, drops a config drop-in at `/etc/rancher/k3s/config.yaml.d/etcd-snapshots.yaml`, restarts k3s serially (one node at a time), waits for node Ready before proceeding. One-shot; not imported into `site.yml`.
 
 The drop-in content:
+
 ```yaml
 etcd-s3: true
 etcd-s3-config-secret: k3s-etcd-snapshot-s3-config
@@ -71,6 +74,7 @@ etcd-snapshot-compress: true
 **k3s + R2 compatibility:** k3s uses the minio Go S3 client. A `ListObjectsV2` metadata incompatibility with R2 was fixed in k3s 1.27; this cluster runs 1.35.4. The Secret must include `etcd-s3-bucket-lookup-type: path` (R2 requires path-style URLs). No checksum header issue (unlike Velero's AWS plugin — different code path).
 
 The `k3s-etcd-snapshot-s3-config` Secret shape:
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -95,6 +99,7 @@ Strip `creationTimestamp`, `resourceVersion`, `uid`, `ownerReferences` before se
 ### 3. Velero — `kubernetes/base/platform/velero/`
 
 ArgoCD Application + `values.yaml`. Follows the platform AppProject conventions from `docs/specs/2026-05-24-kustomize-appproject-reorganization.md`:
+
 - `project: platform`
 - Add `velero` namespace to platform AppProject destinations
 - Add `https://vmware-tanzu.github.io/helm-charts` to platform AppProject `sourceRepos`
@@ -102,6 +107,7 @@ ArgoCD Application + `values.yaml`. Follows the platform AppProject conventions 
 Chart: `vmware-tanzu/velero` v12.x (chart major = Velero minor; 12.x = Velero 1.18.x).
 
 Key values:
+
 ```yaml
 nodeAgent:
   enabled: false  # FSB off — no PV data backup
@@ -137,11 +143,13 @@ metrics:
 ```
 
 The Velero credentials Secret uses AWS credentials file format:
-```
+
+```ini
 [default]
 aws_access_key_id = <access_key>
 aws_secret_access_key = <secret_key>
 ```
+
 Sealed as `velero-r2-credentials` in the `velero` namespace.
 
 **S3 restore constraint:** The S3 config Secret cannot be used during etcd restore (apiserver is unavailable). S3 credentials must be passed via CLI flags directly when restoring an etcd snapshot from R2. Document in `just etcd-restore`.
@@ -161,9 +169,11 @@ Component kustomization (`kind: Component`), `project: platform`, deploys to `ve
 Runs monthly (1st of month, 08:00 UTC). Uses `velero/velero` image.
 
 Drill sequence:
+
 1. Delete `velero-restore-test` namespace if it exists (idempotent cleanup)
 2. Find the latest `Completed` backup from the daily schedule
 3. Create a scoped restore:
+
    ```bash
    velero restore create "$RESTORE_NAME" \
      --from-backup "$LATEST_BACKUP" \
@@ -171,6 +181,7 @@ Drill sequence:
      --include-cluster-resources=false \
      --namespace-mappings "monitoring:velero-restore-test"
    ```
+
 4. Wait for restore completion (`velero restore wait --timeout 15m`)
 5. Assert `RestorePhase == Completed` (not PartiallyFailed, not Failed) — exit 1 on any other phase
 6. Delete `velero-restore-test` namespace
@@ -181,6 +192,7 @@ Drill sequence:
 **RBAC:** `ServiceAccount` + `ClusterRole` + `ClusterRoleBinding`, all named `velero-restore-drill`.
 
 ClusterRole permissions:
+
 - `velero.io`: `backups` → `get`, `list`; `restores` → `create`, `get`, `list`, `delete`, `watch`
 - core: `namespaces` → `create`, `delete`, `get`
 
@@ -193,14 +205,14 @@ ArgoCD Application + `resources/prometheusrule.yaml`. `project: monitoring`. Pro
 Five rules:
 
 | Alert | Expression | Severity |
-|---|---|---|
+| --- | --- | --- |
 | `VeleroBackupMissed` | `(time() - velero_backup_last_successful_timestamp{schedule!=""}) > 90000` | warning |
 | `VeleroBackupFailed` | `increase(velero_backup_failure_total[2h]) > 0` | critical |
 | `VeleroBSLUnavailable` | `velero_backup_storage_location_available == 0` | critical |
 | `EtcdSnapshotStale` | `(time() - kube_cronjob_status_last_successful_time{cronjob="etcd-snapshot-health", namespace="kube-system"}) > 36000` | warning |
 | `VeleroRestoreDrillMissed` | `(time() - kube_cronjob_status_last_successful_time{cronjob="velero-restore-drill", namespace="velero"}) > 2678400` | warning |
 
-All route to the existing `email` receiver (mydellpc07@gmail.com) via the already-configured Alertmanager.
+All route to the existing `email` receiver (`mydellpc07@gmail.com`) via the already-configured Alertmanager.
 
 ### 7. Grafana Dashboard — `kubernetes/base/monitoring/backup-dashboard/`
 
@@ -218,7 +230,7 @@ Three new recipes:
 
 ## Data Flow
 
-```
+```text
 k3s (all CP nodes)
   └─ every 6h ──► etcd snapshot (compressed) ──► R2: arunanshu-etcd-snapshots/prod/
                                                         ▲
@@ -252,7 +264,7 @@ GitOps path: `tofu apply` → bootstrap sequence → `just argocd-root-bootstrap
 
 ## Directory Layout
 
-```
+```text
 infra/
   cloudflare.tf              # + R2 buckets, lifecycle rules, API tokens, outputs
 

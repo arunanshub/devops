@@ -170,7 +170,7 @@ velero-restore backup namespace:
     #!/usr/bin/env bash
     set -euo pipefail
     printf '>> Disable ArgoCD auto-sync first:\n'
-    printf '   kubectl patch application {{ namespace }} -n argocd --type merge\n'
+    printf '   kubectl patch application {{ namespace }} -n argocd --type merge -p '"'"'{"spec":{"syncPolicy":{"automated":null}}}'"'"'\n'
     printf '\n'
     read -r -p "Confirm auto-sync is disabled for '{{ namespace }}' [y/N]: " confirm
     [[ "$confirm" == "y" ]] || { printf 'Aborted.\n'; exit 1; }
@@ -180,18 +180,32 @@ velero-restore backup namespace:
         --wait
     printf '\n'
     printf '>> Restore complete. Verify state, then re-enable auto-sync:\n'
-    printf '   kubectl patch application {{ namespace }} -n argocd --type merge\n'
+    printf '   kubectl patch application {{ namespace }} -n argocd --type merge -p '"'"'{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'"'"'\n'
 
 # Print the manual etcd restore procedure. Credentials must be passed directly via CLI.
 @etcd-restore:
     @echo "=== Manual etcd restore procedure ==="
     @echo ""
-    @echo "Refer to docs/bootstrap-pitfalls.md for detailed etcd recovery instructions"
+    @echo "1. Download the target snapshot from R2:"
+    @echo "   AWS_ACCESS_KEY_ID=<key> AWS_SECRET_ACCESS_KEY=<secret> \\"
+    @echo "   aws s3 cp s3://arunanshu-etcd-snapshots/prod/<snapshot-name> /tmp/snapshot.db \\"
+    @echo "   --endpoint-url https://<account_id>.r2.cloudflarestorage.com --region auto"
     @echo ""
-    @echo "Quick summary: download snapshot, stop k3s, reset etcd on one CP node,"
-    @echo "start k3s on reset node first, then start remaining CP nodes."
+    @echo "2. Stop k3s on ALL nodes:"
+    @echo "   ansible all -i ansible/inventory/tofu_inventory -m service -a 'name=k3s state=stopped' --become"
     @echo ""
-    @echo "Note: S3 credentials unavailable during restore; pass directly via CLI."
+    @echo "3. Reset etcd on ONE control-plane node (e.g. cp-0):"
+    @echo "   k3s server --cluster-reset --cluster-reset-restore-path=/tmp/snapshot.db"
+    @echo "   (This node will exit after reset — that is expected)"
+    @echo ""
+    @echo "4. Start k3s on the RESET node first, wait for it to become Ready:"
+    @echo "   systemctl start k3s && kubectl get nodes"
+    @echo ""
+    @echo "5. Start k3s on remaining CP nodes (one at a time):"
+    @echo "   systemctl start k3s"
+    @echo ""
+    @echo "Note: the S3 config Secret is unavailable during restore."
+    @echo "Pass credentials directly via --etcd-s3-* flags if downloading live."
 
 @_sops-apply file:
     sops --decrypt "{{ file }}" | kubectl apply -f -
