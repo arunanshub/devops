@@ -19,6 +19,9 @@ spec:
     - namespace: kube-system
       server: https://kubernetes.default.svc
 
+  orphanedResources:
+    warn: true
+
   clusterResourceWhitelist:
     - group: "*"
       kind: "*"
