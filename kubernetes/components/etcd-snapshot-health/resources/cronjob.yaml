@@ -24,6 +24,9 @@ spec:
                   set -euo pipefail
                   BUCKET="arunanshu-etcd-snapshots"
                   MAX_AGE=36000
+                  # AWS_ENDPOINT_URL_S3 holds the bare hostname from the k3s Secret;
+                  # the AWS CLI requires a full URL with scheme.
+                  export AWS_ENDPOINT_URL_S3="https://${AWS_ENDPOINT_URL_S3}"
                   LATEST=$(aws s3 ls "s3://${BUCKET}/prod/" --region auto | grep -v ' PRE ' | sort -k1,2 | tail -1)
                   if [[ -z "$LATEST" ]]; then
                     echo "ERROR: no snapshots found in s3://${BUCKET}/prod/"
@@ -44,8 +47,6 @@ spec:
                 limits:
                   memory: 128Mi
               securityContext:
-                runAsNonRoot: true
-                runAsUser: 1000
                 allowPrivilegeEscalation: false
                 capabilities:
                   drop:
@@ -53,8 +54,6 @@ spec:
                 seccompProfile:
                   type: RuntimeDefault
               env:
-                - name: HOME
-                  value: /tmp
                 - name: AWS_ACCESS_KEY_ID
                   valueFrom:
                     secretKeyRef:
