@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: etcd-snapshot-health
+  namespace: kube-system
+spec:
+  schedule: "0 */8 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: health-check
+              image: amazon/aws-cli:2.22.0
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  BUCKET="arunanshu-etcd-snapshots"
+                  MAX_AGE=36000
+                  LATEST=$(aws s3 ls "s3://${BUCKET}/prod/" --region auto | sort -k1,2 | tail -1)
+                  if [[ -z "$LATEST" ]]; then
+                    echo "ERROR: no snapshots found in s3://${BUCKET}/prod/"
+                    exit 1
+                  fi
+                  LATEST_TS=$(date -d "$(echo "$LATEST" | awk '{print $1" "$2}')" +%s)
+                  AGE=$(( $(date +%s) - LATEST_TS ))
+                  echo "Latest snapshot age: ${AGE}s (threshold: ${MAX_AGE}s)"
+                  if [[ $AGE -gt $MAX_AGE ]]; then
+                    echo "ERROR: snapshot stale by $((AGE - MAX_AGE))s"
+                    exit 1
+                  fi
+                  echo "OK"
+              env:
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: k3s-etcd-snapshot-s3-config
+                      key: etcd-s3-access-key
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: k3s-etcd-snapshot-s3-config
+                      key: etcd-s3-secret-key
+                - name: AWS_ENDPOINT_URL_S3
+                  valueFrom:
+                    secretKeyRef:
+                      name: k3s-etcd-snapshot-s3-config
+                      key: etcd-s3-endpoint
