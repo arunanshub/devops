@@ -53,20 +53,9 @@
       delay: 10
       when: etcd_snapshot_config.changed and not ansible_check_mode
 
-    - name: Trigger a manual etcd snapshot to verify S3 upload
-      ansible.builtin.command:
-        cmd: k3s etcd-snapshot save
-      when:
-        - etcd_snapshot_config.changed
-        - not ansible_check_mode
-        - inventory_hostname == ansible_play_hosts_all[0]
-      register: snapshot_result
-
-    - name: Show snapshot result
+    - name: Remind operator to verify S3 upload via health CronJob
       ansible.builtin.debug:
-        var: snapshot_result.stdout_lines
+        msg: "Config deployed. Verify S3 upload with: kubectl create job --from=cronjob/etcd-snapshot-health etcd-health-verify -n kube-system"
       when:
         - etcd_snapshot_config.changed
-        - not ansible_check_mode
         - inventory_hostname == ansible_play_hosts_all[0]
-        - snapshot_result is defined
