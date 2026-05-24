@@ -3,6 +3,9 @@
   "extends": [
     "config:recommended"
   ],
+  "devbox": {
+    "enabled": false
+  },
   "argocd": {
     "managerFilePatterns": ["/^kubernetes/.+\\.ya?ml$/"]
   },
