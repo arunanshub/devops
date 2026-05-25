@@ -202,6 +202,7 @@
 
     - name: Pause | Disable ArgoCD auto-sync
       kubernetes.core.k8s:
+        api_version: argoproj.io/v1alpha1
         kind: Application
         name: "{{ argocd_app }}"
         namespace: argocd
@@ -385,6 +386,7 @@
 
     - name: Cutover | Re-enable ArgoCD auto-sync
       kubernetes.core.k8s:
+        api_version: argoproj.io/v1alpha1
         kind: Application
         name: "{{ argocd_app }}"
         namespace: argocd

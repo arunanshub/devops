@@ -90,6 +90,7 @@
 
     - name: Pause | Disable ArgoCD auto-sync for {{ item.name }}
       kubernetes.core.k8s:
+        api_version: argoproj.io/v1alpha1
         kind: Application
         name: "{{ item.name }}"
         namespace: argocd
@@ -135,6 +136,7 @@
 
     - name: Restore | Re-enable ArgoCD auto-sync for {{ item.name }}
       kubernetes.core.k8s:
+        api_version: argoproj.io/v1alpha1
         kind: Application
         name: "{{ item.name }}"
         namespace: argocd
