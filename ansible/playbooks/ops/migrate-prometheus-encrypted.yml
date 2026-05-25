@@ -64,18 +64,17 @@
       failed_when: >
         prom_pods.resources | length == 0 or prom_pods.resources[0].status.phase != "Running"
 
-    - name: Pre-flight | Show TSDB disk usage
-      kubernetes.core.k8s_exec:
+    - name: Pre-flight | Show Prometheus PVC capacity
+      kubernetes.core.k8s_info:
+        kind: PersistentVolumeClaim
+        name: "{{ old_pvc }}"
         namespace: "{{ k8s_namespace }}"
-        pod: "{{ prom_pods.resources[0].metadata.name }}"
-        container: prometheus
-        command: df -h /prometheus
-      register: df_out
+      register: pvc_info
 
-    - name: Pre-flight | Print disk usage
+    - name: Pre-flight | Print PVC capacity
       ansible.builtin.debug:
-        msg: "{{ df_out.stdout }}"
-
+        msg: >
+          Prometheus PVC: {{ pvc_info.resources[0].status.capacity.storage }} provisioned ({{ pvc_info.resources[0].spec.storageClassName }}). Ensure the temp PVC has equal or greater capacity before continuing. #magic___^_^___line
     # -- Create temp encrypted PVC ---------------------------------------------
 
     - name: Setup | Create temporary encrypted PVC
