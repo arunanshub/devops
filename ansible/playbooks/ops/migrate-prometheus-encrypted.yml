@@ -216,12 +216,12 @@
         wait: true
         wait_timeout: 120
 
-    - name: Pause | Remove ArgoCD auto-sync (JSON patch — app controller is stopped so root app cannot revert)
+    - name: Pause | Remove ArgoCD auto-sync (merge null — idempotent if already absent; app controller stopped so no revert)
       ansible.builtin.command:
         cmd: >
           kubectl patch application {{ argocd_app }} -n argocd
-          --type=json
-          -p=[{"op":"remove","path":"/spec/syncPolicy"}]
+          --type=merge
+          -p={"spec":{"syncPolicy":null}}
       changed_when: true
       environment:
         KUBECONFIG: "{{ lookup('env', 'KUBECONFIG') }}"
