@@ -3,7 +3,7 @@ nodeAgent:
 
 initContainers:
   - name: velero-plugin-for-aws
-    image: velero/velero-plugin-for-aws:v1.12.0
+    image: velero/velero-plugin-for-aws:v1.14.1
     volumeMounts:
       - mountPath: /target
         name: plugins
