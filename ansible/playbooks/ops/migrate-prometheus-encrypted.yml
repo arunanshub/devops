@@ -227,7 +227,9 @@
         namespace: "{{ k8s_namespace }}"
         replicas: 0
         wait: true
-        wait_timeout: 120
+        # Prometheus has terminationGracePeriodSeconds: 600 for TSDB flush.
+        # Allow 660s so k8s_scale does not time out before the pod is gone.
+        wait_timeout: 660
 
     - name: Pause | Wait for Prometheus pod to terminate
       kubernetes.core.k8s_info:
@@ -236,8 +238,9 @@
         label_selectors: ["{{ pod_label }}"]
       register: prom_gone
       until: prom_gone.resources | length == 0
-      retries: 36
-      delay: 5
+      # 120 retries × 10s = 20 minutes; comfortably covers the 10-minute grace period.
+      retries: 120
+      delay: 10
 
     # -- Final delta rsync -----------------------------------------------------
 
