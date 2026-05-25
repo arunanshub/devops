@@ -98,12 +98,15 @@
         wait_timeout: 120
 
     - name: "Pause | Remove ArgoCD auto-sync for {{ item.name }}"
-      ansible.builtin.command:
-        cmd: >
-          kubectl patch application {{ item.name }} -n argocd --type=json -p=[{"op":"remove","path":"/spec/syncPolicy"}]
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ lookup('env', 'KUBECONFIG') }}"
+      kubernetes.core.k8s:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        name: "{{ item.name }}"
+        namespace: argocd
+        merge_type: merge
+        definition:
+          spec:
+            syncPolicy: null
       loop: "{{ argocd_apps }}"
 
     # -- Delete workloads -------------------------------------------------------
@@ -141,12 +144,15 @@
     # -- Restore reconcilers ----------------------------------------------------
 
     - name: "Restore | Re-enable ArgoCD auto-sync for {{ item.name }}"
-      ansible.builtin.command:
-        cmd: >
-          kubectl patch application {{ item.name }} -n argocd --type=merge -p={"spec":{"syncPolicy":{{ item.sync_policy | to_json }}}}
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ lookup('env', 'KUBECONFIG') }}"
+      kubernetes.core.k8s:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        name: "{{ item.name }}"
+        namespace: argocd
+        merge_type: merge
+        definition:
+          spec:
+            syncPolicy: "{{ item.sync_policy }}"
       loop: "{{ argocd_apps }}"
 
     - name: Restore | Restart ArgoCD application controller
