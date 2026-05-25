@@ -4,7 +4,7 @@ export KUBECONFIG := infra / "kubeconfig.yaml"
 ansible_dir := justfile_dir() / "ansible"
 ansible_inventory := ansible_dir / "inventory/tofu_inventory"
 ansible_playbooks := ansible_dir / "playbooks"
-ansible_env := "LC_ALL=C.UTF-8 LANG=C.UTF-8 ANSIBLE_CONFIG='" + ansible_dir / "ansible.cfg" + "' KUBECONFIG='" + infra / "kubeconfig.yaml" + "'"
+ansible_env := "LC_ALL=C.UTF-8 LANG=C.UTF-8 KUBECONFIG='" + infra / "kubeconfig.yaml" + "'"
 
 # Internal API endpoint used by Cilium and other in-cluster components.
 # Points at the API server LB private IP, not a specific node.
@@ -72,7 +72,7 @@ ansible-converge playbook="site":
 # after pyproject.toml / ansible/requirements.yml changes.
 ansible-setup:
     uv sync --dev
-    ANSIBLE_CONFIG='{{ ansible_dir / "ansible.cfg" }}' uv run ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections/ --force
+    uv run ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections/ --force
 
 ansible-apply playbook="site":
     just ansible-converge "{{ playbook }}"

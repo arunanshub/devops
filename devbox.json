@@ -22,13 +22,14 @@
   ],
   "env": {
     "LC_ALL": "C.UTF-8",
-    "LANG":   "C.UTF-8"
+    "LANG": "C.UTF-8"
   },
   "shell": {
     "init_hook": [
       "LOCALE_ARCHIVE_FOUND=$(find /nix/store -maxdepth 3 -name 'locale-archive' -path '*/glibc-locales*' 2>/dev/null | sort -r | head -1) && [ -n \"$LOCALE_ARCHIVE_FOUND\" ] && export LOCALE_ARCHIVE=\"$LOCALE_ARCHIVE_FOUND\" || true",
       "export LC_ALL=C.UTF-8",
-      "export LANG=C.UTF-8"
+      "export LANG=C.UTF-8",
+      "export KUBECONFIG=\"$DEVBOX_PROJECT_ROOT/infra/kubeconfig.yaml\""
     ],
     "scripts": {
       "test": [
