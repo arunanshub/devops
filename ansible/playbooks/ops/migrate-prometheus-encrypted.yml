@@ -73,8 +73,7 @@
 
     - name: Pre-flight | Print PVC capacity
       ansible.builtin.debug:
-        msg: >
-          Prometheus PVC: {{ pvc_info.resources[0].status.capacity.storage }} provisioned ({{ pvc_info.resources[0].spec.storageClassName }}). Ensure the temp PVC has equal or greater capacity before continuing. #magic___^_^___line
+        msg: "Prometheus PVC: {{ pvc_info.resources[0].status.capacity.storage }} ({{ pvc_info.resources[0].spec.storageClassName }})"
     # -- Create temp encrypted PVC ---------------------------------------------
 
     - name: Setup | Create temporary encrypted PVC
@@ -129,7 +128,7 @@
                   - {name: new, mountPath: /new}
             volumes:
               - {name: old, persistentVolumeClaim: {claimName: "{{ old_pvc }}"}}
-              - {name: new, persistentVolumeClaim: {claimName: "{{ temp_pvc }}"},}
+              - {name: new, persistentVolumeClaim: {claimName: "{{ temp_pvc }}"}}
 
     - name: Bulk rsync | Wait for pod to complete
       kubernetes.core.k8s_info:
@@ -262,7 +261,7 @@
                   - {name: new, mountPath: /new}
             volumes:
               - {name: old, persistentVolumeClaim: {claimName: "{{ old_pvc }}"}}
-              - {name: new, persistentVolumeClaim: {claimName: "{{ temp_pvc }}"},}
+              - {name: new, persistentVolumeClaim: {claimName: "{{ temp_pvc }}"}}
 
     - name: Final rsync | Wait for delta pod to complete
       kubernetes.core.k8s_info:
