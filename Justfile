@@ -72,7 +72,7 @@ ansible-converge playbook="site":
 # after pyproject.toml / ansible/requirements.yml changes.
 ansible-setup:
     uv sync --dev
-    uv run ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections/
+    LC_ALL=C.UTF-8 LANG=C.UTF-8 ANSIBLE_CONFIG='{{ ansible_dir / "ansible.cfg" }}' uv run ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections/ --force
 
 ansible-apply playbook="site":
     just ansible-converge "{{ playbook }}"
