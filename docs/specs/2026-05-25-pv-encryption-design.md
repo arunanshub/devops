@@ -116,7 +116,7 @@ Grafana is a Deployment with a standalone PVC (`hcloud-volumes`, 10Gi, namespace
 
 Alertmanager is a StatefulSet managed by the Prometheus Operator. Its `volumeClaimTemplate` is immutable.
 
-PVC name: `alertmanager-db-alertmanager-kube-prometheus-stack-alertmanager-0`
+PVC name: `alertmanager-kube-prometheus-stack-alertmanager-db-alertmanager-kube-prometheus-stack-alertmanager-0`
 
 1. Update `storageClassName: hcloud-volumes-encrypted` in `kube-prometheus-stack/values.yaml` under `alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec`. Commit and push.
 2. Disable ArgoCD auto-sync for `kube-prometheus-stack`:
@@ -173,7 +173,7 @@ Confirm the PVC name before running: `kubectl get pvc -n monitoring -l app.kuber
 Prometheus is a StatefulSet managed by the Prometheus Operator.
 
 - StatefulSet name: `prometheus-kube-prometheus-stack-prometheus`
-- PVC name: `prometheus-db-prometheus-kube-prometheus-stack-prometheus-0`
+- PVC name: `prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0`
 - Namespace: `monitoring`
 
 The strategy is: rsync the bulk of TSDB data live (TSDB blocks are immutable once written), then do a final incremental sync after scaling to 0, then use the PV retain-and-rebind technique to rename the encrypted PVC to the name the new StatefulSet expects.
@@ -224,7 +224,7 @@ spec:
   volumes:
     - name: old
       persistentVolumeClaim:
-        claimName: prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
+        claimName: prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
     - name: new
       persistentVolumeClaim:
         claimName: prometheus-migration-temp
