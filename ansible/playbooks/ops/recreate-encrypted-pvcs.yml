@@ -79,6 +79,15 @@
 
     # -- Pause reconcilers ------------------------------------------------------
 
+    - name: Pause | Stop ArgoCD application controller
+      kubernetes.core.k8s_scale:
+        kind: StatefulSet
+        name: argocd-application-controller
+        namespace: argocd
+        replicas: 0
+        wait: true
+        wait_timeout: 120
+
     - name: Pause | Scale Prometheus Operator to 0
       kubernetes.core.k8s_scale:
         kind: Deployment
@@ -88,16 +97,13 @@
         wait: true
         wait_timeout: 120
 
-    - name: Pause | Disable ArgoCD auto-sync for {{ item.name }}
-      kubernetes.core.k8s:
-        api_version: argoproj.io/v1alpha1
-        kind: Application
-        name: "{{ item.name }}"
-        namespace: argocd
-        merge_type: merge
-        definition:
-          spec:
-            syncPolicy: null
+    - name: "Pause | Remove ArgoCD auto-sync for {{ item.name }}"
+      ansible.builtin.command:
+        cmd: >
+          kubectl patch application {{ item.name }} -n argocd --type=json -p=[{"op":"remove","path":"/spec/syncPolicy"}]
+      changed_when: true
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'KUBECONFIG') }}"
       loop: "{{ argocd_apps }}"
 
     # -- Delete workloads -------------------------------------------------------
@@ -134,17 +140,23 @@
 
     # -- Restore reconcilers ----------------------------------------------------
 
-    - name: Restore | Re-enable ArgoCD auto-sync for {{ item.name }}
-      kubernetes.core.k8s:
-        api_version: argoproj.io/v1alpha1
-        kind: Application
-        name: "{{ item.name }}"
-        namespace: argocd
-        merge_type: merge
-        definition:
-          spec:
-            syncPolicy: "{{ item.sync_policy }}"
+    - name: "Restore | Re-enable ArgoCD auto-sync for {{ item.name }}"
+      ansible.builtin.command:
+        cmd: >
+          kubectl patch application {{ item.name }} -n argocd --type=merge -p={"spec":{"syncPolicy":{{ item.sync_policy | to_json }}}}
+      changed_when: true
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'KUBECONFIG') }}"
       loop: "{{ argocd_apps }}"
+
+    - name: Restore | Restart ArgoCD application controller
+      kubernetes.core.k8s_scale:
+        kind: StatefulSet
+        name: argocd-application-controller
+        namespace: argocd
+        replicas: 1
+        wait: true
+        wait_timeout: 120
 
     - name: Restore | Scale Prometheus Operator back to 1
       kubernetes.core.k8s_scale:

@@ -54,15 +54,22 @@
       register: secret_check
       failed_when: secret_check.resources | length == 0
 
-    - name: Pre-flight | Verify Prometheus pod is Running
+    - name: Pre-flight | Check Prometheus pod state
       kubernetes.core.k8s_info:
         kind: Pod
         namespace: "{{ k8s_namespace }}"
         label_selectors:
           - "{{ pod_label }}"
       register: prom_pods
-      failed_when: >
-        prom_pods.resources | length == 0 or prom_pods.resources[0].status.phase != "Running"
+
+    - name: Pre-flight | Warn if Prometheus already stopped (re-run after partial failure)
+      ansible.builtin.debug:
+        msg: >
+          WARNING: Prometheus pod not Running. Assuming re-run after partial failure.
+          Bulk rsync will proceed against the unmounted PVC — this is safe.
+      when: >
+        prom_pods.resources | length == 0 or
+        prom_pods.resources[0].status.phase != "Running"
 
     - name: Pre-flight | Show Prometheus PVC capacity
       kubernetes.core.k8s_info:
@@ -200,16 +207,24 @@
 
     # -- Pause reconcilers -----------------------------------------------------
 
-    - name: Pause | Disable ArgoCD auto-sync
-      kubernetes.core.k8s:
-        api_version: argoproj.io/v1alpha1
-        kind: Application
-        name: "{{ argocd_app }}"
+    - name: Pause | Stop ArgoCD application controller
+      kubernetes.core.k8s_scale:
+        kind: StatefulSet
+        name: argocd-application-controller
         namespace: argocd
-        merge_type: merge
-        definition:
-          spec:
-            syncPolicy: null
+        replicas: 0
+        wait: true
+        wait_timeout: 120
+
+    - name: Pause | Remove ArgoCD auto-sync (JSON patch — app controller is stopped so root app cannot revert)
+      ansible.builtin.command:
+        cmd: >
+          kubectl patch application {{ argocd_app }} -n argocd
+          --type=json
+          -p=[{"op":"remove","path":"/spec/syncPolicy"}]
+      changed_when: true
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'KUBECONFIG') }}"
 
     - name: Pause | Scale Prometheus Operator to 0
       kubernetes.core.k8s_scale:
@@ -387,16 +402,24 @@
         wait: true
         wait_timeout: 120
 
-    - name: Cutover | Re-enable ArgoCD auto-sync
-      kubernetes.core.k8s:
-        api_version: argoproj.io/v1alpha1
-        kind: Application
-        name: "{{ argocd_app }}"
+    - name: Cutover | Re-enable ArgoCD auto-sync via JSON patch
+      ansible.builtin.command:
+        cmd: >
+          kubectl patch application {{ argocd_app }} -n argocd
+          --type=merge
+          -p={"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true},"syncOptions":["CreateNamespace=false","ServerSideApply=true"]}}}
+      changed_when: true
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'KUBECONFIG') }}"
+
+    - name: Cutover | Restore ArgoCD application controller
+      kubernetes.core.k8s_scale:
+        kind: StatefulSet
+        name: argocd-application-controller
         namespace: argocd
-        merge_type: merge
-        definition:
-          spec:
-            syncPolicy: "{{ argocd_sync_policy }}"
+        replicas: 1
+        wait: true
+        wait_timeout: 120
 
     - name: Cutover | Wait for Prometheus pod to be Running
       kubernetes.core.k8s_info:
