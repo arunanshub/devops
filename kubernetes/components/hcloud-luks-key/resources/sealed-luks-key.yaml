@@ -1,0 +1,12 @@
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: hcloud-luks-key
+  namespace: kube-system
+spec:
+  encryptedData:
+    encryption-passphrase: AgCZbCKlb3MBvQXcPU7syX1ObIMKJB8YtkhXPXakaWpOKuRtfik1qZz1BsHzKqvH4ayYaqazyrv4A6zT3u7cjgQSBdh5o1d3Ic2bD1McBlK6+xcTgd7tbBWdDkMg96AqaSHNe6U9AxBMxN1tGG+YNVDHZ+L1jvEDF9akG7gIt1MU7SqwZRvEq7hyU5+u05q19QiZyO4wQxjB07qWCqPG2Jb6e6d9fJ9qvJLQVol4eEHLuff+QRU4nLScGnJu4n2zI8o1DdboMF/04Hmck/CKIjU1aL27goARrsLN2tzmE8CpbNEYU/T5hd1fOn6+10gEdi5wEv14S37dEJqw7KG3xa50xk/dU1Dl4vEEWT+3+BeKrRrB6qN12GwWj+jxWGAn3lGH9pPoZ+XW1qRvgH1+H/6IVhSgrLSW0C0WS6cz3t/6g3FgwA6C4ZTkOVBNqrUB6umAwGapDmqmj05xQ+rXzBoLCWAnsx7etYvbswgLzMl2MkMr1Q7oW4Xu3sM/yZzHgjtNEXfE0tmf5sqNTGXmEy1tcwrMlcoaLqf6MohnhxelfabbsvIbA0WMMfyHpIqST93WkDh7fvBP7zQ0bkQ4b0aeOJeL+A3aRxFtWdG5wehSEKhlHa8Rchcb1qwOAiHTBwvxeS+SGZqrUqBu6Weph6BUmK2Y6StOZwX7GjJBUsdWnCxJPmefcIDWYf3sLWMnO00LfBmyvx+WCrFOTls/P8Zx8dYm6bRZG4UR7r2ddAxLfBHnXeH4cBwrcSuhdw==
+  template:
+    metadata:
+      name: hcloud-luks-key
+      namespace: kube-system

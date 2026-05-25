@@ -12,6 +12,14 @@ storageClasses:
     reclaimPolicy: Delete
     volumeBindingMode: WaitForFirstConsumer
     allowVolumeExpansion: true
+  - name: hcloud-volumes-encrypted
+    defaultStorageClass: false
+    reclaimPolicy: Delete
+    volumeBindingMode: WaitForFirstConsumer
+    allowVolumeExpansion: true
+    extraParameters:
+      csi.storage.k8s.io/node-publish-secret-name: hcloud-luks-key
+      csi.storage.k8s.io/node-publish-secret-namespace: kube-system
 
 metrics:
   serviceMonitor:

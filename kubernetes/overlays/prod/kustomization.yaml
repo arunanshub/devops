@@ -14,6 +14,7 @@ components:
   - ../../components/hcloud-ccm
   - ../../components/hcloud-csi
   - ../../components/hcloud-secret
+  - ../../components/hcloud-luks-key
   - ../../components/cloudflared
   - ../../components/kured
   - ../../components/system-upgrade-controller

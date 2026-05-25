@@ -26,7 +26,7 @@ grafana:
 
   persistence:
     enabled: true
-    storageClassName: hcloud-volumes
+    storageClassName: hcloud-volumes-encrypted
     accessModes: ["ReadWriteOnce"]
     size: 10Gi
 
@@ -92,7 +92,7 @@ alertmanager:
     storage:
       volumeClaimTemplate:
         spec:
-          storageClassName: hcloud-volumes
+          storageClassName: hcloud-volumes-encrypted
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:

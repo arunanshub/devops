@@ -3,6 +3,7 @@
     name:
       - lsb-release
       - unattended-upgrades
+      - cryptsetup
     state: present
     update_cache: true
 

@@ -57,7 +57,7 @@ serviceMonitor:
 
 persistence:
   enabled: true
-  storageClassName: hcloud-volumes
+  storageClassName: hcloud-volumes-encrypted
   accessModes:
     - ReadWriteOnce
   size: 10Gi
