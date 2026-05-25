@@ -1,0 +1,220 @@
+# Recreate encrypted PVCs for Grafana, Alertmanager, and Tempo.
+#
+# Use this after rotating the LUKS passphrase (just rotate-luks-passphrase).
+# Old volumes carry the old passphrase in their LUKS header and must be
+# discarded; new volumes are formatted fresh with the current passphrase.
+#
+# Prometheus is intentionally excluded — use ops/migrate-prometheus-encrypted
+# when you want to preserve its TSDB data.
+#
+# Usage:
+#   just ops-recreate-encrypted-pvcs          # run for real
+#   just ops-recreate-encrypted-pvcs --check  # dry-run (shows what would happen)
+#
+# Safe to re-run: wait conditions ensure each step completes before proceeding.
+
+- name: Recreate encrypted PVCs for Grafana, Alertmanager, Tempo
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    kubeconfig: "{{ lookup('env', 'KUBECONFIG') }}"
+    k8s_namespace: monitoring
+    prometheus_operator: kube-prometheus-stack-operator
+
+    # ArgoCD Applications whose syncPolicy is managed during this procedure.
+    # Both are multi-source apps — must be patched via kubectl, not argocd CLI.
+    argocd_apps:
+      - name: kube-prometheus-stack
+        sync_policy:
+          automated:
+            prune: true
+            selfHeal: true
+          syncOptions:
+            - CreateNamespace=false
+            - ServerSideApply=true
+      - name: tempo
+        sync_policy:
+          automated:
+            prune: true
+            selfHeal: true
+          syncOptions:
+            - CreateNamespace=false
+            - ServerSideApply=true
+
+    workloads:
+      - name: Grafana
+        kind: Deployment
+        resource: kube-prometheus-stack-grafana
+        pod_label: app.kubernetes.io/name=grafana
+        pvc: kube-prometheus-stack-grafana
+
+      - name: Alertmanager
+        kind: StatefulSet
+        resource: alertmanager-kube-prometheus-stack-alertmanager
+        pod_label: app.kubernetes.io/name=alertmanager
+        pvc: >-
+          alertmanager-kube-prometheus-stack-alertmanager-db-alertmanager-kube-prometheus-stack-alertmanager-0
+
+      - name: Tempo
+        kind: StatefulSet
+        resource: tempo
+        pod_label: app.kubernetes.io/name=tempo
+        pvc: storage-tempo-0
+
+  tasks:
+    # ── Pre-flight ─────────────────────────────────────────────────────────────
+
+    - name: Pre-flight | Verify cluster is reachable
+      ansible.builtin.command:
+        cmd: kubectl cluster-info --request-timeout=10s
+      changed_when: false
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Pre-flight | Verify hcloud-volumes-encrypted StorageClass exists
+      ansible.builtin.command:
+        cmd: kubectl get storageclass hcloud-volumes-encrypted
+      changed_when: false
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Pre-flight | Verify hcloud-luks-key Secret is present in kube-system
+      ansible.builtin.command:
+        cmd: kubectl get secret hcloud-luks-key -n kube-system
+      changed_when: false
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    # ── Pause reconcilers ──────────────────────────────────────────────────────
+
+    - name: Pause | Scale Prometheus Operator to 0
+      ansible.builtin.command:
+        cmd: >
+          kubectl scale deployment {{ prometheus_operator }} -n {{ k8s_namespace }} --replicas=0
+      changed_when: true
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Pause | Wait for Prometheus Operator pod to terminate
+      ansible.builtin.command:
+        cmd: >
+          kubectl get pods -n {{ k8s_namespace }} -l app.kubernetes.io/name=prometheus-operator --no-headers
+      register: operator_pods
+      failed_when: false
+      changed_when: false
+      until: operator_pods.stdout == ""
+      retries: 24
+      delay: 5
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Pause | Disable ArgoCD auto-sync for {{ item.name }}
+      ansible.builtin.command:
+        cmd: >
+          kubectl patch application {{ item.name }} -n argocd --type=merge -p {"spec":{"syncPolicy":null}}
+      loop: "{{ argocd_apps }}"
+      changed_when: true
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    # ── Delete workloads and PVCs ──────────────────────────────────────────────
+
+    - name: Delete | Remove {{ item.name }} {{ item.kind }}
+      ansible.builtin.command:
+        cmd: >
+          kubectl delete {{ item.kind | lower }} {{ item.resource }} -n {{ k8s_namespace }} --ignore-not-found
+      loop: "{{ workloads }}"
+      changed_when: true
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Delete | Wait for {{ item.name }} pod to terminate
+      ansible.builtin.command:
+        cmd: >
+          kubectl get pods -n {{ k8s_namespace }} -l {{ item.pod_label }} --no-headers
+      register: pod_check
+      failed_when: false
+      changed_when: false
+      until: pod_check.stdout == ""
+      retries: 36
+      delay: 5
+      loop: "{{ workloads }}"
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Delete | Remove {{ item.name }} PVC (pod is gone, finalizer will clear)
+      ansible.builtin.command:
+        cmd: >
+          kubectl delete pvc {{ item.pvc | trim }} -n {{ k8s_namespace }} --ignore-not-found
+      loop: "{{ workloads }}"
+      changed_when: true
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Delete | Wait for {{ item.name }} PVC to fully disappear
+      ansible.builtin.command:
+        cmd: kubectl get pvc {{ item.pvc | trim }} -n {{ k8s_namespace }}
+      register: pvc_check
+      failed_when: false
+      changed_when: false
+      until: pvc_check.rc != 0
+      retries: 36
+      delay: 5
+      loop: "{{ workloads }}"
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    # ── Restore reconcilers ────────────────────────────────────────────────────
+
+    - name: Restore | Re-enable ArgoCD auto-sync for {{ item.name }}
+      ansible.builtin.command:
+        cmd: >
+          kubectl patch application {{ item.name }} -n argocd --type=merge -p {{ {"spec": {"syncPolicy": item.sync_policy}} | to_json }}
+      loop: "{{ argocd_apps }}"
+      changed_when: true
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Restore | Scale Prometheus Operator back to 1
+      ansible.builtin.command:
+        cmd: >
+          kubectl scale deployment {{ prometheus_operator }} -n {{ k8s_namespace }} --replicas=1
+      changed_when: true
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    # ── Wait for healthy state ─────────────────────────────────────────────────
+
+    - name: Healthy | Wait for {{ item.name }} pod to be Running
+      ansible.builtin.command:
+        cmd: >
+          kubectl get pods -n {{ k8s_namespace }} -l {{ item.pod_label }} --no-headers
+      register: pod_ready
+      failed_when: false
+      changed_when: false
+      until: "'Running' in pod_ready.stdout"
+      retries: 60
+      delay: 5
+      loop: "{{ workloads }}"
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    # ── Post-flight ────────────────────────────────────────────────────────────
+
+    - name: Post-flight | Verify all three PVCs use hcloud-volumes-encrypted
+      ansible.builtin.command:
+        cmd: >
+          kubectl get pvc {{ item.pvc | trim }} -n {{ k8s_namespace }} -o jsonpath={.spec.storageClassName}
+      register: sc_check
+      changed_when: false
+      failed_when: sc_check.stdout != "hcloud-volumes-encrypted"
+      loop: "{{ workloads }}"
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Post-flight | Summary
+      ansible.builtin.debug:
+        msg: >
+          All done. Grafana, Alertmanager, and Tempo are running on fresh hcloud-volumes-encrypted PVCs formatted with the current passphrase.

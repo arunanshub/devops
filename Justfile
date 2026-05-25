@@ -207,5 +207,40 @@ velero-restore backup namespace:
     @echo "Note: the S3 config Secret is unavailable during restore."
     @echo "Pass credentials directly via --etcd-s3-* flags if downloading live."
 
+# ── Encrypted PV operations ───────────────────────────────────────────────────
+
+# Rotate the LUKS passphrase: generate, seal, commit, push, sync.
+# The passphrase is never printed — recoverable via SOPS → sealed-secrets chain.
+# Run `just ops-recreate-encrypted-pvcs` afterwards to reformat the PVCs.
+rotate-luks-passphrase:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    PASSPHRASE=$(openssl rand -base64 32)
+    kubectl create secret generic hcloud-luks-key \
+        --namespace kube-system \
+        --from-literal=encryption-passphrase="$PASSPHRASE" \
+        --dry-run=client -o yaml | \
+    kubeseal --cert kubernetes/sealed-secrets-cert.pem --format yaml \
+        > kubernetes/components/hcloud-luks-key/resources/sealed-luks-key.yaml
+    unset PASSPHRASE
+    git add kubernetes/components/hcloud-luks-key/resources/sealed-luks-key.yaml
+    git commit -m "security: rotate hcloud-luks-key passphrase"
+    git push
+    argocd app sync hcloud-luks-key --core
+    echo ""
+    echo "Passphrase rotated and live in cluster."
+    echo "Run 'just ops-recreate-encrypted-pvcs' to reformat PVCs with the new passphrase."
+
+# Recreate encrypted PVCs for Grafana, Alertmanager, Tempo (data loss is OK).
+# Run after just rotate-luks-passphrase, or any time PVCs need to be rebuilt.
+ops-recreate-encrypted-pvcs *args:
+    just _ansible-playbook "ops/recreate-encrypted-pvcs" "{{ args }}"
+
+# Migrate Prometheus TSDB data to the encrypted StorageClass.
+# Interactive — has two human checkpoints. Read the playbook before running.
+# Do NOT pass --check: command tasks are no-ops in check mode.
+ops-migrate-prometheus:
+    just _ansible-playbook "ops/migrate-prometheus-encrypted"
+
 @_sops-apply file:
     sops --decrypt "{{ file }}" | kubectl apply -f -
