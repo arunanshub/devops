@@ -92,17 +92,10 @@
               requests:
                 storage: "{{ storage_size }}"
 
-    - name: Setup | Wait for temp PVC to be Bound
-      kubernetes.core.k8s_info:
-        kind: PersistentVolumeClaim
-        name: "{{ temp_pvc }}"
-        namespace: "{{ k8s_namespace }}"
-      register: temp_pvc_info
-      until: temp_pvc_info.resources[0].status.phase == "Bound"
-      retries: 36
-      delay: 5
-
     # -- Bulk rsync (Prometheus still running) ----------------------------------
+    # NOTE: hcloud-volumes-encrypted uses WaitForFirstConsumer — the temp PVC
+    # will remain Pending until the migration pod is scheduled. Do not wait for
+    # Bound here; query the PVC after the pod completes instead.
 
     - name: Bulk rsync | Launch migration pod
       kubernetes.core.k8s:
@@ -162,6 +155,16 @@
         namespace: "{{ k8s_namespace }}"
         state: absent
         wait: true
+
+    - name: Bulk rsync | Query temp PVC now that it is Bound (pod triggered provisioning)
+      kubernetes.core.k8s_info:
+        kind: PersistentVolumeClaim
+        name: "{{ temp_pvc }}"
+        namespace: "{{ k8s_namespace }}"
+      register: temp_pvc_info
+      failed_when: >
+        temp_pvc_info.resources | length == 0 or
+        temp_pvc_info.resources[0].status.phase != "Bound"
 
     # -- CHECKPOINT 1 ----------------------------------------------------------
 
