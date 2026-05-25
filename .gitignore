@@ -15,3 +15,9 @@ devbox.d/
 
 # Implementation plans — local development aid, not for version control
 docs/plans/
+
+# Python virtual environment (uv-managed; recreate with `uv sync --dev`)
+.venv/
+
+# Ansible collections (pinned in ansible/requirements.yml; install with `just ansible-setup`)
+ansible/collections/

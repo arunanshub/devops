@@ -4,17 +4,13 @@
 # incremental sync after scaling to 0, then use the PV retain-and-rebind
 # technique to give the encrypted PV the name the StatefulSet expects.
 #
-# This playbook has two human checkpoints (marked CHECKPOINT) where it pauses
-# and waits for you to verify before proceeding.
+# Two human checkpoints pause execution for verification.
 #
 # Usage:
 #   just ops-migrate-prometheus
 #
-# Do NOT use --check: the rsync and PV operations are not idempotent and
-# --check mode on command tasks is a no-op that gives a false sense of safety.
-# Read through the playbook and understand each step before running.
-#
-# Estimated time: 10-30 minutes depending on TSDB size.
+# Do NOT use --check: rsync and PV rebind are not idempotent.
+# Read through before running. Estimated time: 10-30 min.
 
 - name: Migrate Prometheus TSDB data to encrypted PVC
   hosts: localhost
@@ -22,19 +18,15 @@
   gather_facts: false
 
   vars:
-    kubeconfig: "{{ lookup('env', 'KUBECONFIG') }}"
     k8s_namespace: monitoring
     prometheus_operator: kube-prometheus-stack-operator
-
     statefulset: prometheus-kube-prometheus-stack-prometheus
     pod_label: app.kubernetes.io/name=prometheus
-    old_pvc: >-
-      prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
+    old_pvc: prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
     temp_pvc: prometheus-migration-temp
     storage_size: 10Gi
     migration_pod: prometheus-migration
     alpine_image: alpine:3.21
-
     argocd_app: kube-prometheus-stack
     argocd_sync_policy:
       automated:
@@ -47,152 +39,129 @@
   tasks:
     # -- Pre-flight -------------------------------------------------------------
 
-    - name: Pre-flight | Verify cluster is reachable
-      ansible.builtin.command:
-        cmd: kubectl cluster-info --request-timeout=10s
-      changed_when: false
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
-
     - name: Pre-flight | Verify hcloud-volumes-encrypted StorageClass exists
-      ansible.builtin.command:
-        cmd: kubectl get storageclass hcloud-volumes-encrypted
-      changed_when: false
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+      kubernetes.core.k8s_info:
+        kind: StorageClass
+        name: hcloud-volumes-encrypted
+      register: sc_check
+      failed_when: sc_check.resources | length == 0
 
-    - name: Pre-flight | Verify hcloud-luks-key Secret is present
-      ansible.builtin.command:
-        cmd: kubectl get secret hcloud-luks-key -n kube-system
-      changed_when: false
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+    - name: Pre-flight | Verify hcloud-luks-key Secret exists
+      kubernetes.core.k8s_info:
+        kind: Secret
+        name: hcloud-luks-key
+        namespace: kube-system
+      register: secret_check
+      failed_when: secret_check.resources | length == 0
 
     - name: Pre-flight | Verify Prometheus pod is Running
-      ansible.builtin.command:
-        cmd: >
-          kubectl get pods -n {{ k8s_namespace }} -l {{ pod_label }} --no-headers
-      register: prom_running
-      changed_when: false
-      failed_when: "'Running' not in prom_running.stdout"
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ k8s_namespace }}"
+        label_selectors:
+          - "{{ pod_label }}"
+      register: prom_pods
+      failed_when: >
+        prom_pods.resources | length == 0 or prom_pods.resources[0].status.phase != "Running"
 
-    - name: Pre-flight | Show current TSDB disk usage
-      ansible.builtin.command:
-        cmd: >
-          kubectl exec -n {{ k8s_namespace }} -l {{ pod_label }} -c prometheus -- df -h /prometheus
-      changed_when: false
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+    - name: Pre-flight | Show TSDB disk usage
+      kubernetes.core.k8s_exec:
+        namespace: "{{ k8s_namespace }}"
+        pod: "{{ prom_pods.resources[0].metadata.name }}"
+        container: prometheus
+        command: df -h /prometheus
+      register: df_out
 
-    # -- Create temp encrypted PVC ----------------------------------------------
+    - name: Pre-flight | Print disk usage
+      ansible.builtin.debug:
+        msg: "{{ df_out.stdout }}"
 
-    - name: Setup | Create temporary encrypted PVC for migration
-      ansible.builtin.command:
-        cmd: kubectl apply -f -
-        stdin: |
+    # -- Create temp encrypted PVC ---------------------------------------------
+
+    - name: Setup | Create temporary encrypted PVC
+      kubernetes.core.k8s:
+        state: present
+        definition:
           apiVersion: v1
           kind: PersistentVolumeClaim
           metadata:
-            name: {{ temp_pvc }}
-            namespace: {{ k8s_namespace }}
+            name: "{{ temp_pvc }}"
+            namespace: "{{ k8s_namespace }}"
           spec:
             storageClassName: hcloud-volumes-encrypted
             accessModes: [ReadWriteOnce]
             resources:
               requests:
-                storage: {{ storage_size }}
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+                storage: "{{ storage_size }}"
 
-    - name: Setup | Wait for temp PVC to be bound
-      ansible.builtin.command:
-        cmd: >
-          kubectl get pvc {{ temp_pvc }} -n {{ k8s_namespace }} -o jsonpath={.status.phase}
-      register: temp_pvc_phase
-      changed_when: false
-      until: temp_pvc_phase.stdout == "Bound"
+    - name: Setup | Wait for temp PVC to be Bound
+      kubernetes.core.k8s_info:
+        kind: PersistentVolumeClaim
+        name: "{{ temp_pvc }}"
+        namespace: "{{ k8s_namespace }}"
+      register: temp_pvc_info
+      until: temp_pvc_info.resources[0].status.phase == "Bound"
       retries: 36
       delay: 5
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
 
     # -- Bulk rsync (Prometheus still running) ----------------------------------
 
-    - name: Bulk rsync | Launch migration pod (mounts both PVCs)
-      ansible.builtin.command:
-        cmd: kubectl apply -f -
-        stdin: |
+    - name: Bulk rsync | Launch migration pod
+      kubernetes.core.k8s:
+        state: present
+        definition:
           apiVersion: v1
           kind: Pod
           metadata:
-            name: {{ migration_pod }}
-            namespace: {{ k8s_namespace }}
+            name: "{{ migration_pod }}"
+            namespace: "{{ k8s_namespace }}"
           spec:
             restartPolicy: Never
             containers:
               - name: rsync
-                image: {{ alpine_image }}
-                command:
-                  - sh
-                  - -c
-                  - |
-                    set -e
-                    apk add --no-cache rsync
-                    echo "=== Starting bulk rsync ==="
-                    rsync -aH --info=progress2 /old/ /new/
-                    echo "=== Bulk rsync complete ==="
+                image: "{{ alpine_image }}"
+                command: [sh, -c, "set -e; apk add --no-cache rsync; echo '=== bulk rsync ==='; rsync -aH --info=progress2 /old/ /new/; echo '=== done ==='"]
                 volumeMounts:
-                  - name: old
-                    mountPath: /old
-                    readOnly: true
-                  - name: new
-                    mountPath: /new
+                  - {name: old, mountPath: /old, readOnly: true}
+                  - {name: new, mountPath: /new}
             volumes:
-              - name: old
-                persistentVolumeClaim:
-                  claimName: {{ old_pvc | trim }}
-              - name: new
-                persistentVolumeClaim:
-                  claimName: {{ temp_pvc }}
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+              - {name: old, persistentVolumeClaim: {claimName: "{{ old_pvc }}"}}
+              - {name: new, persistentVolumeClaim: {claimName: "{{ temp_pvc }}"},}
 
-    - name: Bulk rsync | Wait for migration pod to complete (this will take a few minutes)
-      ansible.builtin.command:
-        cmd: >
-          kubectl get pod {{ migration_pod }} -n {{ k8s_namespace }} -o jsonpath={.status.phase}
-      register: migration_phase
-      changed_when: false
-      until: migration_phase.stdout in ["Succeeded", "Failed"]
+    - name: Bulk rsync | Wait for pod to complete
+      kubernetes.core.k8s_info:
+        kind: Pod
+        name: "{{ migration_pod }}"
+        namespace: "{{ k8s_namespace }}"
+      register: bulk_pod
+      until: bulk_pod.resources[0].status.phase in ["Succeeded", "Failed"]
       retries: 120
       delay: 10
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
 
-    - name: Bulk rsync | Fetch pod logs
-      ansible.builtin.command:
-        cmd: kubectl logs {{ migration_pod }} -n {{ k8s_namespace }}
-      changed_when: false
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+    - name: Bulk rsync | Print logs
+      kubernetes.core.k8s_log:
+        name: "{{ migration_pod }}"
+        namespace: "{{ k8s_namespace }}"
+      register: bulk_logs
+
+    - name: Bulk rsync | Show logs
+      ansible.builtin.debug:
+        msg: "{{ bulk_logs.log }}"
 
     - name: Bulk rsync | Fail if pod did not succeed
       ansible.builtin.fail:
-        msg: "Migration pod failed. Check the logs above before retrying."
-      when: migration_phase.stdout != "Succeeded"
+        msg: "Migration pod failed — check logs above."
+      when: bulk_pod.resources[0].status.phase != "Succeeded"
 
     - name: Bulk rsync | Delete migration pod
-      ansible.builtin.command:
-        cmd: kubectl delete pod {{ migration_pod }} -n {{ k8s_namespace }}
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+      kubernetes.core.k8s:
+        kind: Pod
+        name: "{{ migration_pod }}"
+        namespace: "{{ k8s_namespace }}"
+        state: absent
+        wait: true
 
-    # -- Human checkpoint 1 -----------------------------------------------------
+    # -- CHECKPOINT 1 ----------------------------------------------------------
 
     - name: "CHECKPOINT 1: Verify bulk rsync output"
       ansible.builtin.pause:
@@ -200,271 +169,233 @@
           ================================================
           CHECKPOINT - read before continuing
           ================================================
-
-          The bulk rsync is done. Review the logs printed above:
-
-            - Exit code was Succeeded (already verified)
+          Review the rsync logs above:
+            - Pod phase was Succeeded (verified)
             - File counts look reasonable for your retention period
-            - No "rsync error" lines in the output
+            - No rsync error lines
 
-          The encrypted PVC now has a near-complete copy of TSDB data.
-          The next steps will scale Prometheus to 0, run a final delta
-          sync, then cut over. This is the last safe abort point.
-
-          Press ENTER to continue, or Ctrl+C then A to abort.
+          This is the last safe abort point before Prometheus goes down.
+          Press ENTER to continue, Ctrl+C then A to abort.
           ================================================
 
-    # -- Protect the encrypted PV from accidental deletion ---------------------
+    # -- Protect PV ------------------------------------------------------------
 
-    - name: Protect | Get PV name backing the temp PVC
-      ansible.builtin.command:
-        cmd: >
-          kubectl get pvc {{ temp_pvc }} -n {{ k8s_namespace }} -o jsonpath={.spec.volumeName}
-      register: temp_pv_name
-      changed_when: false
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+    - name: Protect | Record temp PV name
+      ansible.builtin.set_fact:
+        temp_pv_name: "{{ temp_pvc_info.resources[0].spec.volumeName }}"
 
-    - name: Protect | Patch temp PV reclaim policy to Retain
-      ansible.builtin.command:
-        cmd: >
-          kubectl patch pv {{ temp_pv_name.stdout }} -p {"spec":{"persistentVolumeReclaimPolicy":"Retain"}}
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+    - name: Protect | Set temp PV reclaim policy to Retain
+      kubernetes.core.k8s:
+        kind: PersistentVolume
+        name: "{{ temp_pv_name }}"
+        merge_type: merge
+        definition:
+          spec:
+            persistentVolumeReclaimPolicy: Retain
 
-    # -- Pause reconcilers ------------------------------------------------------
+    # -- Pause reconcilers -----------------------------------------------------
 
-    - name: Pause | Disable ArgoCD auto-sync for kube-prometheus-stack
-      ansible.builtin.command:
-        cmd: >
-          kubectl patch application {{ argocd_app }} -n argocd --type=merge -p {"spec":{"syncPolicy":null}}
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+    - name: Pause | Disable ArgoCD auto-sync
+      kubernetes.core.k8s:
+        kind: Application
+        name: "{{ argocd_app }}"
+        namespace: argocd
+        merge_type: merge
+        definition:
+          spec:
+            syncPolicy: null
 
     - name: Pause | Scale Prometheus Operator to 0
-      ansible.builtin.command:
-        cmd: >
-          kubectl scale deployment {{ prometheus_operator }} -n {{ k8s_namespace }} --replicas=0
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+      kubernetes.core.k8s_scale:
+        kind: Deployment
+        name: "{{ prometheus_operator }}"
+        namespace: "{{ k8s_namespace }}"
+        replicas: 0
+        wait: true
+        wait_timeout: 120
 
     - name: Pause | Scale Prometheus StatefulSet to 0
-      ansible.builtin.command:
-        cmd: >
-          kubectl scale statefulset {{ statefulset }} -n {{ k8s_namespace }} --replicas=0
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+      kubernetes.core.k8s_scale:
+        kind: StatefulSet
+        name: "{{ statefulset }}"
+        namespace: "{{ k8s_namespace }}"
+        replicas: 0
+        wait: true
+        wait_timeout: 120
 
     - name: Pause | Wait for Prometheus pod to terminate
-      ansible.builtin.command:
-        cmd: >
-          kubectl get pods -n {{ k8s_namespace }} -l {{ pod_label }} --no-headers
-      register: prom_pods
-      failed_when: false
-      changed_when: false
-      until: prom_pods.stdout == ""
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ k8s_namespace }}"
+        label_selectors: ["{{ pod_label }}"]
+      register: prom_gone
+      until: prom_gone.resources | length == 0
       retries: 36
       delay: 5
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
 
-    # -- Final delta rsync ------------------------------------------------------
+    # -- Final delta rsync -----------------------------------------------------
 
-    - name: Final rsync | Launch final delta sync pod (with --delete)
-      ansible.builtin.command:
-        cmd: kubectl apply -f -
-        stdin: |
+    - name: Final rsync | Launch delta pod (with --delete)
+      kubernetes.core.k8s:
+        state: present
+        definition:
           apiVersion: v1
           kind: Pod
           metadata:
-            name: {{ migration_pod }}
-            namespace: {{ k8s_namespace }}
+            name: "{{ migration_pod }}"
+            namespace: "{{ k8s_namespace }}"
           spec:
             restartPolicy: Never
             containers:
               - name: rsync
-                image: {{ alpine_image }}
-                command:
-                  - sh
-                  - -c
-                  - |
-                    set -e
-                    apk add --no-cache rsync
-                    echo "=== Starting final delta rsync ==="
-                    rsync -aH --delete --info=progress2 /old/ /new/
-                    echo "=== Final rsync complete ==="
+                image: "{{ alpine_image }}"
+                command: [sh, -c, "set -e; apk add --no-cache rsync; echo '=== final delta ==='; rsync -aH --delete --info=progress2 /old/ /new/; echo '=== done ==='"]
                 volumeMounts:
-                  - name: old
-                    mountPath: /old
-                    readOnly: true
-                  - name: new
-                    mountPath: /new
+                  - {name: old, mountPath: /old, readOnly: true}
+                  - {name: new, mountPath: /new}
             volumes:
-              - name: old
-                persistentVolumeClaim:
-                  claimName: {{ old_pvc | trim }}
-              - name: new
-                persistentVolumeClaim:
-                  claimName: {{ temp_pvc }}
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+              - {name: old, persistentVolumeClaim: {claimName: "{{ old_pvc }}"}}
+              - {name: new, persistentVolumeClaim: {claimName: "{{ temp_pvc }}"},}
 
-    - name: Final rsync | Wait for delta sync to complete
-      ansible.builtin.command:
-        cmd: >
-          kubectl get pod {{ migration_pod }} -n {{ k8s_namespace }} -o jsonpath={.status.phase}
-      register: delta_phase
-      changed_when: false
-      until: delta_phase.stdout in ["Succeeded", "Failed"]
+    - name: Final rsync | Wait for delta pod to complete
+      kubernetes.core.k8s_info:
+        kind: Pod
+        name: "{{ migration_pod }}"
+        namespace: "{{ k8s_namespace }}"
+      register: delta_pod
+      until: delta_pod.resources[0].status.phase in ["Succeeded", "Failed"]
       retries: 60
       delay: 10
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
 
-    - name: Final rsync | Fetch pod logs
-      ansible.builtin.command:
-        cmd: kubectl logs {{ migration_pod }} -n {{ k8s_namespace }}
-      changed_when: false
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+    - name: Final rsync | Print logs
+      kubernetes.core.k8s_log:
+        name: "{{ migration_pod }}"
+        namespace: "{{ k8s_namespace }}"
+      register: delta_logs
 
-    - name: Final rsync | Fail if delta sync did not succeed
+    - name: Final rsync | Show logs
+      ansible.builtin.debug:
+        msg: "{{ delta_logs.log }}"
+
+    - name: Final rsync | Fail if pod did not succeed
       ansible.builtin.fail:
-        msg: "Final rsync pod failed. Old PVC is still intact - safe to retry."
-      when: delta_phase.stdout != "Succeeded"
+        msg: "Final rsync failed. Old PVC is intact — safe to retry."
+      when: delta_pod.resources[0].status.phase != "Succeeded"
 
     - name: Final rsync | Delete migration pod
-      ansible.builtin.command:
-        cmd: kubectl delete pod {{ migration_pod }} -n {{ k8s_namespace }}
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+      kubernetes.core.k8s:
+        kind: Pod
+        name: "{{ migration_pod }}"
+        namespace: "{{ k8s_namespace }}"
+        state: absent
+        wait: true
 
-    # -- PV retain-and-rebind ---------------------------------------------------
+    # -- PV retain-and-rebind --------------------------------------------------
 
-    - name: Rebind | Delete temp PVC (PV transitions to Released; Hetzner volume intact)
-      ansible.builtin.command:
-        cmd: kubectl delete pvc {{ temp_pvc }} -n {{ k8s_namespace }}
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+    - name: Rebind | Delete temp PVC (PV survives due to Retain)
+      kubernetes.core.k8s:
+        kind: PersistentVolumeClaim
+        name: "{{ temp_pvc }}"
+        namespace: "{{ k8s_namespace }}"
+        state: absent
+        wait: true
+        wait_timeout: 120
 
-    - name: Rebind | Wait for temp PVC to fully disappear
-      ansible.builtin.command:
-        cmd: kubectl get pvc {{ temp_pvc }} -n {{ k8s_namespace }}
-      register: temp_pvc_check
-      failed_when: false
-      changed_when: false
-      until: temp_pvc_check.rc != 0
+    - name: Rebind | Clear PV claimRef to make it Available
+      kubernetes.core.k8s:
+        kind: PersistentVolume
+        name: "{{ temp_pv_name }}"
+        merge_type: json
+        definition:
+          - op: remove
+            path: /spec/claimRef
+
+    - name: Rebind | Wait for PV to be Available
+      kubernetes.core.k8s_info:
+        kind: PersistentVolume
+        name: "{{ temp_pv_name }}"
+      register: pv_avail
+      until: pv_avail.resources[0].status.phase == "Available"
       retries: 24
       delay: 5
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
-
-    - name: Rebind | Clear PV claimRef so it becomes Available
-      ansible.builtin.command:
-        cmd: >
-          kubectl patch pv {{ temp_pv_name.stdout }} --type=json -p=[{"op":"remove","path":"/spec/claimRef"}]
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
 
     - name: Rebind | Delete old unencrypted PVC
-      ansible.builtin.command:
-        cmd: >
-          kubectl delete pvc {{ old_pvc | trim }} -n {{ k8s_namespace }} --ignore-not-found
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+      kubernetes.core.k8s:
+        kind: PersistentVolumeClaim
+        name: "{{ old_pvc }}"
+        namespace: "{{ k8s_namespace }}"
+        state: absent
+        wait: true
+        wait_timeout: 120
 
-    - name: Rebind | Wait for old PVC to fully disappear
-      ansible.builtin.command:
-        cmd: kubectl get pvc {{ old_pvc | trim }} -n {{ k8s_namespace }}
-      register: old_pvc_check
-      failed_when: false
-      changed_when: false
-      until: old_pvc_check.rc != 0
-      retries: 24
-      delay: 5
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
-
-    - name: Rebind | Create new encrypted PVC pre-bound to the migrated PV
-      ansible.builtin.command:
-        cmd: kubectl apply -f -
-        stdin: |
+    - name: Rebind | Create new encrypted PVC pre-bound to migrated PV
+      kubernetes.core.k8s:
+        state: present
+        definition:
           apiVersion: v1
           kind: PersistentVolumeClaim
           metadata:
-            name: {{ old_pvc | trim }}
-            namespace: {{ k8s_namespace }}
+            name: "{{ old_pvc }}"
+            namespace: "{{ k8s_namespace }}"
           spec:
             storageClassName: hcloud-volumes-encrypted
-            volumeName: {{ temp_pv_name.stdout }}
+            volumeName: "{{ temp_pv_name }}"
             accessModes: [ReadWriteOnce]
             resources:
               requests:
-                storage: {{ storage_size }}
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+                storage: "{{ storage_size }}"
 
-    - name: Rebind | Wait for new encrypted PVC to be Bound
-      ansible.builtin.command:
-        cmd: >
-          kubectl get pvc {{ old_pvc | trim }} -n {{ k8s_namespace }} -o jsonpath={.status.phase}
-      register: new_pvc_phase
-      changed_when: false
-      until: new_pvc_phase.stdout == "Bound"
+    - name: Rebind | Wait for new PVC to be Bound
+      kubernetes.core.k8s_info:
+        kind: PersistentVolumeClaim
+        name: "{{ old_pvc }}"
+        namespace: "{{ k8s_namespace }}"
+      register: new_pvc
+      until: new_pvc.resources[0].status.phase == "Bound"
       retries: 24
       delay: 5
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
 
-    # -- Cutover ----------------------------------------------------------------
+    # -- Cutover ---------------------------------------------------------------
 
-    - name: Cutover | Delete Prometheus StatefulSet (PVC is pre-created; operator will recreate)
-      ansible.builtin.command:
-        cmd: kubectl delete statefulset {{ statefulset }} -n {{ k8s_namespace }}
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+    - name: Cutover | Delete Prometheus StatefulSet
+      kubernetes.core.k8s:
+        kind: StatefulSet
+        name: "{{ statefulset }}"
+        namespace: "{{ k8s_namespace }}"
+        state: absent
+        wait: true
 
     - name: Cutover | Restore Prometheus Operator
-      ansible.builtin.command:
-        cmd: >
-          kubectl scale deployment {{ prometheus_operator }} -n {{ k8s_namespace }} --replicas=1
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+      kubernetes.core.k8s_scale:
+        kind: Deployment
+        name: "{{ prometheus_operator }}"
+        namespace: "{{ k8s_namespace }}"
+        replicas: 1
+        wait: true
+        wait_timeout: 120
 
-    - name: Cutover | Re-enable ArgoCD auto-sync for kube-prometheus-stack
-      ansible.builtin.command:
-        cmd: >
-          kubectl patch application {{ argocd_app }} -n argocd --type=merge -p {{ {"spec": {"syncPolicy": argocd_sync_policy}} | to_json }}
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+    - name: Cutover | Re-enable ArgoCD auto-sync
+      kubernetes.core.k8s:
+        kind: Application
+        name: "{{ argocd_app }}"
+        namespace: argocd
+        merge_type: merge
+        definition:
+          spec:
+            syncPolicy: "{{ argocd_sync_policy }}"
 
     - name: Cutover | Wait for Prometheus pod to be Running
-      ansible.builtin.command:
-        cmd: >
-          kubectl get pods -n {{ k8s_namespace }} -l {{ pod_label }} --no-headers
-      register: prom_ready
-      failed_when: false
-      changed_when: false
-      until: "'Running' in prom_ready.stdout"
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ k8s_namespace }}"
+        label_selectors: ["{{ pod_label }}"]
+      register: prom_up
+      until: >
+        prom_up.resources | length > 0 and prom_up.resources[0].status.phase == "Running"
       retries: 60
       delay: 10
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
 
-    # -- Human checkpoint 2 -----------------------------------------------------
+    # -- CHECKPOINT 2 ----------------------------------------------------------
 
     - name: "CHECKPOINT 2: Verify Prometheus has historical data"
       ansible.builtin.pause:
@@ -472,41 +403,38 @@
           ================================================
           CHECKPOINT - verify before cleanup
           ================================================
-
           Prometheus is running on the new encrypted PVC.
 
           Please verify:
-            - Open Grafana and check that historical graphs show data
-            - Query something with history in Prometheus UI
-            - kubectl top nodes / kubectl top pods works (uses Prometheus)
+            - Open Grafana and check historical graphs show data
+            - Query something in Prometheus UI that should have history
 
-          If data is missing: the old PV is still Retained - contact
-          runbook section "Recovery from failed migration" before proceeding.
+          If data is missing: the old PV still has Retain policy.
+          Abort and investigate before cleanup.
 
-          Press ENTER to proceed to cleanup, or Ctrl+C then A to abort.
+          Press ENTER to proceed, Ctrl+C then A to abort.
           ================================================
 
-    # -- Cleanup ----------------------------------------------------------------
+    # -- Cleanup ---------------------------------------------------------------
 
     - name: Cleanup | Restore PV reclaim policy to Delete
-      ansible.builtin.command:
-        cmd: >
-          kubectl patch pv {{ temp_pv_name.stdout }} -p {"spec":{"persistentVolumeReclaimPolicy":"Delete"}}
-      changed_when: true
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+      kubernetes.core.k8s:
+        kind: PersistentVolume
+        name: "{{ temp_pv_name }}"
+        merge_type: merge
+        definition:
+          spec:
+            persistentVolumeReclaimPolicy: Delete
 
     - name: Cleanup | Verify final PVC uses hcloud-volumes-encrypted
-      ansible.builtin.command:
-        cmd: >
-          kubectl get pvc {{ old_pvc | trim }} -n {{ k8s_namespace }} -o jsonpath={.spec.storageClassName}
-      register: final_sc
-      changed_when: false
-      failed_when: final_sc.stdout != "hcloud-volumes-encrypted"
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+      kubernetes.core.k8s_info:
+        kind: PersistentVolumeClaim
+        name: "{{ old_pvc }}"
+        namespace: "{{ k8s_namespace }}"
+      register: final_pvc
+      failed_when: >
+        final_pvc.resources | length == 0 or final_pvc.resources[0].spec.storageClassName != "hcloud-volumes-encrypted"
 
     - name: Cleanup | Summary
       ansible.builtin.debug:
-        msg: >
-          Migration complete. Prometheus is running on hcloud-volumes-encrypted PVC {{ old_pvc | trim }} backed by PV {{ temp_pv_name.stdout }}. Historical TSDB data is intact.
+        msg: "Migration complete. Prometheus is on {{ temp_pv_name }} (hcloud-volumes-encrypted). Historical data intact."

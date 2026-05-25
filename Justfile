@@ -4,7 +4,7 @@ export KUBECONFIG := infra / "kubeconfig.yaml"
 ansible_dir := justfile_dir() / "ansible"
 ansible_inventory := ansible_dir / "inventory/tofu_inventory"
 ansible_playbooks := ansible_dir / "playbooks"
-ansible_env := "LC_ALL=C.UTF-8 LANG=C.UTF-8 ANSIBLE_CONFIG='" + ansible_dir / "ansible.cfg" + "'"
+ansible_env := "LC_ALL=C.UTF-8 LANG=C.UTF-8 ANSIBLE_CONFIG='" + ansible_dir / "ansible.cfg" + "' KUBECONFIG='" + infra / "kubeconfig.yaml" + "'"
 
 # Internal API endpoint used by Cilium and other in-cluster components.
 # Points at the API server LB private IP, not a specific node.
@@ -66,7 +66,13 @@ ansible-converge playbook="site":
 @_ansible-playbook playbook args="":
     test -f "{{ ansible_playbooks }}/{{ playbook }}.yml"
     cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
-        "{{ ansible_env }} ansible-playbook -i '{{ ansible_inventory }}' '{{ ansible_playbooks }}/{{ playbook }}.yml' {{ args }}"
+        "{{ ansible_env }} uv run ansible-playbook -i '{{ ansible_inventory }}' '{{ ansible_playbooks }}/{{ playbook }}.yml' {{ args }}"
+
+# Install Python deps (uv) and Ansible collections. Run once after cloning or
+# after pyproject.toml / ansible/requirements.yml changes.
+ansible-setup:
+    uv sync --dev
+    uv run ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections/
 
 ansible-apply playbook="site":
     just ansible-converge "{{ playbook }}"
