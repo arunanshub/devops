@@ -43,12 +43,16 @@
       when: etcd_snapshot_config.changed and not ansible_check_mode
 
     - name: Wait for node to be Ready
-      ansible.builtin.command:
-        cmd: kubectl get node {{ kubernetes_node_name }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      kubernetes.core.k8s_info:
+        kind: Node
+        name: "{{ kubernetes_node_name }}"
+      register: node_info
       delegate_to: localhost
       become: false
-      register: node_ready
-      until: node_ready.stdout == "True"
+      until: >
+        node_info.resources | length > 0 and (node_info.resources[0].status.conditions |
+         selectattr('type', 'equalto', 'Ready') |
+         map(attribute='status') | list | first) == 'True'
       retries: 30
       delay: 10
       when: etcd_snapshot_config.changed and not ansible_check_mode

@@ -120,7 +120,11 @@
             containers:
               - name: rsync
                 image: "{{ alpine_image }}"
-                command: [sh, -c, "set -e; apk add --no-cache rsync; echo '=== bulk rsync ==='; rsync -aH --info=progress2 /old/ /new/; echo '=== done ==='"]
+                command:
+                  - sh
+                  - -c
+                  - >-
+                    set -e; apk add --no-cache rsync; echo '=== bulk rsync ==='; rsync -aH --info=progress2 /old/ /new/; echo '=== done ==='
                 volumeMounts:
                   - {name: old, mountPath: /old, readOnly: true}
                   - {name: new, mountPath: /new}
@@ -249,7 +253,11 @@
             containers:
               - name: rsync
                 image: "{{ alpine_image }}"
-                command: [sh, -c, "set -e; apk add --no-cache rsync; echo '=== final delta ==='; rsync -aH --delete --info=progress2 /old/ /new/; echo '=== done ==='"]
+                command:
+                  - sh
+                  - -c
+                  - >-
+                    set -e; apk add --no-cache rsync; echo '=== final delta ==='; rsync -aH --delete --info=progress2 /old/ /new/; echo '=== done ==='
                 volumeMounts:
                   - {name: old, mountPath: /old, readOnly: true}
                   - {name: new, mountPath: /new}

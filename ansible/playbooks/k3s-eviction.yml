@@ -45,11 +45,15 @@
       when: eviction_config.changed and not ansible_check_mode
 
     - name: Wait for node to be Ready
-      ansible.builtin.command:
-        cmd: kubectl get node {{ kubernetes_node_name }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      kubernetes.core.k8s_info:
+        kind: Node
+        name: "{{ kubernetes_node_name }}"
+      register: node_info
       delegate_to: localhost
-      register: node_ready
-      until: node_ready.stdout == "True"
+      until: >
+        node_info.resources | length > 0 and (node_info.resources[0].status.conditions |
+         selectattr('type', 'equalto', 'Ready') |
+         map(attribute='status') | list | first) == 'True'
       retries: 30
       delay: 10
       when: eviction_config.changed and not ansible_check_mode
@@ -57,6 +61,7 @@
     - name: Verify eviction thresholds in kubelet config
       ansible.builtin.shell:
         cmd: |
+          set -o pipefail
           kubectl get --raw /api/v1/nodes/{{ kubernetes_node_name }}/proxy/configz | python3 -c "
           import json, sys
           data = json.load(sys.stdin)
@@ -69,8 +74,10 @@
           print('evictionHard: ' + str(hard))
           print('evictionSoft: ' + str(soft))
           "
+        executable: /bin/bash
       delegate_to: localhost
       register: verify_result
+      changed_when: false
       until: verify_result.rc == 0
       retries: 12
       delay: 5

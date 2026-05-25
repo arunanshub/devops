@@ -101,7 +101,7 @@
 
     # -- Delete workloads -------------------------------------------------------
 
-    - name: Delete | Remove {{ item.name }} {{ item.kind }}
+    - name: "Delete | Remove workload: {{ item.name }}"
       kubernetes.core.k8s:
         kind: "{{ item.kind }}"
         name: "{{ item.resource }}"
@@ -109,7 +109,7 @@
         state: absent
       loop: "{{ workloads }}"
 
-    - name: Delete | Wait for {{ item.name }} pods to terminate
+    - name: "Delete | Wait for pods to terminate: {{ item.name }}"
       kubernetes.core.k8s_info:
         kind: Pod
         namespace: "{{ k8s_namespace }}"
@@ -121,7 +121,7 @@
       delay: 5
       loop: "{{ workloads }}"
 
-    - name: Delete | Remove {{ item.name }} PVC and wait for full deletion
+    - name: "Delete | Remove PVC and wait for full deletion: {{ item.name }}"
       kubernetes.core.k8s:
         kind: PersistentVolumeClaim
         name: "{{ item.pvc }}"
@@ -155,7 +155,7 @@
 
     # -- Wait for healthy state -------------------------------------------------
 
-    - name: Healthy | Wait for {{ item.name }} pod to be Running
+    - name: "Healthy | Wait for pod to be Running: {{ item.name }}"
       kubernetes.core.k8s_info:
         kind: Pod
         namespace: "{{ k8s_namespace }}"
@@ -170,7 +170,7 @@
 
     # -- Post-flight ------------------------------------------------------------
 
-    - name: Post-flight | Verify {{ item.name }} PVC uses hcloud-volumes-encrypted
+    - name: "Post-flight | Verify PVC uses hcloud-volumes-encrypted: {{ item.name }}"
       kubernetes.core.k8s_info:
         kind: PersistentVolumeClaim
         name: "{{ item.pvc }}"
