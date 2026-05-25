@@ -331,11 +331,10 @@
         wait_timeout: 120
 
     - name: Rebind | Clear PV claimRef to make it Available
-      kubernetes.core.k8s:
+      kubernetes.core.k8s_json_patch:
         kind: PersistentVolume
         name: "{{ temp_pv_name }}"
-        merge_type: json
-        definition:
+        patch:
           - op: remove
             path: /spec/claimRef
 
@@ -473,6 +472,24 @@
       register: final_pvc
       failed_when: >
         final_pvc.resources | length == 0 or final_pvc.resources[0].spec.storageClassName != "hcloud-volumes-encrypted"
+
+    - name: Cleanup | Delete orphaned Released PVs from previous failed runs
+      kubernetes.core.k8s_info:
+        kind: PersistentVolume
+      register: all_pvs
+
+    - name: Cleanup | Remove orphaned encrypted Released PVs
+      kubernetes.core.k8s:
+        kind: PersistentVolume
+        name: "{{ item.metadata.name }}"
+        state: absent
+      loop: "{{ all_pvs.resources }}"
+      when: >
+        item.status.phase == 'Released' and
+        item.spec.storageClassName == 'hcloud-volumes-encrypted' and
+        item.metadata.name != temp_pv_name
+      loop_control:
+        label: "{{ item.metadata.name }}"
 
     - name: Cleanup | Summary
       ansible.builtin.debug:
