@@ -16,7 +16,6 @@ spec:
     - https://github.com/rancher/system-upgrade-controller
     - https://charts.hetzner.cloud
     - https://helm.cilium.io/
-    - https://pkgs.tailscale.com/helmcharts
 
   destinations:
     - server: https://kubernetes.default.svc
@@ -27,8 +26,6 @@ spec:
       namespace: system-upgrade
     - server: https://kubernetes.default.svc
       namespace: cilium-secrets
-    - server: https://kubernetes.default.svc
-      namespace: tailscale
 
   clusterResourceWhitelist:
     - group: "*"

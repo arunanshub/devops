@@ -33,15 +33,3 @@ output "tunnel_token" {
   value       = data.cloudflare_zero_trust_tunnel_cloudflared_token.main.token
   sensitive   = true
 }
-
-output "tailscale_oauth_client_id" {
-  description = "Tailscale operator OAuth client ID. Consumed by `just seal-tailscale-oauth`."
-  value       = tailscale_oauth_client.operator.id
-  sensitive   = true
-}
-
-output "tailscale_oauth_client_secret" {
-  description = "Tailscale operator OAuth client secret. Consumed by `just seal-tailscale-oauth`."
-  value       = tailscale_oauth_client.operator.key
-  sensitive   = true
-}
