@@ -12,7 +12,8 @@ resource "tailscale_acl" "main" {
   acl = jsonencode({
     tagOwners = {
       "tag:k3s-operator" = ["autogroup:admin"]
-      "tag:k8s-operator" = ["autogroup:admin"]
+      "tag:k8s-operator" = []
+      "tag:k8s"          = ["tag:k8s-operator"]
     }
     acls = [{ action = "accept", src = ["*"], dst = ["*:*"] }]
   })
