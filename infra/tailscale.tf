@@ -25,7 +25,7 @@ resource "tailscale_acl" "main" {
 resource "tailscale_oauth_client" "operator" {
   description = "k3s tailscale-operator"
   scopes      = ["devices:core", "auth_keys", "services"]
-  tags        = ["tag:k3s-operator", "tag:k8s-operator"]
+  tags        = ["tag:k8s-operator"]
 
   depends_on = [tailscale_acl.main]
 }
