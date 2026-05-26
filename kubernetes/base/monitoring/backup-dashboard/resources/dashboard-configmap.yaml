@@ -19,7 +19,7 @@ data:
         {
           "id": 1, "type": "stat", "title": "Velero BSL Status",
           "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
-          "targets": [{"expr": "velero_backup_location_status_gauge{backup_location_name=\"default\"}", "legendFormat": "BSL"}],
+          "targets": [{"expr": "max(velero_backup_location_status_gauge{backup_location_name=\"default\"})", "legendFormat": "BSL"}],
           "fieldConfig": {"defaults": {
             "mappings": [{"type": "value", "options": {"0": {"text": "Unavailable", "color": "red"}, "1": {"text": "Available", "color": "green"}}}],
             "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
@@ -29,7 +29,7 @@ data:
         {
           "id": 2, "type": "stat", "title": "Last Velero Backup",
           "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
-          "targets": [{"expr": "time() - velero_backup_last_successful_timestamp{schedule=\"daily-full\"}", "legendFormat": "Age"}],
+          "targets": [{"expr": "min(time() - velero_backup_last_successful_timestamp{schedule=\"daily-full\"})", "legendFormat": "Age"}],
           "fieldConfig": {"defaults": {
             "unit": "s",
             "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 86400}, {"color": "red", "value": 90000}]}
@@ -39,7 +39,7 @@ data:
         {
           "id": 3, "type": "stat", "title": "Last etcd Snapshot Check",
           "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
-          "targets": [{"expr": "time() - kube_cronjob_status_last_successful_time{cronjob=\"etcd-snapshot-health\", namespace=\"kube-system\"}", "legendFormat": "Age"}],
+          "targets": [{"expr": "min(time() - kube_cronjob_status_last_successful_time{cronjob=\"etcd-snapshot-health\", namespace=\"kube-system\"})", "legendFormat": "Age"}],
           "fieldConfig": {"defaults": {
             "unit": "s",
             "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 28800}, {"color": "red", "value": 36000}]}
@@ -49,7 +49,7 @@ data:
         {
           "id": 4, "type": "stat", "title": "Last Restore Drill",
           "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
-          "targets": [{"expr": "time() - kube_cronjob_status_last_successful_time{cronjob=\"velero-restore-drill\", namespace=\"velero\"}", "legendFormat": "Age"}],
+          "targets": [{"expr": "min(time() - kube_cronjob_status_last_successful_time{cronjob=\"velero-restore-drill\", namespace=\"velero\"})", "legendFormat": "Age"}],
           "fieldConfig": {"defaults": {
             "unit": "s",
             "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 2332800}, {"color": "red", "value": 2678400}]}
