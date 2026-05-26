@@ -3,7 +3,7 @@ nodeAgent:
 
 initContainers:
   - name: velero-plugin-for-aws
-    image: velero/velero-plugin-for-aws:v1.14.1
+    image: velero/velero-plugin-for-aws:v1.12.0
     volumeMounts:
       - mountPath: /target
         name: plugins
@@ -22,7 +22,6 @@ configuration:
         s3Url: "https://2f120b3588f24bba8666100a3da52e02.r2.cloudflarestorage.com"
         s3ForcePathStyle: "true"
         checksumAlgorithm: ""
-        taggingPolicy: "omit"
 
   volumeSnapshotLocation: []
 
