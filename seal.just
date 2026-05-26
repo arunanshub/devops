@@ -88,8 +88,7 @@ seal-tailscale-oauth:
         --from-literal=client_secret="$client_secret" \
         --dry-run=client -o yaml | \
     kubeseal \
-        --controller-namespace kube-system \
-        --controller-name sealed-secrets-controller \
+        --cert "{{ k8s }}/sealed-secrets-cert.pem" \
         --format yaml \
         > "$out"
     echo "Sealed to $out"
