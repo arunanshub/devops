@@ -8,4 +8,4 @@ oauth:
   clientSecret: ""
 
 apiServerProxyConfig:
-  mode: "true"
+  mode: "noauth"
