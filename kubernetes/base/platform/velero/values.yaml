@@ -22,6 +22,7 @@ configuration:
         s3Url: "https://2f120b3588f24bba8666100a3da52e02.r2.cloudflarestorage.com"
         s3ForcePathStyle: "true"
         checksumAlgorithm: ""
+        taggingPolicy: "omit"
 
   volumeSnapshotLocation: []
 
