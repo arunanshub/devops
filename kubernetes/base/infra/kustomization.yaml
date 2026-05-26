@@ -6,3 +6,4 @@ resources:
   - gateway-api-crds/application.yaml
   - sealed-secrets/application.yaml
   - cilium/application.yaml
+  - tailscale-operator/application.yaml

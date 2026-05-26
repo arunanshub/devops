@@ -25,20 +25,3 @@ resource "hcloud_firewall_attachment" "main" {
   server_ids  = values(hcloud_server.nodes)[*].id
 }
 
-resource "hcloud_firewall" "control_plane_api" {
-  name = "${local.cluster_name}-control-plane-api"
-
-  # Temporary admin access path: direct-to-CP public IPv6, restricted to home.
-  # Cluster components use the private API LB instead.
-  rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "6443"
-    source_ips = [var.home_ip]
-  }
-}
-
-resource "hcloud_firewall_attachment" "control_plane_api" {
-  firewall_id = hcloud_firewall.control_plane_api.id
-  server_ids  = [for k in keys(local.cp_nodes) : hcloud_server.nodes[k].id]
-}

@@ -1,0 +1,11 @@
+operatorConfig:
+  hostname: tailscale-operator
+
+# oauth credentials are pre-created as a SealedSecret (operator-oauth in tailscale ns).
+# Leave empty here so the Helm chart does not overwrite the sealed secret.
+oauth:
+  clientId: ""
+  clientSecret: ""
+
+apiServerProxyConfig:
+  mode: "true"

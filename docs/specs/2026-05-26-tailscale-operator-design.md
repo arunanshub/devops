@@ -65,10 +65,10 @@ The operator registers into the tailnet as `tailscale-operator` and proxies all 
 ### One-time manual bootstrap
 1. Sign up at tailscale.com (free personal plan)
 2. Create a personal API key: Settings → Personal API keys
-3. Add to `infra/secrets.yaml` (SOPS-encrypted):
+3. Add to `infra/secrets.yaml` (SOPS-encrypted) using the `TF_VAR_*` prefix that `sops exec-env` injects into the environment:
    ```yaml
-   tailscale_api_key: tskey-api-xxxx
-   tailscale_tailnet: yourname@gmail.com   # or your tailnet org name
+   TF_VAR_tailscale_api_key: tskey-api-xxxx
+   TF_VAR_tailscale_tailnet: yourname@gmail.com
    ```
 
 ### `infra/tailscale.tf`

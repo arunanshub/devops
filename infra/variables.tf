@@ -111,6 +111,17 @@ variable "owner_email" {
   description = "Email address allowed through Cloudflare Access for all protected applications."
 }
 
+variable "tailscale_api_key" {
+  type        = string
+  description = "Tailscale personal API key. Create at tailscale.com → Settings → Personal API keys. Store in secrets.yaml as TF_VAR_tailscale_api_key."
+  sensitive   = true
+}
+
+variable "tailscale_tailnet" {
+  type        = string
+  description = "Tailscale tailnet name (e.g. yourname@gmail.com or org slug). Store in secrets.yaml as TF_VAR_tailscale_tailnet."
+}
+
 
 check "private_ips_are_in_subnet" {
   assert {

@@ -16,6 +16,11 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+
+    tailscale = {
+      source  = "tailscale/tailscale"
+      version = "~> 0.23"
+    }
   }
 
   encryption {
