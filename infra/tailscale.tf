@@ -16,6 +16,17 @@ resource "tailscale_acl" "main" {
       "tag:k8s"          = ["tag:k8s-operator"]
     }
     acls = [{ action = "accept", src = ["*"], dst = ["*:*"] }]
+    grants = [
+      {
+        src = ["autogroup:owner"]
+        dst = ["tag:k8s-operator"]
+        app = {
+          "tailscale.com/cap/kubernetes" = [
+            { impersonate = { groups = ["system:masters"] } }
+          ]
+        }
+      }
+    ]
   })
 }
 
