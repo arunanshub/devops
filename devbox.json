@@ -18,7 +18,8 @@
     "kustomize@latest",
     "hubble@latest",
     "uv@latest",
-    "glibcLocales@latest"
+    "glibcLocales@latest",
+    "kubeconform@latest"
   ],
   "env": {
     "LC_ALL": "C.UTF-8",
