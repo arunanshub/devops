@@ -7,6 +7,8 @@ provider "tailscale" {
 # tag:k3s-operator  — assigned to the OAuth client itself
 # tag:k8s-operator  — assigned by the operator to devices it registers (operator's default)
 resource "tailscale_acl" "main" {
+  overwrite_existing_content = true
+
   acl = jsonencode({
     tagOwners = {
       "tag:k3s-operator" = ["autogroup:admin"]
@@ -21,7 +23,7 @@ resource "tailscale_acl" "main" {
 # by `just seal-tailscale-oauth` to generate the operator-oauth SealedSecret.
 resource "tailscale_oauth_client" "operator" {
   description = "k3s tailscale-operator"
-  scopes      = ["devices:core", "auth_keys"]
+  scopes      = ["devices:core", "auth_keys", "services"]
   tags        = ["tag:k3s-operator", "tag:k8s-operator"]
 
   depends_on = [tailscale_acl.main]
