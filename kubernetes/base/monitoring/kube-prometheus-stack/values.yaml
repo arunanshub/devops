@@ -61,6 +61,7 @@ prometheus:
       updateMode: InPlaceOrRecreate
 
   prometheusSpec:
+    externalUrl: https://prometheus.arunanshu.dev
     enableRemoteWriteReceiver: true
     retention: 14d
     retentionSize: 9GiB

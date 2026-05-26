@@ -8,5 +8,6 @@ resources:
   - kube-prometheus-stack-secrets/application.yaml
   - tempo/application.yaml
   - grafana-route/application.yaml
+  - prometheus-route/application.yaml
   - backup-alerts/application.yaml
   - backup-dashboard/application.yaml
