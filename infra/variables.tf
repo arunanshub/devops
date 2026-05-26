@@ -111,7 +111,6 @@ variable "owner_email" {
   description = "Email address allowed through Cloudflare Access for all protected applications."
 }
 
-
 check "private_ips_are_in_subnet" {
   assert {
     condition = alltrue([
