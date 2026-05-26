@@ -5,6 +5,12 @@
 # k3s runs with --disable-kube-proxy, so Cilium provides all service routing.
 kubeProxyReplacement: true
 
+# Restrict Cilium socket load balancer to host namespace only.
+# Required for Tailscale operator netstack mode to work correctly inside pods
+# when Cilium runs in kube-proxy replacement mode.
+socketLB:
+  hostNamespaceOnly: true
+
 # API endpoint reached from inside the cluster. Today the static private IP of
 # the sole control plane; flip to a Hetzner LB IP when going HA without
 # touching anything else.

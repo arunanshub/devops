@@ -4,6 +4,12 @@
 
 kubeProxyReplacement: true
 
+# Restrict Cilium socket load balancer to host namespace only.
+# Required for Tailscale operator netstack mode to work correctly inside pods
+# when Cilium runs in kube-proxy replacement mode.
+socketLB:
+  hostNamespaceOnly: true
+
 # Private IP of the API server load balancer from infra/locals.tf.
 k8sServiceHost: 10.0.0.100
 k8sServicePort: 6443
