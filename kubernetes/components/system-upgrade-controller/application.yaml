@@ -11,9 +11,9 @@ spec:
   project: infra
 
   source:
-    repoURL: git@github.com:arunanshub/devops.git
-    targetRevision: master
-    path: kubernetes/components/system-upgrade-controller/resources
+    repoURL: https://github.com/rancher/system-upgrade-controller
+    targetRevision: v0.19.2
+    path: .
 
   destination:
     server: https://kubernetes.default.svc
