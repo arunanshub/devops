@@ -26,6 +26,8 @@ spec:
       namespace: system-upgrade
     - server: https://kubernetes.default.svc
       namespace: cilium-secrets
+    - server: https://kubernetes.default.svc
+      namespace: monitoring
 
   clusterResourceWhitelist:
     - group: "*"

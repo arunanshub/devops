@@ -97,8 +97,6 @@ hubble:
       - "dns:query;ignoreAAAA"
     serviceMonitor:
       enabled: true
-    # Deploy official Hubble Grafana dashboards as ConfigMaps into the
-    # monitoring namespace so the Grafana sidecar picks them up automatically.
     dashboards:
       enabled: true
       namespace: monitoring
