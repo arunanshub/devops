@@ -16,14 +16,10 @@ ipam:
 routingMode: tunnel
 tunnelProtocol: vxlan
 
-# Explicit pod interface MTU derived from the measured path MTU:
-#   enp7s0 (Hetzner private NIC): 1450
-#   WireGuard overhead (IPv6 outer): -80  → cilium_wg0: 1370
-#   VXLAN overhead:                 -50  → effective pod payload: 1320
-# Without this, Cilium auto-detects enp7s0 (1450) and sets pod MTU to 1450,
-# silently blackholing all ICMP/UDP packets 1293-1450 bytes cross-node.
-# TCP is unaffected (eBPF MSS clamping), but UDP is broken without this fix.
-MTU: 1320
+# MTU is left at the default (0 = auto-detect from enp7s0 = 1450).
+# Cilium's MTU param is the physical device MTU, not the pod MTU.
+# Setting it lower shrinks cilium_wg0 too aggressively and breaks the VXLAN path.
+# Path MTU enforcement for UDP/ICMP is handled by pmtuDiscovery below.
 
 encryption:
   enabled: true
