@@ -16,13 +16,49 @@ ipam:
 routingMode: tunnel
 tunnelProtocol: vxlan
 
+# Explicit pod interface MTU derived from the measured path MTU:
+#   enp7s0 (Hetzner private NIC): 1450
+#   WireGuard overhead (IPv6 outer): -80  → cilium_wg0: 1370
+#   VXLAN overhead:                 -50  → effective pod payload: 1320
+# Without this, Cilium auto-detects enp7s0 (1450) and sets pod MTU to 1450,
+# silently blackholing all ICMP/UDP packets 1293-1450 bytes cross-node.
+# TCP is unaffected (eBPF MSS clamping), but UDP is broken without this fix.
+mtu: 1320
+
 encryption:
   enabled: true
   type: wireguard
   nodeEncryption: true
+  wireguard:
+    # Sends a keepalive every 25s so WireGuard sessions survive idle periods
+    # on Hetzner's private network without re-handshaking under load.
+    persistentKeepalive: 25s
+
+# Use eBPF instead of iptables for masquerading egress traffic.
+# Safe with kubeProxyReplacement: true; removes the iptables NAT fallback.
+bpf:
+  masquerade: true
+
+# Send ICMP "Fragmentation Needed" back on oversized packets instead of
+# silently blackholing them. After setting mtu: 1320 this should never
+# fire, but if it does, applications will see an explicit error.
+pmtuDiscovery:
+  enabled: true
+  packetizationLayerPMTUDMode: "always"
 
 operator:
   replicas: 2
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+# Expose cilium-agent metrics and register a ServiceMonitor so Prometheus
+# scrapes them automatically.
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
 
 # TODO: enable cilium GAPI once it has support for ClusterIP type in CiliumGatewayClassConfig.
 # ref: https://claude.ai/share/589a7ce8-eea1-4043-aaab-69d4d6ee9333
@@ -49,3 +85,20 @@ hubble:
   tls:
     auto:
       method: cronJob
+  metrics:
+    # Drop visibility is the most important: surfaces MTU issues, policy
+    # violations, and any other silent packet loss via hubble_drop_total.
+    # Flow uses namespace-level context to keep cardinality manageable.
+    enabled:
+      - drop
+      - tcp
+      - "flow:sourceContext=namespace;destinationContext=namespace"
+      - icmp
+      - "dns:query;ignoreAAAA"
+    serviceMonitor:
+      enabled: true
+    # Deploy official Hubble Grafana dashboards as ConfigMaps into the
+    # monitoring namespace so the Grafana sidecar picks them up automatically.
+    dashboards:
+      enabled: true
+      namespace: monitoring

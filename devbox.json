@@ -19,7 +19,8 @@
     "hubble@latest",
     "uv@latest",
     "glibcLocales@latest",
-    "kubeconform@latest"
+    "kubeconform@latest",
+    "cilium-cli@latest"
   ],
   "env": {
     "LC_ALL": "C.UTF-8",

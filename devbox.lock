@@ -150,6 +150,54 @@
         }
       }
     },
+    "cilium-cli@latest": {
+      "last_modified": "2026-04-23T13:07:47Z",
+      "resolved": "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30#cilium-cli",
+      "source": "devbox-search",
+      "version": "0.19.2",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/857jk4lhkdv2j6lrkx0dxlhcvdgyjcz5-cilium-cli-0.19.2",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/857jk4lhkdv2j6lrkx0dxlhcvdgyjcz5-cilium-cli-0.19.2"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/rab1jd3rikd7vsiyg11bwh9ydvxcksnf-cilium-cli-0.19.2",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/rab1jd3rikd7vsiyg11bwh9ydvxcksnf-cilium-cli-0.19.2"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/q5sx9175q0zhnyi7kync255rmvjc5jpz-cilium-cli-0.19.2",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/q5sx9175q0zhnyi7kync255rmvjc5jpz-cilium-cli-0.19.2"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/igw3v6hmf60pncmpqgvzdfc3rccqm43n-cilium-cli-0.19.2",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/igw3v6hmf60pncmpqgvzdfc3rccqm43n-cilium-cli-0.19.2"
+        }
+      }
+    },
     "github:NixOS/nixpkgs/nixpkgs-unstable": {
       "last_modified": "2026-05-25T07:42:19Z",
       "resolved": "github:NixOS/nixpkgs/f9d8b65950353691ab56561e7c73d2e1063d810b?lastModified=1779694939"

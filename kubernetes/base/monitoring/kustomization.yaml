@@ -11,3 +11,4 @@ resources:
   - prometheus-route/application.yaml
   - backup-alerts/application.yaml
   - backup-dashboard/application.yaml
+  - network-alerts/application.yaml
