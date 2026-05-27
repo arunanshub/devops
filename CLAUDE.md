@@ -71,17 +71,19 @@ When creating SealedSecret-bound or SOPS-bound Secret manifests, **strip runtime
 
 - Hetzner Cloud Network exists (`hcloud_network.main`, IPv4 only — Cloud Networks don't support IPv6)
 - k3s runs with `flannel-backend: none`, `disable-kube-proxy: true`, `disable-cloud-controller: true`
-- Cilium replaces all three: CNI, kube-proxy (`kubeProxyReplacement: true`), and works in **native routing** mode over the Hetzner Network (no VXLAN). hccm programs per-node pod-CIDR routes on the Cloud Network.
-- WireGuard node-to-node encryption is enabled (`encryption.type: wireguard`, `nodeEncryption: true`)
+- Cilium replaces all three: CNI, kube-proxy (`kubeProxyReplacement: true`), and uses **VXLAN tunnel mode** (`routingMode: tunnel, tunnelProtocol: vxlan`). VXLAN is required because Hetzner's network cannot carry pod CIDRs from multiple clusters in ClusterMesh; native routing would break cross-cluster pod communication. hccm is still deployed for cloud-provider integration (LoadBalancer services, node labeling) but does not program pod-CIDR routes — VXLAN handles cross-node pod routing.
+- WireGuard node-to-node encryption is enabled (`encryption.type: wireguard`, `nodeEncryption: true`, `persistentKeepalive: 25s`). WireGuard runs over IPv6 between nodes, adding 80 bytes of overhead per packet.
+- **MTU is critical in this stack.** Effective cross-node path MTU = 1450 (Hetzner NIC) − 80 (WireGuard) − 50 (VXLAN) = **1320 bytes**. Cilium's PMTUD is set to `always` mode so oversized UDP/ICMP packets receive ICMP feedback instead of being silently dropped. See `docs/cilium-mtu-overlay-networking.md` for the full analysis. Use `just verify-mtu` to confirm the stack is healthy after any Cilium change.
 - API endpoint reached by Cilium agents inside the cluster: `K8S_API_ENDPOINT` (exported in Justfile, default `10.0.0.100` = `local.lb_private_ip`). This is the private Hetzner API load balancer in front of all control planes.
 - Current admin access is Option B: generated kubeconfig points at the bootstrap control plane's public IPv6, and public `6443` on control-plane nodes is gated on `var.home_ip` in `infra/firewall.tf`. The API load balancer public IPv4 is included in K3s TLS SANs for a future switch to public-LB admin HA, but is not the current kubeconfig endpoint.
 
 ## Files worth reading once
 
 - `docs/bootstrap-pitfalls.md` — bootstrap-time landmines with diagnosis and fix
+- `docs/cilium-mtu-overlay-networking.md` — VXLAN+WireGuard MTU postmortem: what broke, what was fixed, what to never try again
 - `infra/scripts/init.sh.tpl` — the k3s install script
 - `kubernetes/bootstrap/helmfile.yaml` — bootstrap order and `needs:` graph
-- `Justfile` — operator UX entrypoints
+- `Justfile` — operator UX entrypoints; `just verify-mtu` is the post-bootstrap networking health check
 
 ## Things not to do
 
