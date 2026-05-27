@@ -29,7 +29,7 @@ data:
         {
           "id": 2, "type": "stat", "title": "Last Velero Backup",
           "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
-          "targets": [{"expr": "min(time() - velero_backup_last_successful_timestamp{schedule=\"daily-full\"})", "legendFormat": "Age"}],
+          "targets": [{"expr": "min(time() - velero_backup_last_successful_timestamp{schedule=\"velero-daily-full\"})", "legendFormat": "Age"}],
           "fieldConfig": {"defaults": {
             "unit": "s",
             "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 86400}, {"color": "red", "value": 90000}]}
