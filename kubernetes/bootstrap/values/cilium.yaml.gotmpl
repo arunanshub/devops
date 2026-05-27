@@ -22,7 +22,7 @@ tunnelProtocol: vxlan
 
 # Explicit pod MTU: enp7s0 (1450) - WireGuard IPv6 (80) = cilium_wg0 (1370) - VXLAN (50) = 1320.
 # Auto-detection uses enp7s0 (1450) directly, silently blackholing UDP/ICMP 1293-1450 bytes cross-node.
-mtu: 1320
+MTU: 1320
 
 # WireGuard for node-to-node encryption. No-op on a single-node cluster, but
 # enabling now keeps the multi-node migration to a Terraform-only change.

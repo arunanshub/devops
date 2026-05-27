@@ -248,5 +248,95 @@ ops-recreate-encrypted-pvcs *args:
 ops-migrate-prometheus:
     just _ansible-playbook "ops/migrate-prometheus-encrypted"
 
+# Verify cross-node pod MTU is correctly set for the VXLAN+WireGuard stack.
+# Expected: enp7s0=1450 → cilium_wg0=1370 (-80 WireGuard) → pod=1320 (-50 VXLAN).
+# Deploys two pods on different nodes, checks interface MTU, confirms large
+# packets traverse the path, and checks WireGuard tunnel MTU on each node.
+# Exits non-zero on any failure — run after bootstrap or Cilium config changes.
+verify-mtu:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    EXPECTED_POD_MTU=1320
+    EXPECTED_WG_MTU=1370
+    PASS_PAYLOAD=1290   # 1290 + 28 (IP+ICMP headers) = 1318 ≤ 1320 — must pass
+    MARGIN_PAYLOAD=1292 # 1292 + 28 = 1320 — right at the limit, must also pass
+
+    NODES=($(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'))
+    if [[ ${#NODES[@]} -lt 2 ]]; then
+      echo "ERROR: need at least 2 nodes for a cross-node test" >&2; exit 1
+    fi
+    NODE_A="${NODES[0]}"
+    NODE_B="${NODES[1]}"
+
+    cleanup() {
+      kubectl delete pod mtu-verify-a mtu-verify-b \
+        --ignore-not-found=true --wait=false >/dev/null 2>&1 || true
+    }
+    trap cleanup EXIT
+
+    echo "▸ Deploying test pods — $NODE_A and $NODE_B"
+    kubectl run mtu-verify-a --image=busybox:1.36 --restart=Never \
+      --overrides="{\"spec\":{\"nodeName\":\"$NODE_A\"}}" -- sleep 300 >/dev/null
+    kubectl run mtu-verify-b --image=busybox:1.36 --restart=Never \
+      --overrides="{\"spec\":{\"nodeName\":\"$NODE_B\"}}" -- sleep 300 >/dev/null
+    kubectl wait pod mtu-verify-a mtu-verify-b --for=condition=Ready --timeout=90s >/dev/null
+
+    POD_B_IP=$(kubectl get pod mtu-verify-b -o jsonpath='{.status.podIP}')
+    PASS=true
+
+    # ── Check 1: pod interface MTU ──────────────────────────────────────────────
+    echo "▸ Checking pod interface MTU"
+    ACTUAL_MTU=$(kubectl exec mtu-verify-a -- ip link show eth0 2>/dev/null | grep -oP 'mtu \K\d+')
+    if [[ "$ACTUAL_MTU" -eq "$EXPECTED_POD_MTU" ]]; then
+      echo "  pod eth0 MTU = $ACTUAL_MTU ✓"
+    else
+      echo "  FAIL: pod eth0 MTU = $ACTUAL_MTU, expected $EXPECTED_POD_MTU ✗"
+      PASS=false
+    fi
+
+    # ── Check 2: cross-node connectivity near the MTU limit ────────────────────
+    echo "▸ Cross-node ping: payload=${PASS_PAYLOAD}b (packet=$((PASS_PAYLOAD+28))b)"
+    LOSS=$(kubectl exec mtu-verify-a -- ping -s "$PASS_PAYLOAD" -c 3 -W 2 "$POD_B_IP" 2>&1 \
+           | grep -oP '\d+(?=% packet loss)' || echo "100")
+    if [[ "$LOSS" -eq 0 ]]; then
+      echo "  ${PASS_PAYLOAD}b payload → $LOSS% loss ✓"
+    else
+      echo "  FAIL: ${PASS_PAYLOAD}b payload → $LOSS% loss — path MTU too low ✗"
+      PASS=false
+    fi
+
+    echo "▸ Cross-node ping: payload=${MARGIN_PAYLOAD}b (packet=$((MARGIN_PAYLOAD+28))b, at MTU ceiling)"
+    LOSS=$(kubectl exec mtu-verify-a -- ping -s "$MARGIN_PAYLOAD" -c 3 -W 2 "$POD_B_IP" 2>&1 \
+           | grep -oP '\d+(?=% packet loss)' || echo "100")
+    if [[ "$LOSS" -eq 0 ]]; then
+      echo "  ${MARGIN_PAYLOAD}b payload → $LOSS% loss ✓"
+    else
+      echo "  FAIL: ${MARGIN_PAYLOAD}b payload → $LOSS% loss — effective MTU is below $EXPECTED_POD_MTU ✗"
+      PASS=false
+    fi
+
+    # ── Check 3: WireGuard interface MTU on each node ──────────────────────────
+    echo "▸ Checking cilium_wg0 MTU on each node"
+    for POD in $(kubectl get pod -n kube-system -l k8s-app=cilium -o name | cut -d/ -f2); do
+      NODE=$(kubectl get pod -n kube-system "$POD" -o jsonpath='{.spec.nodeName}')
+      WG_MTU=$(kubectl exec -n kube-system "$POD" -c cilium-agent -- \
+               ip link show cilium_wg0 2>/dev/null | grep -oP 'mtu \K\d+' || echo "unknown")
+      if [[ "$WG_MTU" -eq "$EXPECTED_WG_MTU" ]]; then
+        echo "  $NODE cilium_wg0 MTU = $WG_MTU ✓"
+      else
+        echo "  FAIL: $NODE cilium_wg0 MTU = $WG_MTU, expected $EXPECTED_WG_MTU ✗"
+        PASS=false
+      fi
+    done
+
+    echo ""
+    if [[ "$PASS" == "true" ]]; then
+      echo "✓ MTU verification passed"
+    else
+      echo "✗ MTU verification FAILED — see above" >&2
+      exit 1
+    fi
+
 @_sops-apply file:
     sops --decrypt "{{ file }}" | kubectl apply -f -

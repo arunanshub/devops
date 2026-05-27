@@ -23,7 +23,7 @@ tunnelProtocol: vxlan
 # Without this, Cilium auto-detects enp7s0 (1450) and sets pod MTU to 1450,
 # silently blackholing all ICMP/UDP packets 1293-1450 bytes cross-node.
 # TCP is unaffected (eBPF MSS clamping), but UDP is broken without this fix.
-mtu: 1320
+MTU: 1320
 
 encryption:
   enabled: true
@@ -40,7 +40,7 @@ bpf:
   masquerade: true
 
 # Send ICMP "Fragmentation Needed" back on oversized packets instead of
-# silently blackholing them. After setting mtu: 1320 this should never
+# silently blackholing them. After setting MTU: 1320 this should never fire,
 # fire, but if it does, applications will see an explicit error.
 pmtuDiscovery:
   enabled: true
