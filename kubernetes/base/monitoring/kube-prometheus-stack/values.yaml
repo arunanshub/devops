@@ -127,6 +127,15 @@ alertmanager:
           - to: "mydellpc07@gmail.com" # ← your actual email
             send_resolved: true
 
+prometheus-node-exporter:
+  extraArgs:
+    # Default netstat fields regex extended with Ip_FragFails and Ip_ReasmFails.
+    # Ip_FragFails = packets with DF bit set dropped because they exceeded path MTU.
+    # Ip_ReasmFails = fragmented packets that arrived but failed reassembly.
+    # Both are direct indicators of MTU misconfiguration in the overlay stack.
+    - >-
+      --collector.netstat.fields=^(.*_(InErrors|InErrs)|Ip_Forwarding|Ip_FragFails|Ip_ReasmFails|Ip(6|Ext)_(InOctets|OutOctets)|Icmp6?_(InMsgs|OutMsgs)|TcpExt_(Listen.*|Syncookies.*|TCPSynRetrans|TCPTimeouts|TCPOFOQueue|TCPRcvQDrop)|Tcp_(ActiveOpens|InSegs|OutSegs|OutRsts|PassiveOpens|RetransSegs|CurrEstab)|Udp6?_(InDatagrams|OutDatagrams|NoPorts|RcvbufErrors|SndbufErrors))$
+
 prometheusOperator:
   admissionWebhooks:
     patch:

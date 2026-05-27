@@ -270,6 +270,9 @@ verify-mtu:
     # Comfortable margin below ceiling
     PASS_PAYLOAD=1280
 
+    kubectl delete pod mtu-verify-a mtu-verify-b \
+      --ignore-not-found=true --wait=true >/dev/null 2>&1 || true
+
     NODES=($(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'))
     if [[ ${#NODES[@]} -lt 2 ]]; then
       echo "ERROR: need at least 2 nodes for a cross-node test" >&2; exit 1
@@ -280,8 +283,11 @@ verify-mtu:
     cleanup() {
       kubectl delete pod mtu-verify-a mtu-verify-b \
         --ignore-not-found=true --wait=false >/dev/null 2>&1 || true
+      kill "$PF_PID" 2>/dev/null || true
+      wait "$PF_PID" 2>/dev/null || true
     }
     trap cleanup EXIT
+    PF_PID=""
 
     echo "▸ Deploying test pods — $NODE_A and $NODE_B"
     kubectl run mtu-verify-a --image=busybox:1.36 --restart=Never \
@@ -350,6 +356,35 @@ verify-mtu:
     else
       echo "  FAIL: PMTUD not active (enabled=$PMTUD, mode=$PMTUD_MODE) ✗"
       PASS=false
+    fi
+
+    # ── Check 6: cloudflared QUIC MTU (egress path sanity check) ──────────────
+    # quic_client_mtu reflects the pod egress path MTU minus QUIC/tunnel overhead.
+    # Expected: ~1344 when pod MTU=1450. Dropping below 1300 means pod MTU
+    # is being clamped too aggressively somewhere in the stack.
+    MIN_QUIC_MTU=1300
+    CF_POD=$(kubectl get pod -n cloudflared -l app=cloudflared -o name 2>/dev/null \
+             | head -1 | cut -d/ -f2)
+    if [[ -n "$CF_POD" ]]; then
+      echo "▸ Checking cloudflared quic_client_mtu (pod: $CF_POD)"
+      kubectl port-forward -n cloudflared "$CF_POD" 12001:2000 >/dev/null 2>&1 &
+      PF_PID=$!
+      sleep 2
+      QUIC_MTUS=$(curl -s --max-time 3 http://localhost:12001/metrics 2>/dev/null \
+                  | grep 'quic_client_mtu{' | awk '{print $2}' || true)
+      if [[ -z "$QUIC_MTUS" ]]; then
+        echo "  WARN: could not read quic_client_mtu from cloudflared metrics"
+      else
+        QUIC_MIN=$(echo "$QUIC_MTUS" | sort -n | head -1 | cut -d. -f1)
+        if [[ "$QUIC_MIN" -ge "$MIN_QUIC_MTU" ]]; then
+          echo "  quic_client_mtu min=$QUIC_MIN (threshold >=${MIN_QUIC_MTU}) ✓"
+        else
+          echo "  FAIL: quic_client_mtu min=$QUIC_MIN < ${MIN_QUIC_MTU} — pod egress MTU clamped too low ✗"
+          PASS=false
+        fi
+      fi
+    else
+      echo "▸ cloudflared not found — skipping QUIC MTU check"
     fi
 
     echo ""
