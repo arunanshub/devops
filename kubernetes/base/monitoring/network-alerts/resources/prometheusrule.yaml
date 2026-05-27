@@ -18,8 +18,8 @@ spec:
             severity: warning
           annotations:
             summary: "IP fragmentation failures on {{ $labels.instance }}"
-            description: >-
-              {{ $value }} packets with DF bit set were dropped on {{ $labels.instance }} in the last 5 minutes. Indicates MTU misconfiguration in the overlay stack. Expected path MTU: enp7s0=1450, cilium_wg0=1370 (-80 WG), pod MTU=1320 (-50 VXLAN). Run: ip link show | grep mtu on the affected node. #magic___^_^___line
+            description: "{{ $value }} packets with DF bit set dropped on {{ $labels.instance }} in 5m. MTU misconfiguration in overlay stack. Expected: enp7s0=1450, cilium_wg0=1370 (-80 WG), pod=1320 (-50 VXLAN). Check: ip link show | grep mtu"
+
         # Hubble-level drops from Cilium's eBPF datapath. Covers policy
         # violations, MTU drops that bypass the kernel counter above, and
         # any unknown traffic. Threshold of 10 filters one-off noise.
@@ -30,8 +30,8 @@ spec:
             severity: warning
           annotations:
             summary: "Cilium eBPF datapath drops on {{ $labels.node }}"
-            description: >-
-              {{ $value }} eBPF-level drops in the last 5 minutes on {{ $labels.node }}. Reason: {{ $labels.reason }}, direction: {{ $labels.direction }}. Investigate with: hubble observe --verdict DROPPED --follow #magic___^_^___line
+            description: "{{ $value }} eBPF drops in 5m on {{ $labels.node }}. Reason: {{ $labels.reason }}, direction: {{ $labels.direction }}. Run: hubble observe --verdict DROPPED --follow"
+
         # cilium-health marks a node unreachable when ICMP and HTTP probes both
         # fail. Primary cause: WireGuard session failed to establish after idle
         # period (keepalive at 25s prevents this, but alert remains a safety net).
@@ -42,8 +42,8 @@ spec:
             severity: critical
           annotations:
             summary: "Cilium reports unreachable node from {{ $labels.instance }}"
-            description: >-
-              {{ $value }} node(s) unreachable from {{ $labels.instance }} per cilium-health probes. Primary cause: WireGuard session failure or network partition. Run: cilium-health status --probe  (exec into any cilium DaemonSet pod). #magic___^_^___line
+            description: "{{ $value }} node(s) unreachable from {{ $labels.instance }}. Likely WireGuard session failure or network partition. Run: cilium-health status --probe (exec into any cilium pod)"
+
         # Endpoint-level health failures (pod health checks failing), distinct
         # from node-level failures above.
         - alert: CiliumUnreachableEndpoints
@@ -53,5 +53,4 @@ spec:
             severity: warning
           annotations:
             summary: "Cilium health endpoints unreachable from {{ $labels.instance }}"
-            description: >-
-              {{ $value }} health check endpoint(s) unreachable on {{ $labels.instance }}. Run: cilium-health status --probe  (exec into the cilium pod on that node).
+            description: "{{ $value }} health endpoint(s) unreachable on {{ $labels.instance }}. Run: cilium-health status --probe (exec into the cilium pod on that node)"
