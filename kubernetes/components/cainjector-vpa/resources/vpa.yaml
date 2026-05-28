@@ -10,6 +10,7 @@ spec:
     kind: Deployment
   updatePolicy:
     updateMode: InPlaceOrRecreate
+    minReplicas: 1
   resourcePolicy:
     containerPolicies:
       - containerName: cert-manager-cainjector

@@ -10,6 +10,7 @@ spec:
     name: tempo
   updatePolicy:
     updateMode: InPlaceOrRecreate
+    minReplicas: 1
   resourcePolicy:
     containerPolicies:
       - containerName: tempo

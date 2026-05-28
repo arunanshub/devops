@@ -57,8 +57,8 @@ prometheus:
       cpu: 2
       memory: 4Gi
     updatePolicy:
-      # in-place avoids operator fight; recreate fallback is limited
       updateMode: InPlaceOrRecreate
+      minReplicas: 1
 
   prometheusSpec:
     externalUrl: https://prometheus.arunanshu.dev

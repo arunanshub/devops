@@ -10,6 +10,7 @@ spec:
     name: kube-prometheus-stack-grafana
   updatePolicy:
     updateMode: InPlaceOrRecreate
+    minReplicas: 1
   resourcePolicy:
     containerPolicies:
       - containerName: grafana
