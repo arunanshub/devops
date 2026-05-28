@@ -14,3 +14,4 @@ resources:
   - network-alerts/application.yaml
   - cluster-alerts/application.yaml
   - tempo-pdb/application.yaml
+  - vpa-dashboard/application.yaml

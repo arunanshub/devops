@@ -1,0 +1,236 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vpa-recommendations-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  vpa-recommendations.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": { "type": "datasource", "uid": "grafana" },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "target": { "limit": 100, "matchAny": false, "tags": [], "type": "dashboard" },
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "graphTooltip": 0,
+      "links": [],
+      "panels": [
+        {
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "description": "VPA target memory recommendation vs actual container memory usage.",
+          "fill": 0,
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 0 },
+          "id": 3,
+          "legend": { "show": true },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "targets": [
+            {
+              "datasource": { "uid": "${DS_PROMETHEUS}" },
+              "expr": "sum(container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"$targetName(.+)\", container!=\"\", container!=\"POD\"}) by (container,pod)",
+              "legendFormat": "{{pod}}-{{container}} actual",
+              "refId": "D"
+            },
+            {
+              "datasource": { "uid": "${DS_PROMETHEUS}" },
+              "expr": "sum(kube_customresource_vpa_containerrecommendations_target{resource=\"memory\", namespace=\"$namespace\", target_name=\"$targetName\"}) by (container)",
+              "legendFormat": "{{container}} recommendation",
+              "refId": "C"
+            }
+          ],
+          "title": "Memory — Target vs Actual Usage",
+          "type": "graph",
+          "yaxes": [
+            { "format": "bytes", "label": "Bytes", "logBase": 1, "show": true },
+            { "format": "short", "logBase": 1, "show": true }
+          ]
+        },
+        {
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "description": "VPA memory recommendation vs current pod requests and limits.",
+          "fill": 0,
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 0 },
+          "id": 6,
+          "legend": { "show": true },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "targets": [
+            {
+              "datasource": { "uid": "${DS_PROMETHEUS}" },
+              "expr": "sum(kube_customresource_vpa_containerrecommendations_target{namespace=\"$namespace\", target_name=\"$targetName\", resource=\"memory\"}) by (container)",
+              "legendFormat": "{{container}} recommendation",
+              "refId": "A"
+            },
+            {
+              "datasource": { "uid": "${DS_PROMETHEUS}" },
+              "expr": "sum(kube_pod_container_resource_requests{resource=\"memory\", namespace=\"$namespace\", pod=~\"$targetName(.+)\"}) by (container,pod)",
+              "legendFormat": "{{pod}}-{{container}} requests",
+              "refId": "B"
+            },
+            {
+              "datasource": { "uid": "${DS_PROMETHEUS}" },
+              "expr": "sum(kube_pod_container_resource_limits{resource=\"memory\", namespace=\"$namespace\", pod=~\"$targetName(.+)\"}) by (container,pod)",
+              "legendFormat": "{{pod}}-{{container}} limits",
+              "refId": "C"
+            }
+          ],
+          "title": "Memory — Recommendation vs Requests & Limits",
+          "type": "graph",
+          "yaxes": [
+            { "format": "bytes", "label": "Bytes", "logBase": 1, "show": true },
+            { "format": "short", "logBase": 1, "show": true }
+          ]
+        },
+        {
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "description": "VPA target CPU recommendation vs actual container CPU usage.",
+          "fill": 0,
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 10 },
+          "id": 2,
+          "legend": { "show": true },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "targets": [
+            {
+              "datasource": { "uid": "${DS_PROMETHEUS}" },
+              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$targetName-(.+)\", container!=\"\", container!=\"POD\"}[$__rate_interval])) by (container,pod) * 1000",
+              "legendFormat": "{{pod}}-{{container}} actual",
+              "refId": "D"
+            },
+            {
+              "datasource": { "uid": "${DS_PROMETHEUS}" },
+              "expr": "sum(kube_customresource_vpa_containerrecommendations_target{resource=\"cpu\", namespace=\"$namespace\", target_name=\"$targetName\"}) by (container) * 1000",
+              "legendFormat": "{{container}} recommendation",
+              "refId": "C"
+            }
+          ],
+          "title": "CPU — Target vs Actual Usage",
+          "type": "graph",
+          "yaxes": [
+            { "format": "short", "label": "Millicores", "logBase": 1, "show": true },
+            { "format": "short", "logBase": 1, "show": true }
+          ]
+        },
+        {
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "description": "VPA CPU recommendation vs current pod requests and limits.",
+          "fill": 0,
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 10 },
+          "id": 5,
+          "legend": { "show": true },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "targets": [
+            {
+              "datasource": { "uid": "${DS_PROMETHEUS}" },
+              "expr": "sum(kube_customresource_vpa_containerrecommendations_target{namespace=\"$namespace\", target_name=\"$targetName\", resource=\"cpu\"}) by (container) * 1000",
+              "legendFormat": "{{container}} recommendation",
+              "refId": "A"
+            },
+            {
+              "datasource": { "uid": "${DS_PROMETHEUS}" },
+              "expr": "sum(kube_pod_container_resource_requests{resource=\"cpu\", namespace=\"$namespace\", pod=~\"$targetName(.+)\"}) by (container,pod) * 1000",
+              "legendFormat": "{{pod}}-{{container}} requests",
+              "refId": "B"
+            },
+            {
+              "datasource": { "uid": "${DS_PROMETHEUS}" },
+              "expr": "sum(kube_pod_container_resource_limits{resource=\"cpu\", namespace=\"$namespace\", pod=~\"$targetName(.+)\"}) by (container,pod) * 1000",
+              "legendFormat": "{{pod}}-{{container}} limits",
+              "refId": "C"
+            }
+          ],
+          "title": "CPU — Recommendation vs Requests & Limits",
+          "type": "graph",
+          "yaxes": [
+            { "format": "short", "label": "Millicores", "logBase": 1, "show": true },
+            { "format": "short", "logBase": 1, "show": true }
+          ]
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["autoscaling", "vpa"],
+      "templating": {
+        "list": [
+          {
+            "hide": 0,
+            "includeAll": false,
+            "label": "datasource",
+            "multi": false,
+            "name": "DS_PROMETHEUS",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "type": "datasource"
+          },
+          {
+            "datasource": { "uid": "${DS_PROMETHEUS}" },
+            "definition": "label_values(kube_customresource_vpa_containerrecommendations_target, namespace)",
+            "hide": 0,
+            "includeAll": false,
+            "label": "Namespace",
+            "multi": false,
+            "name": "namespace",
+            "options": [],
+            "query": {
+              "query": "label_values(kube_customresource_vpa_containerrecommendations_target, namespace)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 2,
+            "sort": 1,
+            "type": "query"
+          },
+          {
+            "datasource": { "uid": "${DS_PROMETHEUS}" },
+            "definition": "label_values(kube_customresource_vpa_containerrecommendations_target{namespace=\"$namespace\"}, target_name)",
+            "hide": 0,
+            "includeAll": false,
+            "label": "Target (workload)",
+            "multi": false,
+            "name": "targetName",
+            "options": [],
+            "query": {
+              "query": "label_values(kube_customresource_vpa_containerrecommendations_target{namespace=\"$namespace\"}, target_name)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 2,
+            "sort": 1,
+            "type": "query"
+          }
+        ]
+      },
+      "time": { "from": "now-3h", "to": "now" },
+      "timezone": "browser",
+      "title": "VPA Recommendations",
+      "uid": "vpa-recommendations",
+      "version": 1,
+      "gnetId": 14588
+    }
