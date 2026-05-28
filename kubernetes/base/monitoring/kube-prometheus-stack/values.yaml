@@ -73,7 +73,7 @@ prometheus:
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: hcloud-volumes
+          storageClassName: hcloud-volumes-encrypted
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
