@@ -8,6 +8,7 @@ components:
   - ../../components/argocd-app-controller-vpa
   - ../../components/cainjector-vpa
   - ../../components/traefik-scaling
+  - ../../components/grafana-vpa
   - ../../components/tempo-vpa
   - ../../components/traefik-route
   - ../../components/hubble-route
