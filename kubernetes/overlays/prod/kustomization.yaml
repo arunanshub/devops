@@ -22,3 +22,4 @@ components:
   - ../../components/argocd-route
   - ../../components/etcd-snapshot-health
   - ../../components/velero-restore-drill
+  - ../../components/network-policies

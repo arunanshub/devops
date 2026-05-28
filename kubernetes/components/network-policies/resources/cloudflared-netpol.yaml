@@ -1,0 +1,55 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: cloudflared
+  namespace: cloudflared
+spec:
+  endpointSelector:
+    matchLabels:
+      app: cloudflared
+  ingress:
+    # Kubelet readiness probe — observed: host:* -> cloudflared:2000 TCP
+    - fromEntities:
+        - host
+      toPorts:
+        - ports:
+            - port: "2000"
+              protocol: TCP
+    # Prometheus scrape — observed: monitoring/prometheus:* -> cloudflared:2000 TCP
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: monitoring
+      toPorts:
+        - ports:
+            - port: "2000"
+              protocol: TCP
+  egress:
+    # CoreDNS — required for traefik.traefik.svc.cluster.local and edge DNS resolution
+    - toEndpoints:
+        - matchLabels:
+            k8s-app: kube-dns
+            k8s:io.kubernetes.pod.namespace: kube-system
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    # Cloudflare edge — observed: cloudflared:* -> world:7844 UDP (QUIC primary);
+    # TCP 443 is the HTTP/2 fallback used when QUIC is unavailable.
+    - toEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "7844"
+              protocol: UDP
+            - port: "443"
+              protocol: TCP
+    # Traefik reverse proxy — observed: cloudflared:* -> traefik pod:8000 TCP
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: traefik
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP

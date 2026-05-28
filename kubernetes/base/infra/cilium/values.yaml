@@ -42,6 +42,10 @@ pmtuDiscovery:
   enabled: true
   packetizationLayerPMTUDMode: "always"
 
+# Policies evaluate but violations are logged as AUDIT instead of being
+# dropped. Disable once all namespace policies have been validated via Hubble.
+policyAuditMode: true
+
 operator:
   replicas: 2
   prometheus:
