@@ -69,7 +69,7 @@ When creating SealedSecret-bound or SOPS-bound Secret manifests, **strip runtime
 
 ## Network architecture (Hetzner-specific)
 
-- Hetzner Cloud Network exists (`hcloud_network.main`, IPv4 only — Cloud Networks don't support IPv6)
+- Hetzner Cloud Network exists (`hcloud_network.main`, IPv4 only — Hetzner Cloud Networks (private overlay) don't support IPv6; servers themselves support IPv6 on public interfaces)
 - k3s runs with `flannel-backend: none`, `disable-kube-proxy: true`, `disable-cloud-controller: true`
 - Cilium replaces all three: CNI, kube-proxy (`kubeProxyReplacement: true`), and uses **VXLAN tunnel mode** (`routingMode: tunnel, tunnelProtocol: vxlan`). VXLAN is required because Hetzner's network cannot carry pod CIDRs from multiple clusters in ClusterMesh; native routing would break cross-cluster pod communication. hccm is still deployed for cloud-provider integration (LoadBalancer services, node labeling) but does not program pod-CIDR routes — VXLAN handles cross-node pod routing.
 - WireGuard node-to-node encryption is enabled (`encryption.type: wireguard`, `nodeEncryption: true`, `persistentKeepalive: 25s`). WireGuard runs over IPv6 between nodes, adding 80 bytes of overhead per packet.
