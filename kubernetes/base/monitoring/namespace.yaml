@@ -4,6 +4,12 @@ metadata:
   name: monitoring
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+    # enforce:privileged is required by prometheus-node-exporter, which runs with
+    # hostPID:true and hostNetwork:true to read kernel metrics. Moving node-exporter
+    # to a separate namespace would let this namespace use enforce:restricted, but
+    # kube-prometheus-stack ServiceMonitor wiring makes that non-trivial. The
+    # audit:restricted + warn:restricted labels ensure all other workloads here
+    # are flagged if they violate restricted policy.
   labels:
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest

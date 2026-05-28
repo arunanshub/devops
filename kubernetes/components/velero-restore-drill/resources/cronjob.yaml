@@ -17,7 +17,7 @@ spec:
           automountServiceAccountToken: true
           containers:
             - name: drill
-              image: alpine/k8s:1.35.5
+              image: alpine/k8s:1.35.5@sha256:ce634ae3b0847186d4e28dc5b2893ba098b69d8c59c67f796930177d4cf10738
               securityContext:
                 runAsNonRoot: true
                 runAsUser: 1000

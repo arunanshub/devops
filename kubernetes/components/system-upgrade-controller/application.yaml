@@ -12,7 +12,9 @@ spec:
 
   source:
     repoURL: https://github.com/rancher/system-upgrade-controller
-    targetRevision: v0.19.2
+    # Pinned to the commit SHA for v0.19.2 — git tags are mutable references;
+    # using the SHA prevents silent drift if the upstream tag is force-pushed.
+    targetRevision: 38f3e11fd1dd19872f97565f8a75c39acc85d82b
     path: .
 
   destination:
