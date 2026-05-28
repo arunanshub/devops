@@ -14,7 +14,7 @@ spec:
     containerPolicies:
       - containerName: application-controller
         minAllowed:
-          cpu: 50m
+          cpu: 200m
           memory: 128Mi
         maxAllowed:
           cpu: 2

@@ -8,10 +8,13 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: traefik
-  minReplicaCount: 1
+  minReplicaCount: 2
   maxReplicaCount: 5
   pollingInterval: 30
   cooldownPeriod: 60
+  fallback:
+    failureThreshold: 3
+    replicas: 2
   triggers:
     - type: prometheus
       metadata:

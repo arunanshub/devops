@@ -1,0 +1,35 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cluster-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: cluster.nodes
+      interval: 1m
+      rules:
+        # A node cordoned for too long usually means a k3s upgrade drain stalled
+        # (slow pod shutdown, PDB blocking eviction, or a hanging Job). The SUC
+        # upgrade runs with concurrency:1 — a stuck drain blocks all further upgrades.
+        - alert: NodeCordonedTooLong
+          expr: kube_node_spec_unschedulable == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.node }} has been cordoned for >15 minutes"
+            description: "{{ $labels.node }} is unschedulable. Likely causes: k3s upgrade drain stalled (SUC), manual cordon forgotten, or eviction blocked by PDB. Check: kubectl describe node {{ $labels.node }}"
+
+    - name: cluster.tunnel
+      interval: 1m
+      rules:
+        # cloudflared can deadlock with all tunnel connections closed while the
+        # process stays alive. Kubernetes sees it healthy but external traffic fails.
+        - alert: CloudflaredTunnelDead
+          expr: sum(cloudflare_tunnel_active_streams) == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "All Cloudflare tunnel streams are closed"
+            description: "No active streams on any cloudflared replica for 5m. External traffic is failing. Check: kubectl logs -n cloudflared -l app=cloudflared"

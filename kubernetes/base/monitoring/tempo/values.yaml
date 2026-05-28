@@ -2,7 +2,7 @@ fullnameOverride: tempo
 
 tempo:
   reportingEnabled: false
-  memBallastSizeMbs: 64
+  memBallastSizeMbs: 128
   retention: 48h
 
   resources:

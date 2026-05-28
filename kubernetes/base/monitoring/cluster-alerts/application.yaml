@@ -1,29 +1,27 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: gateway-api-crds
+  name: cluster-alerts
   namespace: argocd
   annotations:
-    # Gateway API CRDs must exist before Cilium renders GatewayClass resources.
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "2"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: infra
+  project: monitoring
 
   source:
     repoURL: git@github.com:arunanshub/devops.git
     targetRevision: master
-    path: kubernetes/base/infra/gateway-api-crds
+    path: kubernetes/base/monitoring/cluster-alerts/resources
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: kube-system
+    namespace: monitoring
 
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false
       - ServerSideApply=true

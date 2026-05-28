@@ -10,6 +10,10 @@ spec:
   channel: https://update.k3s.io/v1-release/channels/stable
   concurrency: 1
   cordon: true
+  drain:
+    timeout: 5m
+    gracePeriod: 30
+    skipWaitForDeleteTimeout: 0
   serviceAccountName: system-upgrade
   nodeSelector:
     matchExpressions:
@@ -17,4 +21,6 @@ spec:
         operator: In
         values: ["true"]
   upgrade:
+    # SUC appends the resolved k3s version as the image tag at Job creation time
+    # (e.g. rancher/k3s-upgrade:v1.32.3-k3s1). This is not a bare :latest pull.
     image: rancher/k3s-upgrade

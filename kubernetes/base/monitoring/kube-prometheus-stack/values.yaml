@@ -64,7 +64,7 @@ prometheus:
     externalUrl: https://prometheus.arunanshu.dev
     enableRemoteWriteReceiver: true
     retention: 14d
-    retentionSize: 9GiB
+    retentionSize: 8GiB
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false

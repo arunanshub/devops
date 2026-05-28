@@ -7,6 +7,8 @@ metadata:
     # Cilium is the cluster network — must reconcile before hccm (wave 2) and
     # before any workload-bearing app.
     argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: infra
 

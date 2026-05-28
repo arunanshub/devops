@@ -12,6 +12,9 @@ spec:
   maxReplicaCount: 4
   pollingInterval: 30
   cooldownPeriod: 60
+  fallback:
+    failureThreshold: 3
+    replicas: 2
   triggers:
     - type: prometheus
       metadata:
