@@ -17,10 +17,9 @@ spec:
           containers:
             - name: health-check
               # amazon/aws-cli requires root — pwd.getpwuid() in the Python runtime
-              # crashes silently under runAsUser:1000. Digest-pinned to prevent
-              # supply-chain substitution of the mutable tag.
-              # runAsNonRoot is intentionally absent (defaults false).
-              image: amazon/aws-cli:2.22.0@sha256:00489092700df063746ae85776e93bbc95d0f5bde9b1ac94773946453d4eb055
+              # crashes silently under runAsUser:1000. runAsNonRoot is intentionally
+              # absent (defaults false). Tag + digest managed in overlay kustomization.
+              image: amazon/aws-cli
               command:
                 - /bin/bash
                 - -c

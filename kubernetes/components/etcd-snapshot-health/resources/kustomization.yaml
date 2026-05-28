@@ -1,5 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+
 resources:
   - cronjob.yaml
   - sealedsecret-etcd-s3.yaml
+
+images:
+  - name: amazon/aws-cli
+    newTag: "2.22.0"
+    digest: sha256:00489092700df063746ae85776e93bbc95d0f5bde9b1ac94773946453d4eb055
