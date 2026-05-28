@@ -9,7 +9,10 @@ spec:
       interval: 5m
       rules:
         - alert: VeleroBackupMissed
-          expr: (time() - velero_backup_last_successful_timestamp{schedule!=""}) > 90000
+          # scope to real schedule names (velero-*) — one-off manual backups
+          # labeled with ad-hoc schedule names leave stale series that would
+          # fire this alert indefinitely even though no schedule is broken.
+          expr: (time() - velero_backup_last_successful_timestamp{schedule=~"velero-.*"}) > 90000
           labels:
             severity: warning
           annotations:
