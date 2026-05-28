@@ -39,19 +39,18 @@ spec:
                 secretKeyRef:
                   name: cloudflared-tunnel-token
                   key: token
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 2000
-            initialDelaySeconds: 10
-            periodSeconds: 30
-            failureThreshold: 3
+          # cloudflared exits cleanly (code 0) when it cannot maintain tunnel
+          # connections, so no liveness probe is needed — Kubernetes restarts
+          # it automatically. /ready returns 503 until connections are up;
+          # failureThreshold:6 gives 60s for the tunnel to establish before
+          # the pod is marked unready and pulled from the Service endpoints.
           readinessProbe:
             httpGet:
               path: /ready
               port: 2000
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
             periodSeconds: 10
+            failureThreshold: 6
           resources:
             requests:
               cpu: 5m
