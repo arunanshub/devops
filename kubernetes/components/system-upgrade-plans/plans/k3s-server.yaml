@@ -11,7 +11,7 @@ spec:
   concurrency: 1
   cordon: true
   drain:
-    timeout: 5m
+    timeout: 300
     gracePeriod: 30
     skipWaitForDeleteTimeout: 0
   serviceAccountName: system-upgrade
