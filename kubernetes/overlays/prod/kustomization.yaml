@@ -17,6 +17,7 @@ components:
   - ../../components/hcloud-secret
   - ../../components/hcloud-luks-key
   - ../../components/cloudflared
+  - ../../components/cloudflared-vpa
   - ../../components/kured
   - ../../components/system-upgrade-controller
   - ../../components/system-upgrade-plans
