@@ -6,8 +6,8 @@ metadata:
 spec:
   targetRef:
     apiVersion: apps/v1
-    name: cert-manager-cainjector
     kind: Deployment
+    name: cert-manager-cainjector
   updatePolicy:
     updateMode: InPlaceOrRecreate
     minReplicas: 1

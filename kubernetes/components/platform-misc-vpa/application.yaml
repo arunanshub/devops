@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cloudflared-vpa
+  name: platform-misc-vpa
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
@@ -13,11 +13,11 @@ spec:
   source:
     repoURL: git@github.com:arunanshub/devops.git
     targetRevision: master
-    path: kubernetes/components/cloudflared-vpa/resources
+    path: kubernetes/components/platform-misc-vpa/resources
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: cloudflared
+    namespace: cert-manager
 
   syncPolicy:
     automated:

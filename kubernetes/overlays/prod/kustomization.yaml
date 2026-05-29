@@ -6,10 +6,9 @@ resources:
 
 components:
   - ../../components/argocd-app-controller-vpa
-  - ../../components/cainjector-vpa
   - ../../components/traefik-scaling
-  - ../../components/grafana-vpa
-  - ../../components/tempo-vpa
+  - ../../components/monitoring-vpa
+  - ../../components/platform-misc-vpa
   - ../../components/kube-system-infra-vpa
   - ../../components/kube-system-platform-vpa
   - ../../components/traefik-route
@@ -19,7 +18,6 @@ components:
   - ../../components/hcloud-secret
   - ../../components/hcloud-luks-key
   - ../../components/cloudflared
-  - ../../components/cloudflared-vpa
   - ../../components/kured
   - ../../components/system-upgrade-controller
   - ../../components/system-upgrade-plans

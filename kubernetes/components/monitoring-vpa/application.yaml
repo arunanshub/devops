@@ -1,23 +1,23 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cert-manager-cainjector-vpa
+  name: monitoring-vpa
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: platform
+  project: monitoring
 
   source:
     repoURL: git@github.com:arunanshub/devops.git
-    targetRevision: refs/heads/master
-    path: kubernetes/components/cainjector-vpa/resources
+    targetRevision: master
+    path: kubernetes/components/monitoring-vpa/resources
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: cert-manager
+    namespace: monitoring
 
   syncPolicy:
     automated:
