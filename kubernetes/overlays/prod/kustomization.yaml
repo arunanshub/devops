@@ -25,3 +25,5 @@ components:
   - ../../components/etcd-snapshot-health
   - ../../components/velero-restore-drill
   - ../../components/network-policies
+  - ../../components/headlamp-route
+  - ../../components/headlamp-vpa

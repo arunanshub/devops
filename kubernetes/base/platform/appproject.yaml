@@ -15,6 +15,7 @@ spec:
     - https://charts.fairwinds.com/stable
     - https://kedacore.github.io/charts
     - https://vmware-tanzu.github.io/helm-charts
+    - https://headlamp-k8s.github.io/headlamp/
 
   destinations:
     - server: https://kubernetes.default.svc
@@ -31,6 +32,8 @@ spec:
       namespace: kube-system
     - server: https://kubernetes.default.svc
       namespace: velero
+    - server: https://kubernetes.default.svc
+      namespace: headlamp
 
   orphanedResources:
     warn: true
