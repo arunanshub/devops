@@ -1,0 +1,21 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: hcloud-csi-node
+  namespace: kube-system
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: DaemonSet
+    name: hcloud-csi-node
+  updatePolicy:
+    updateMode: Off
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        minAllowed:
+          cpu: 5m
+          memory: 16Mi
+        maxAllowed:
+          cpu: 200m
+          memory: 256Mi

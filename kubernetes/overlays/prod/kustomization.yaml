@@ -10,6 +10,8 @@ components:
   - ../../components/traefik-scaling
   - ../../components/grafana-vpa
   - ../../components/tempo-vpa
+  - ../../components/kube-system-infra-vpa
+  - ../../components/kube-system-platform-vpa
   - ../../components/traefik-route
   - ../../components/hubble-route
   - ../../components/hcloud-ccm

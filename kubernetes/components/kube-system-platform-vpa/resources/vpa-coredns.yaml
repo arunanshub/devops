@@ -1,0 +1,22 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: coredns
+  namespace: kube-system
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: coredns
+  updatePolicy:
+    updateMode: InPlaceOrRecreate
+    minReplicas: 1
+  resourcePolicy:
+    containerPolicies:
+      - containerName: coredns
+        minAllowed:
+          cpu: 10m
+          memory: 32Mi
+        maxAllowed:
+          cpu: 500m
+          memory: 256Mi
