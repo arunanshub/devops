@@ -15,7 +15,7 @@ spec:
     - https://charts.fairwinds.com/stable
     - https://kedacore.github.io/charts
     - https://vmware-tanzu.github.io/helm-charts
-    - https://headlamp-k8s.github.io/headlamp/
+    - https://kubernetes-sigs.github.io/headlamp/
 
   destinations:
     - server: https://kubernetes.default.svc
