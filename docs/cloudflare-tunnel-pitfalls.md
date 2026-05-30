@@ -109,6 +109,26 @@ If the tunnel must be recreated, re-run `just seal-cloudflared-token` and commit
 
 ---
 
+## SSE connections never establish through Zero Trust Tunnel
+
+**Symptom.** A browser `EventSource` to a path behind Cloudflare Zero Trust never reaches `OPEN` state. The browser sees an immediate connection failure; cloudflared logs `stream N canceled by remote with error code 0`.
+
+**Cause.** Prometheus's `/api/v1/notifications/live` (and any SSE endpoint that holds the connection open without sending data immediately) returns `200 OK + Transfer-Encoding: chunked` and then stays silent until an event fires. Cloudflare's Zero Trust edge sees a QUIC stream with only HEADERS and no DATA frames and cancels it as stalled — before the 200 OK reaches the browser.
+
+`X-Accel-Buffering: no` does not help here: that directive works at the Cloudflare CDN/reverse-proxy layer but not at the QUIC/Zero Trust Tunnel layer.
+
+**What was tried.** Adding `X-Accel-Buffering: no` via a Traefik `headers` Middleware on the SSE path. The header reaches the response (verified via Traefik API), but the stream is still canceled by the CF edge.
+
+**Fix (none that avoids the limitation).** The correct fix is Prometheus sending a periodic SSE keepalive comment (`:\n\n`) to keep the QUIC stream active. Prometheus has no config knob for this, and injecting it via a Traefik plugin would require a custom plugin. The practical options are:
+
+- Accept it. `notifications/live` carries only operational events (config reload, rule evaluation error). All Prometheus functionality — queries, alerts, rules, recording rules — works without it. The UI shows a connection-failed badge but is otherwise fully usable.
+- Add a thin keepalive-injecting sidecar in front of Prometheus (complex, not worth it for homelab).
+- A path-scoped CF Access bypass for the endpoint would work but trades a protocol limitation for a security hole.
+
+**Current state.** Accepted as a known limitation. The `no-buffer` Traefik middleware remains on the route as a defensive measure in case Cloudflare ever respects it at the tunnel layer.
+
+---
+
 ## Cloudflare Access OTP goes to the policy email, not the login email
 
 **Symptom.** Login page appears, OTP form is submitted, no email is received.
