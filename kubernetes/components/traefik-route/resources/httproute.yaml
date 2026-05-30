@@ -16,6 +16,22 @@ spec:
     - matches:
         - path:
             type: PathPrefix
+            value: /dashboard/assets/
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: traefik.io
+            kind: Middleware
+            name: cache-assets
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: traefik-dashboard
+          port: 8080
+          weight: 1
+    - matches:
+        - path:
+            type: PathPrefix
             value: /
       backendRefs:
         - group: ""
