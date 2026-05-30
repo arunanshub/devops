@@ -15,30 +15,9 @@ spec:
   rules:
     - matches:
         - path:
-            type: Exact
-            value: /api/v1/notifications/live
-      filters:
-        - type: ExtensionRef
-          extensionRef:
-            group: traefik.io
-            kind: Middleware
-            name: no-buffer
-      backendRefs:
-        - group: ""
-          kind: Service
-          name: kube-prometheus-stack-prometheus
-          port: 9090
-          weight: 1
-    - matches:
-        - path:
             type: PathPrefix
             value: /assets/
       filters:
-        - type: ExtensionRef
-          extensionRef:
-            group: traefik.io
-            kind: Middleware
-            name: compress
         - type: ExtensionRef
           extensionRef:
             group: traefik.io
@@ -54,12 +33,6 @@ spec:
         - path:
             type: PathPrefix
             value: /
-      filters:
-        - type: ExtensionRef
-          extensionRef:
-            group: traefik.io
-            kind: Middleware
-            name: compress
       backendRefs:
         - group: ""
           kind: Service

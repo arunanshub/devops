@@ -1,32 +1,9 @@
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: compress
-  namespace: monitoring
-spec:
-  compress: {}
----
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
   name: cache-assets
   namespace: monitoring
 spec:
   headers:
     customResponseHeaders:
       Cache-Control: "public, max-age=31536000, immutable"
----
-# X-Accel-Buffering: no tells Cloudflare not to buffer the response before
-# forwarding headers to the browser. Required for SSE endpoints where
-# Prometheus holds the connection open before sending the first event —
-# without this, Cloudflare cancels the QUIC stream before the browser
-# receives the 200 OK, so EventSource never establishes.
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: no-buffer
-  namespace: monitoring
-spec:
-  headers:
-    customResponseHeaders:
-      X-Accel-Buffering: "no"
