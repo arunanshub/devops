@@ -256,7 +256,7 @@ k3s install flags required (all set at provision time via `init.sh.tpl`):
 - [x] Gateway API CRDs (standard channel v1.5.1) installed before Cilium bootstrap
   - Bootstrap: helmfile synthetic release. Steady-state: `gateway-api-crds` ArgoCD Application (wave 0)
   - Traefik owns the GatewayClass; Cilium Gateway API is disabled. Bump CRDs against Traefik's Gateway API support matrix, not Cilium's.
-- [x] Cilium v1.19.4 (chart 1.19.4) deployed via helmfile bootstrap, adopted by ArgoCD
+- [x] Cilium v1.20.0-pre.2 (chart 1.20.0-pre.2) deployed via helmfile bootstrap, adopted by ArgoCD
   - `kubeProxyReplacement: true`, `routingMode: tunnel` (VXLAN), WireGuard node encryption enabled
   - `hubble.tls.auto.method: cronJob` — deterministic cert renders, no ArgoCD OutOfSync churn
   - Hubble Relay + UI enabled; `cgroup.autoMount.enabled: false`

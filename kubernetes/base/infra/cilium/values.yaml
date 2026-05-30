@@ -42,6 +42,13 @@ pmtuDiscovery:
   enabled: true
   packetizationLayerPMTUDMode: "always"
 
+# Force stale Helm-adoption keys off. With ServerSideApply, absent ConfigMap
+# keys from the desired render do not reliably prune keys previously owned by
+# helmfile's bootstrap release.
+extraConfig:
+  enable-gateway-api: "false"
+  enable-gateway-api-secrets-sync: "false"
+
 resources:
   requests:
     cpu: 100m
