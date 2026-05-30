@@ -3,6 +3,58 @@ controller:
     existingSecret:
       name: hcloud
       key: token
+  resources:
+    csiAttacher:
+      requests:
+        cpu: 10m
+        memory: 24Mi
+      limits:
+        memory: 128Mi
+    csiResizer:
+      requests:
+        cpu: 10m
+        memory: 24Mi
+      limits:
+        memory: 128Mi
+    csiProvisioner:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
+    livenessProbe:
+      requests:
+        cpu: 5m
+        memory: 24Mi
+      limits:
+        memory: 64Mi
+    hcloudCSIDriver:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
+
+node:
+  resources:
+    csiNodeDriverRegistrar:
+      requests:
+        cpu: 5m
+        memory: 16Mi
+      limits:
+        memory: 64Mi
+    livenessProbe:
+      requests:
+        cpu: 5m
+        memory: 24Mi
+      limits:
+        memory: 64Mi
+    hcloudCSIDriver:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
 
 # Not setting as default to avoid conflict with k3s's local-path default.
 # Always specify storageClassName: hcloud-volumes explicitly in PVC specs.

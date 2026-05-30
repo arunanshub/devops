@@ -17,6 +17,13 @@ tolerations:
   - key: CriticalAddonsOnly
     operator: Exists
 
+resources:
+  requests:
+    cpu: 15m
+    memory: 32Mi
+  limits:
+    memory: 128Mi
+
 # Prepare for Phase 3 (kube-prometheus-stack)
 metrics:
   create: true

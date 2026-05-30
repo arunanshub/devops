@@ -1,0 +1,48 @@
+# Targeted one-shot playbook - do NOT import into site.yml.
+# CoreDNS is a k3s-managed Addon, so keep this as an explicit operational
+# patch instead of letting normal host convergence fight packaged manifests.
+- name: Configure CoreDNS high availability
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  tasks:
+    - name: Set CoreDNS replica count to two
+      kubernetes.core.k8s:
+        state: patched
+        merge_type:
+          - strategic-merge
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: coredns
+            namespace: kube-system
+          spec:
+            replicas: 2
+
+    - name: Ensure CoreDNS allows one voluntary disruption
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: policy/v1
+          kind: PodDisruptionBudget
+          metadata:
+            name: coredns
+            namespace: kube-system
+          spec:
+            maxUnavailable: 1
+            selector:
+              matchLabels:
+                k8s-app: kube-dns
+
+    - name: Wait for CoreDNS to have two ready replicas
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: coredns
+        namespace: kube-system
+      register: coredns_info
+      until: >
+        coredns_info.resources | length > 0 and (coredns_info.resources[0].status.readyReplicas | default(0) | int) >= 2
+      retries: 30
+      delay: 10

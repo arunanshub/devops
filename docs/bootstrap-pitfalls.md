@@ -279,9 +279,45 @@ ArgoCD picks up the commit on the next reconcile, and the BackupStorageLocation 
 
 ---
 
+## DNSConfigForming events after bootstrap
+
+**Symptom.** Pods emit events like:
+
+```text
+Warning DNSConfigForming Nameserver limits were exceeded
+```
+
+**Cause.** kubelet reads the host resolver file. On Hetzner nodes using systemd-resolved, that file can expose more than three nameservers. Kubernetes truncates pod resolver config to three nameservers, which is usually harmless, but it adds noisy warning events and makes DNS troubleshooting harder.
+
+**Fix.** Run the targeted resolver playbook once:
+
+```sh
+just ansible-converge k3s-resolver
+```
+
+The playbook writes `/etc/rancher/k3s/resolv.conf` with exactly three upstream nameservers, appends `resolv-conf=/etc/rancher/k3s/resolv.conf` through a k3s config drop-in, restarts k3s one node at a time, and verifies kubelet `/configz`.
+
+---
+
+## CoreDNS remains one replica after bootstrap
+
+**Symptom.** `kubectl -n kube-system get deploy coredns` shows `READY 1/1`. DNS works, but a single CoreDNS pod is a disruption point during pod failure, drain, or restart.
+
+**Cause.** CoreDNS is installed by the packaged k3s Addon, outside the ArgoCD app tree. The packaged manifest includes topology spread constraints, but it leaves `replicas: 1`.
+
+**Fix.** Run the targeted CoreDNS HA playbook once:
+
+```sh
+just ansible-converge k3s-coredns-ha
+```
+
+The playbook patches CoreDNS to two replicas, creates a `maxUnavailable: 1` PDB, and waits until both replicas are ready. Keep it targeted rather than importing it into `site.yml` so ordinary host convergence does not constantly patch k3s-packaged resources.
+
+---
+
 ## Quick reference: things that look broken but aren't
 
 - `coredns`, `local-path-provisioner`, `metrics-server` `Pending` early in bootstrap → expected, no CNI yet, they schedule once Cilium is up
-- `Warning DNSConfigForming Nameserver limits were exceeded` events → benign; kubelet caps pod resolv.conf at 3 nameservers, Hetzner provides exactly 3
+- `Warning DNSConfigForming Nameserver limits were exceeded` during initial bootstrap only → usually benign; persistent events after the cluster is running should be fixed with `just ansible-converge k3s-resolver`
 - Node `NotReady` for ~30s after Cilium install → kubelet re-evaluates after CNI config is written, brief gap
 - `ImagePullBackOff` on Cilium right after install → check the 502 entry above before assuming local network problem

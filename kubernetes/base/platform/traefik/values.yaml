@@ -37,6 +37,15 @@ service:
   spec:
     type: ClusterIP
 
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: traefik
+        app.kubernetes.io/instance: traefik-traefik
+
 resources:
   requests:
     cpu: 10m

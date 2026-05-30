@@ -38,8 +38,23 @@ pmtuDiscovery:
   enabled: true
   packetizationLayerPMTUDMode: "always"
 
+resources:
+  requests:
+    cpu: 100m
+    memory: 320Mi
+
 operator:
   replicas: 2
+  resources:
+    requests:
+      cpu: 25m
+      memory: 160Mi
+
+envoy:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 100Mi
 
 # Traefik owns the GatewayClass; Cilium Gateway API disabled.
 # ref: https://claude.ai/share/589a7ce8-eea1-4043-aaab-69d4d6ee9333

@@ -1,0 +1,87 @@
+# Targeted one-shot playbook - do NOT import into site.yml.
+# Restarts k3s one node at a time to point kubelet at an explicit three-server
+# resolv.conf and stop DNSConfigForming event spam from systemd-resolved.
+- name: Configure kubelet resolver input
+  hosts: k3s_nodes
+  gather_facts: false
+  become: false
+  serial: 1
+  max_fail_percentage: 0
+  order: sorted
+  tasks:
+    - name: Set k3s service name
+      ansible.builtin.set_fact:
+        k3s_service_name: "{{ 'k3s' if node_role in ['cp_only', 'cp_worker'] else 'k3s-agent' }}"
+
+    - name: Create k3s config drop-in directory
+      ansible.builtin.file:
+        path: /etc/rancher/k3s/config.yaml.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy explicit resolver file for kubelet
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/resolv.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Managed by ansible/playbooks/k3s-resolver.yml.
+          nameserver 2a01:4ff:ff00::add:2
+          nameserver 2a01:4ff:ff00::add:1
+          nameserver 185.12.64.1
+          options edns0 trust-ad
+      register: resolver_file
+
+    - name: Deploy kubelet resolv-conf drop-in
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml.d/resolv-conf.yaml
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          kubelet-arg+:
+            - "resolv-conf=/etc/rancher/k3s/resolv.conf"
+      register: resolver_dropin
+
+    - name: Restart k3s to apply kubelet resolver config
+      ansible.builtin.systemd:
+        name: "{{ k3s_service_name }}"
+        state: restarted
+      when: (resolver_file.changed or resolver_dropin.changed) and not ansible_check_mode
+
+    - name: Wait for node to be Ready
+      kubernetes.core.k8s_info:
+        kind: Node
+        name: "{{ kubernetes_node_name }}"
+      register: node_info
+      delegate_to: localhost
+      until: >
+        node_info.resources | length > 0 and (node_info.resources[0].status.conditions |
+         selectattr('type', 'equalto', 'Ready') |
+         map(attribute='status') | list | first) == 'True'
+      retries: 30
+      delay: 10
+      when: (resolver_file.changed or resolver_dropin.changed) and not ansible_check_mode
+
+    - name: Verify kubelet uses the explicit resolver file
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          kubectl get --raw /api/v1/nodes/{{ kubernetes_node_name }}/proxy/configz | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          resolv_conf = data['kubeletconfig'].get('resolvConf')
+          assert resolv_conf == '/etc/rancher/k3s/resolv.conf', resolv_conf
+          print('resolvConf: ' + resolv_conf)
+          "
+        executable: /bin/bash
+      delegate_to: localhost
+      register: verify_result
+      changed_when: false
+      until: verify_result.rc == 0
+      retries: 12
+      delay: 5
+      when: (resolver_file.changed or resolver_dropin.changed) and not ansible_check_mode

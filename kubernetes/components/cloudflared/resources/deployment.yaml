@@ -12,11 +12,12 @@ spec:
       labels:
         app: cloudflared
     spec:
+      automountServiceAccountToken: false
       # Spread across nodes so a single node failure doesn't drop both tunnel connections.
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: ScheduleAnyway
+          whenUnsatisfiable: DoNotSchedule
           labelSelector:
             matchLabels:
               app: cloudflared

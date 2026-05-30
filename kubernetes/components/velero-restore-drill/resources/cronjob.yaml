@@ -41,11 +41,24 @@ spec:
                   RESTORE_NAME="drill-$(date +%Y%m%d%H%M%S)"
                   TEST_NS="velero-restore-test"
 
+                  cleanup() {
+                    kubectl delete namespace "$TEST_NS" --ignore-not-found --wait=false || true
+                    kubectl delete restore "$RESTORE_NAME" -n velero --ignore-not-found || true
+                  }
+
+                  fail() {
+                    echo "ERROR: $*"
+                    kubectl get restore "$RESTORE_NAME" -n velero -o yaml || true
+                    kubectl describe restore "$RESTORE_NAME" -n velero || true
+                    cleanup
+                    exit 1
+                  }
+
                   # Find latest completed daily-full backup (name sorting = time sorting for velero schedule names)
                   LATEST=$(kubectl get backup -n velero \
                     -l velero.io/schedule-name=daily-full \
                     -o jsonpath='{range .items[*]}{.status.phase}{"|"}{.metadata.name}{"\n"}{end}' | \
-                    grep "^Completed" | cut -d'|' -f2 | sort | tail -1)
+                    awk -F'|' '$1 == "Completed" {print $2}' | sort | tail -1 || true)
 
                   if [ -z "$LATEST" ]; then
                     echo "ERROR: no completed daily-full backup found"
@@ -53,8 +66,19 @@ spec:
                   fi
                   echo "Using backup: $LATEST"
 
-                  # Idempotent cleanup — --wait=false avoids hanging on slow PVC/finalizer teardown
+                  # Idempotent cleanup. The restore must not start until the old
+                  # namespace is fully gone, otherwise generated resources can
+                  # collide and produce false-positive warnings.
                   kubectl delete namespace "$TEST_NS" --ignore-not-found --wait=false
+                  i=0
+                  while kubectl get namespace "$TEST_NS" >/dev/null 2>&1; do
+                    if [ "$i" -ge 60 ]; then
+                      fail "namespace $TEST_NS is still terminating after 10 minutes"
+                    fi
+                    echo "Waiting for old namespace $TEST_NS to terminate"
+                    sleep 10
+                    i=$((i + 1))
+                  done
 
                   # Create Restore CR
                   cat <<EOF | kubectl apply -f -
@@ -68,6 +92,17 @@ spec:
                     includedNamespaces:
                       - monitoring
                     includeClusterResources: false
+                    existingResourcePolicy: update
+                    excludedResources:
+                      - ciliumendpoints.cilium.io
+                      - controllerrevisions.apps
+                      - endpoints
+                      - endpointslices.discovery.k8s.io
+                      - events
+                      - events.events.k8s.io
+                      - pods
+                      - replicasets.apps
+                      - verticalpodautoscalercheckpoints.autoscaling.k8s.io
                     namespaceMapping:
                       monitoring: velero-restore-test
                   EOF
@@ -87,13 +122,27 @@ spec:
 
                   # Check result BEFORE cleanup so cleanup failures don't mask it
                   if [ "$PHASE" != "Completed" ]; then
-                    echo "ERROR: restore phase was '$PHASE', expected 'Completed'"
-                    kubectl delete namespace "$TEST_NS" --ignore-not-found --wait=false || true
-                    kubectl delete restore "$RESTORE_NAME" -n velero --ignore-not-found || true
-                    exit 1
+                    fail "restore phase was '$PHASE', expected 'Completed'"
+                  fi
+
+                  WARNINGS=$(kubectl get restore "$RESTORE_NAME" -n velero \
+                    -o jsonpath='{.status.warnings}' 2>/dev/null || true)
+                  ERRORS=$(kubectl get restore "$RESTORE_NAME" -n velero \
+                    -o jsonpath='{.status.errors}' 2>/dev/null || true)
+                  WARNINGS=${WARNINGS:-0}
+                  ERRORS=${ERRORS:-0}
+                  if [ "$WARNINGS" != "0" ] || [ "$ERRORS" != "0" ]; then
+                    fail "restore completed with warnings=$WARNINGS errors=$ERRORS"
+                  fi
+
+                  TOTAL_ITEMS=$(kubectl get restore "$RESTORE_NAME" -n velero \
+                    -o jsonpath='{.status.progress.totalItems}' 2>/dev/null || true)
+                  RESTORED_ITEMS=$(kubectl get restore "$RESTORE_NAME" -n velero \
+                    -o jsonpath='{.status.progress.itemsRestored}' 2>/dev/null || true)
+                  if [ -n "$TOTAL_ITEMS" ] && [ "$TOTAL_ITEMS" != "0" ] && [ "$RESTORED_ITEMS" != "$TOTAL_ITEMS" ]; then
+                    fail "restore reported $RESTORED_ITEMS/$TOTAL_ITEMS items restored"
                   fi
 
                   # Cleanup — --wait=false avoids hanging on slow PVC/finalizer teardown
-                  kubectl delete namespace "$TEST_NS" --ignore-not-found --wait=false || true
-                  kubectl delete restore "$RESTORE_NAME" -n velero --ignore-not-found || true
+                  cleanup
                   echo "Restore drill succeeded"

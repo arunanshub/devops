@@ -161,13 +161,13 @@ seal-velero-s3:
 # Show current Velero backup and restore status.
 @velero-status:
     @echo "=== Backups ==="
-    kubectl exec -n velero deploy/velero -- velero backup get
+    kubectl exec -n velero deploy/velero -- /velero backup get
     @echo ""
     @echo "=== Restores ==="
-    kubectl exec -n velero deploy/velero -- velero restore get
+    kubectl exec -n velero deploy/velero -- /velero restore get
     @echo ""
     @echo "=== Backup Storage Location ==="
-    kubectl exec -n velero deploy/velero -- velero backup-location get
+    kubectl exec -n velero deploy/velero -- /velero backup-location get
 
 # Create a Velero restore from a named backup into a target namespace.
 # IMPORTANT: disable ArgoCD auto-sync on NAMESPACE before running; re-enable after verifying.
@@ -180,7 +180,7 @@ velero-restore backup namespace:
     printf '\n'
     read -r -p "Confirm auto-sync is disabled for '{{ namespace }}' [y/N]: " confirm
     [[ "$confirm" == "y" ]] || { printf 'Aborted.\n'; exit 1; }
-    kubectl exec -n velero deploy/velero -- velero restore create \
+    kubectl exec -n velero deploy/velero -- /velero restore create \
         --from-backup "{{ backup }}" \
         --include-namespaces "{{ namespace }}" \
         --wait

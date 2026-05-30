@@ -31,6 +31,45 @@ for pb in baseline k3s-eviction k3s-etcd-snapshots site ops/recreate-encrypted-p
 done
 ```
 
+## Follow-up Remediation Status
+
+Applied live on 2026-05-30:
+
+- CoreDNS now runs two ready replicas with a `maxUnavailable: 1` PDB via
+  `ansible/playbooks/k3s-coredns-ha.yml`.
+- Kubelet on all three nodes now uses `/etc/rancher/k3s/resolv.conf` via
+  `ansible/playbooks/k3s-resolver.yml`, removing the resolver source that
+  caused persistent `DNSConfigForming` warnings for new pods.
+- Cloudflare R2 lifecycle rules now exist for both backup buckets: delete
+  objects after 45 days and abort stale multipart uploads after 7 days.
+
+Prepared in GitOps/IaC for the next commit and ArgoCD reconciliation:
+
+- `just velero-status` and `just velero-restore` call `/velero`.
+- The Velero restore drill fails on warnings/errors, waits for the old test
+  namespace to disappear, and excludes generated/runtime resources.
+- Cilium, Cilium operator, Cilium Envoy, hcloud CCM, hcloud CSI, and kured have
+  explicit resource requests.
+- cloudflared disables service account token automount and uses strict
+  hostname topology spread.
+- Traefik has strict hostname topology spread.
+- The bootstrap-only k3s version was aligned to the live `v1.35.5+k3s1`.
+
+System Upgrade Controller remains on the stable channel; it was not pinned.
+
+Post-remediation validation that passed:
+
+```sh
+just ansible-converge k3s-coredns-ha
+just ansible-converge k3s-resolver
+kubectl get nodes
+kubectl -n kube-system get deploy coredns
+kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded
+just verify-mtu
+just velero-status
+just plan
+```
+
 ## Current Healthy Signals
 
 - Three nodes are Ready, all are control-plane and etcd voters:
@@ -404,4 +443,3 @@ Immediate work:
 8. Align k3s bootstrap pin with the live version, or pin upgrade policy.
 9. Verify R2 lifecycle/versioning and document or codify it.
 10. Split node-exporter privilege away from the rest of monitoring.
-

@@ -20,7 +20,7 @@ Velero controller (velero ns, daily 02:00 UTC)
        └─ metrics ──► ServiceMonitor ──► Prometheus ──► alerts
 
 velero-restore-drill CronJob (velero ns, 1st of month 08:00 UTC)
-  └─ restores monitoring → velero-restore-test → asserts Completed → exit 0/1
+  └─ restores monitoring → velero-restore-test → asserts Completed + zero warnings/errors → exit 0/1
 
 Prometheus ──► PrometheusRules ──► Alertmanager ──► email (mydellpc07@gmail.com)
 ```
@@ -35,6 +35,7 @@ k3s has built-in etcd snapshot support. When configured, it:
 - Snapshots etcd every N hours (currently 6h, cron `0 */6 * * *`)
 - Keeps 24 snapshots locally on each CP node
 - Uploads compressed snapshots to R2, keeps 48 there (≈12 days at 6h cadence)
+- R2 lifecycle also deletes any leftover objects after 45 days and aborts stale multipart uploads after 7 days
 - Reads S3 credentials from a Kubernetes Secret of type `etcd.k3s.cattle.io/s3-config-secret`
 
 The config lives on each CP node at `/etc/rancher/k3s/config.yaml.d/etcd-snapshots.yaml`.
@@ -67,7 +68,7 @@ etcd-snapshot-compress: true
 
 ### Reconfigure retention
 
-Same files. `etcd-snapshot-retention` = local count. `etcd-s3-retention` = R2 count. Defaults: 24 local, 48 R2.
+Same files. `etcd-snapshot-retention` = local count. `etcd-s3-retention` = R2 count. Defaults: 24 local, 48 R2. If retention must exceed 45 days, also update the `cloudflare_r2_bucket_lifecycle.etcd_snapshots` rule in `infra/cloudflare.tf`.
 
 ---
 
@@ -78,6 +79,7 @@ Same files. `etcd-snapshot-retention` = local count. `etcd-s3-retention` = R2 co
 Velero runs as a Deployment in the `velero` namespace. It backs up Kubernetes API objects to R2 on a schedule. It does **not** back up PV data (nodeAgent is disabled).
 
 - Daily full backup at 02:00 UTC: all namespaces + cluster resources, 30-day TTL
+- R2 lifecycle deletes any leftover objects after 45 days and aborts stale multipart uploads after 7 days
 - Credentials come from a `velero-r2-credentials` Secret (SealedSecret, `velero` namespace)
 - BSL (BackupStorageLocation) `default` points at `arunanshu-velero-backups` on R2
 
@@ -105,7 +107,7 @@ Commit and let ArgoCD reconcile. No restarts needed — Velero watches its own S
 
 ### Reconfigure backup retention
 
-Change `ttl` in `schedules.daily-full.template.ttl`. Velero auto-expires old backups when they exceed TTL.
+Change `ttl` in `schedules.daily-full.template.ttl`. Velero auto-expires old backups when they exceed TTL. If TTL must exceed 45 days, also update the `cloudflare_r2_bucket_lifecycle.velero_backups` rule in `infra/cloudflare.tf`.
 
 ---
 
@@ -122,7 +124,8 @@ Change `ttl` in `schedules.daily-full.template.ttl`. Velero auto-expires old bac
 **velero-restore-drill** (velero, 1st of month 08:00 UTC):
 - Finds the latest `Completed` daily-full backup
 - Restores the `monitoring` namespace into `velero-restore-test`
-- Asserts phase == `Completed`
+- Excludes generated/runtime resources that should be recreated by controllers
+- Asserts phase == `Completed`, warnings == 0, errors == 0, and restored count matches total count when Velero reports progress
 - Cleans up and exits 0
 - `kube_cronjob_status_last_successful_time` feeds the `VeleroRestoreDrillMissed` alert
 
@@ -160,7 +163,7 @@ kubectl logs -n velero job/drill-<name> -f
 # Should end with: "Restore drill succeeded"
 
 # Check Velero BSL status directly
-kubectl exec -n velero deploy/velero -- velero backup-location get
+kubectl exec -n velero deploy/velero -- /velero backup-location get
 # STATUS column should show: Available
 ```
 
@@ -305,8 +308,8 @@ The minio Go client used by k3s expects `<account_id>.r2.cloudflarestorage.com`,
 **amazon/aws-cli image requires root**
 The `etcd-snapshot-health` CronJob has no `runAsUser` or `runAsNonRoot` in its securityContext. If you add them (e.g. `runAsUser: 1000`), Python's `pwd.getpwuid()` crashes silently (no `/etc/passwd` entry for UID 1000) and the container exits 1 with no logs.
 
-**kubectl delete namespace hangs without --wait=false**
-The `monitoring` namespace contains PVCs. `kubectl delete namespace monitoring` hangs indefinitely waiting for finalizers. The restore drill uses `--wait=false` everywhere — this is intentional. The namespace terminates in the background.
+**Restore namespace cleanup is bounded**
+The `monitoring` namespace contains PVCs, and namespace deletion can wait on finalizers. The restore drill starts cleanup with `--wait=false`, then polls for the ephemeral `velero-restore-test` namespace to disappear before creating the next Restore. If cleanup still has not completed after 10 minutes, the drill fails instead of restoring into a dirty namespace.
 
 **Velero sync-wave must be 2, not 0**
 The `velero-r2-credentials` SealedSecret is deployed by the `velero-restore-drill` component at sync-wave 1. If Velero is at wave 0, it syncs before the credential exists and the BSL fails validation on first sync. Never move Velero back to wave 0.
@@ -316,6 +319,9 @@ The metric is `velero_backup_location_status_gauge{backup_location_name="default
 
 **R2 requires checksumAlgorithm: ""**
 The velero-plugin-for-aws sends AWS checksum headers that R2 rejects. Setting `checksumAlgorithm: ""` in the BSL config disables them. Without it, all backups fail with a 400 error.
+
+**R2 lifecycle resources are create/update only in the Cloudflare provider**
+`cloudflare_r2_bucket_lifecycle` can create and update lifecycle rules, but the provider warns that destroying the Terraform resource will not delete the rule from Cloudflare. If a lifecycle rule must be removed, delete it manually in Cloudflare after updating the code.
 
 **velero-restore-drill RBAC needs watch on restores**
 The drill script polls `kubectl get restore` in a loop — that's a watch under the hood. The ClusterRole must include `watch` on `velero.io/restores`, not just `get`. Missing `watch` produces `reflector.go` forbidden errors in the logs (the drill still succeeds but the logs are noisy).

@@ -42,16 +42,31 @@ pmtuDiscovery:
   enabled: true
   packetizationLayerPMTUDMode: "always"
 
+resources:
+  requests:
+    cpu: 100m
+    memory: 320Mi
+
 # Policies evaluate but violations are logged as AUDIT instead of being
 # dropped. Disable once all namespace policies have been validated via Hubble.
 policyAuditMode: true
 
 operator:
   replicas: 2
+  resources:
+    requests:
+      cpu: 25m
+      memory: 160Mi
   prometheus:
     enabled: true
     serviceMonitor:
       enabled: true
+
+envoy:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 100Mi
 
 # Expose cilium-agent metrics and register a ServiceMonitor so Prometheus
 # scrapes them automatically.
