@@ -1,3 +1,5 @@
+# Auth: token-based login (temporary). Long-term: GitHub/Google OIDC via k3s
+# --oidc-issuer-url + --oidc-client-id. See memory: headlamp-auth-decision.md
 replicaCount: 1
 
 config:
