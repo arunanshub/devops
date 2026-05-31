@@ -3,7 +3,7 @@ cloudflare_zone_id    = "9d7653ab8d3a31bc36ddebc0e9b02e96"
 owner_email           = "mydellpc07@gmail.com"
 
 bootstrap_node         = "cp-1"
-is_cluster_initialized = false
+is_cluster_initialized = true
 
 # Cluster topology. To add a node: add an entry, run tofu apply.
 # To remove a node: drain it first, then remove the entry and apply.
