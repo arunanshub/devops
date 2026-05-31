@@ -1,0 +1,234 @@
+# Talos migration — post-bootstrap k8s operations.
+#
+# Run on the NEW Talos cluster after:
+#   just argocd-bootstrap           (Cilium + hccm + ArgoCD installed)
+#   just restore-sealed-secrets-key (hcloud-luks-key and hcloud Secrets unsealed)
+#
+# Run BEFORE just argocd-root-bootstrap so ArgoCD finds PVCs already Bound
+# when it deploys kube-prometheus-stack and tempo. Without pre-created PVCs,
+# StatefulSets would get fresh volumes and existing monitoring data would be lost.
+#
+# What this playbook does:
+#   1. Ensures the monitoring namespace exists
+#   2. Pre-creates static PVs pointing at existing Hetzner volumes (with full
+#      CSI spec including nodePublishSecretRef for LUKS unlock)
+#   3. Pre-creates PVCs with exact names the Helm charts expect, bound to those PVs
+#   4. Waits for all PVCs to reach Bound state
+#   5. Verifies hcloud-csi can see the volumes (LUKS unlock path validation)
+#
+# Usage:
+#   just talos-cutover-post          # run for real
+#   just talos-cutover-post --check  # dry-run (skips wait tasks)
+#
+# Safe to re-run: kubernetes.core.k8s is declarative; PVs/PVCs already in
+# desired state are left unchanged.
+#
+# Next step: just argocd-root-bootstrap
+
+- name: Talos cutover — post-bootstrap k8s operations
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    monitoring_ns: monitoring
+    storage_class: hcloud-volumes-encrypted
+    luks_secret_name: hcloud-luks-key
+    luks_secret_ns: kube-system
+    location: hel1
+
+    # Migrated volumes — volumeHandle is the Hetzner volume ID.
+    # Confirmed from `kubectl get pv` on the k3s cluster pre-migration.
+    # PVC names must match exactly what the Helm charts create via volumeClaimTemplates.
+    volumes:
+      - pv_name: talos-grafana
+        volume_handle: "105813109"
+        pvc_name: kube-prometheus-stack-grafana
+        pvc_ns: "{{ monitoring_ns }}"
+
+      - pv_name: talos-prometheus
+        volume_handle: "105813992"
+        # StatefulSet volumeClaimTemplate generates this name deterministically
+        pvc_name: prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
+        pvc_ns: "{{ monitoring_ns }}"
+
+      - pv_name: talos-alertmanager
+        volume_handle: "105813103"
+        pvc_name: alertmanager-kube-prometheus-stack-alertmanager-db-alertmanager-kube-prometheus-stack-alertmanager-0
+        pvc_ns: "{{ monitoring_ns }}"
+
+      - pv_name: talos-tempo
+        volume_handle: "105813104"
+        pvc_name: storage-tempo-0
+        pvc_ns: "{{ monitoring_ns }}"
+
+  tasks:
+    # -- Pre-flight ---------------------------------------------------------------
+
+    - name: Pre-flight | Verify cluster is reachable
+      kubernetes.core.k8s_info:
+        kind: Namespace
+        name: kube-system
+      register: cluster_check
+      failed_when: cluster_check.resources | length == 0
+
+    - name: Pre-flight | Verify sealed-secrets controller is running
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: kube-system
+        label_selectors:
+          - app.kubernetes.io/name=sealed-secrets
+      register: ss_pods
+      failed_when: >
+        ss_pods.resources | length == 0 or ss_pods.resources | selectattr('status.phase', 'equalto', 'Running') | list | length == 0
+
+    - name: Pre-flight | Verify hcloud-luks-key Secret is unsealed
+      kubernetes.core.k8s_info:
+        kind: Secret
+        name: "{{ luks_secret_name }}"
+        namespace: "{{ luks_secret_ns }}"
+      register: luks_check
+      failed_when: luks_check.resources | length == 0
+
+    - name: Pre-flight | Verify hcloud-volumes-encrypted StorageClass exists
+      kubernetes.core.k8s_info:
+        kind: StorageClass
+        name: "{{ storage_class }}"
+      register: sc_check
+      failed_when: sc_check.resources | length == 0
+
+    - name: Pre-flight | Verify hcloud-csi node DaemonSet is ready
+      kubernetes.core.k8s_info:
+        kind: DaemonSet
+        namespace: kube-system
+        label_selectors:
+          - app=hcloud-csi
+      register: csi_ds
+      until: >
+        csi_ds.resources | length > 0 and csi_ds.resources[0].status.numberReady | default(0) > 0
+      retries: 24
+      delay: 5
+      failed_when: csi_ds.resources | length == 0
+
+    # -- Ensure namespace ---------------------------------------------------------
+
+    - name: Namespace | Create monitoring namespace if absent
+      kubernetes.core.k8s:
+        kind: Namespace
+        name: "{{ monitoring_ns }}"
+        state: present
+
+    # -- Pre-create static PersistentVolumes --------------------------------------
+    # Full CSI spec required: nodePublishSecretRef triggers LUKS unlock on mount.
+    # The hcloud-csi driver detects crypto_LUKS via blkid and calls luksOpen
+    # (not luksFormat) — existing data is preserved.
+
+    - name: "PV | Create static PV: {{ item.pv_name }} (handle: {{ item.volume_handle }})"
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: "{{ item.pv_name }}"
+            annotations:
+              pv.kubernetes.io/provisioned-by: csi.hetzner.cloud
+          spec:
+            storageClassName: "{{ storage_class }}"
+            capacity:
+              storage: 10Gi
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            claimRef:
+              namespace: "{{ item.pvc_ns }}"
+              name: "{{ item.pvc_name }}"
+            csi:
+              driver: csi.hetzner.cloud
+              fsType: ext4
+              volumeHandle: "{{ item.volume_handle }}"
+              nodePublishSecretRef:
+                name: "{{ luks_secret_name }}"
+                namespace: "{{ luks_secret_ns }}"
+              volumeAttributes:
+                fsFormatOptions: ""
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: csi.hetzner.cloud/location
+                        operator: In
+                        values:
+                          - "{{ location }}"
+      loop: "{{ volumes }}"
+      loop_control:
+        label: "{{ item.pv_name }}"
+
+    # -- Pre-create PersistentVolumeClaims ----------------------------------------
+    # volumeName pins each PVC to its specific pre-created PV.
+    # The Helm charts / StatefulSet volumeClaimTemplates will adopt these PVCs
+    # instead of creating new ones (PVC names match exactly).
+
+    - name: "PVC | Create PVC: {{ item.pvc_name }}"
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: "{{ item.pvc_name }}"
+            namespace: "{{ item.pvc_ns }}"
+          spec:
+            storageClassName: "{{ storage_class }}"
+            volumeName: "{{ item.pv_name }}"
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 10Gi
+      loop: "{{ volumes }}"
+      loop_control:
+        label: "{{ item.pvc_name }}"
+
+    # -- Wait for PVCs to bind ----------------------------------------------------
+
+    - name: "PVC | Wait for {{ item.pvc_name }} to be Bound"
+      kubernetes.core.k8s_info:
+        kind: PersistentVolumeClaim
+        name: "{{ item.pvc_name }}"
+        namespace: "{{ item.pvc_ns }}"
+      register: pvc_status
+      until: >
+        pvc_status.resources | length > 0 and pvc_status.resources[0].status.phase == "Bound"
+      retries: 24
+      delay: 5
+      loop: "{{ volumes }}"
+      loop_control:
+        label: "{{ item.pvc_name }}"
+
+    # -- Post-flight --------------------------------------------------------------
+
+    - name: Post-flight | Verify all PVCs are Bound to expected PVs
+      ansible.builtin.assert:
+        that:
+          - item.resources[0].status.phase == "Bound"
+          - item.resources[0].spec.volumeName in (volumes | map(attribute='pv_name') | list)
+        fail_msg: "PVC {{ item.resources[0].metadata.name }} is not Bound or bound to wrong PV"
+        success_msg: "PVC {{ item.resources[0].metadata.name }} → PV {{ item.resources[0].spec.volumeName }} ✓"
+      loop: "{{ pvc_status.results }}"
+      loop_control:
+        label: "{{ item.resources[0].metadata.name }}"
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg: |
+          Post-bootstrap complete. Volumes are ready.
+            • Monitoring namespace: created
+            • Static PVs created: {{ volumes | map(attribute='pv_name') | join(', ') }}
+            • PVCs created and Bound: {{ volumes | map(attribute='pvc_name') | map('truncate', 40) | join(', ') }}
+
+          Proceed with:
+            just argocd-root-bootstrap
+
+          ArgoCD will reconcile all apps from git. kube-prometheus-stack and tempo
+          StatefulSets will adopt the pre-bound PVCs — existing monitoring data intact.

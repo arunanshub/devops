@@ -24,6 +24,30 @@ destroy:
 @_tofu command:
     cd "{{ infra }}" && sops exec-env "{{ infra / "secrets.yaml" }}" "tofu {{ command }}"
 
+# ── Cutover orchestration ────────────────────────────────────────────────────
+# Full cutover sequence (run in order):
+#   just talos-cutover-pre          # freeze k3s cluster, detach volumes
+#   just apply                      # destroy k3s nodes, provision Talos nodes
+#   just talos-apply-configs        # push machineconfigs to nodes in maintenance mode
+#   just talos-bootstrap            # bootstrap etcd, wait for cluster health
+#   just talos-upgrade v1.13.2      # upgrade from ISO v1.12.4 → v1.13.2
+#   just talos-kubeconfig           # fetch kubeconfig for new cluster
+#   just argocd-bootstrap           # Cilium + hccm + ArgoCD via helmfile
+#   just argocd-ssh-bootstrap       # ArgoCD repo SSH key
+#   just restore-sealed-secrets-key # sealed-secrets master key → hcloud-luks-key unseals
+#   just talos-cutover-post         # pre-create PVs/PVCs, wait for Bound
+#   just argocd-root-bootstrap      # ArgoCD takes over — existing data intact
+
+# Freeze the k3s cluster before teardown: stop ArgoCD reconciliation, scale
+# stateful workloads to 0, verify Hetzner volumes are Released.
+talos-cutover-pre *args:
+    uv run ansible-playbook ansible/playbooks/ops/talos-pre-cutover.yml {{ args }}
+
+# Pre-create PVs/PVCs on the new Talos cluster so ArgoCD finds volumes Bound.
+# Run after restore-sealed-secrets-key, before argocd-root-bootstrap.
+talos-cutover-post *args:
+    uv run ansible-playbook ansible/playbooks/ops/talos-post-bootstrap.yml {{ args }}
+
 # ── Talos bootstrap (cutover day) ─────────────────────────────────────────────
 
 # Apply machineconfigs to all nodes while in maintenance mode (first boot from ISO).

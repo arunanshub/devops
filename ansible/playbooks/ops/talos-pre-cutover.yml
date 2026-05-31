@@ -1,0 +1,176 @@
+# Talos migration — pre-cutover k8s operations.
+#
+# Run against the LIVE k3s cluster immediately before `just apply` tears it down.
+# Stops the ArgoCD application controller (killing all reconciliation), scales
+# stateful workloads to 0, and verifies Hetzner volumes are Released so the
+# new cluster can reattach them.
+#
+# App-of-apps safety: suspending individual Applications is a race — root will
+# re-sync child apps and restore their sync policies before we finish. The only
+# safe approach is to stop the application controller entirely first, which
+# prevents ANY reconciliation from happening during the cutover.
+#
+# Usage:
+#   just talos-cutover-pre           # run for real
+#   just talos-cutover-pre --check   # dry-run
+#
+# Safe to re-run: every task is idempotent.
+# The ArgoCD controller is intentionally left at 0 — the cluster is being
+# destroyed. On the new cluster it starts fresh.
+#
+# Next step: just apply  (destroys k3s nodes; volumes persist with Retain policy)
+
+- name: Talos cutover — pre-cutover k8s operations
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    monitoring_ns: monitoring
+
+    stateful_workloads:
+      - name: Grafana
+        kind: Deployment
+        resource: kube-prometheus-stack-grafana
+        pod_label: app.kubernetes.io/name=grafana
+
+      - name: Prometheus
+        kind: StatefulSet
+        resource: prometheus-kube-prometheus-stack-prometheus
+        pod_label: app.kubernetes.io/name=prometheus
+
+      - name: Alertmanager
+        kind: StatefulSet
+        resource: alertmanager-kube-prometheus-stack-alertmanager
+        pod_label: app.kubernetes.io/name=alertmanager
+
+      - name: Tempo
+        kind: StatefulSet
+        resource: tempo
+        pod_label: app.kubernetes.io/name=tempo
+
+  tasks:
+    # -- Pre-flight ---------------------------------------------------------------
+
+    - name: Pre-flight | Verify cluster is reachable
+      kubernetes.core.k8s_info:
+        kind: Namespace
+        name: kube-system
+      register: cluster_check
+      failed_when: cluster_check.resources | length == 0
+
+    - name: Pre-flight | Verify ALL hcloud PVs have Retain reclaim policy
+      kubernetes.core.k8s_info:
+        kind: PersistentVolume
+      register: pv_list
+      failed_when: >
+        pv_list.resources | selectattr('spec.csi.driver', 'defined') | selectattr('spec.csi.driver', 'equalto', 'csi.hetzner.cloud') | selectattr('spec.persistentVolumeReclaimPolicy', 'equalto', 'Delete') | list | length > 0 #magic___^_^___line
+    - name: Pre-flight | Show PV state
+      ansible.builtin.debug:
+        msg: "{{ item.metadata.name }}: policy={{ item.spec.persistentVolumeReclaimPolicy }}, phase={{ item.status.phase }}, handle={{ item.spec.csi.volumeHandle | default('n/a') }}"
+      loop: >-
+        {{ pv_list.resources
+           | selectattr('spec.csi.driver', 'defined')
+           | selectattr('spec.csi.driver', 'equalto', 'csi.hetzner.cloud')
+           | list }}
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    # -- Stop ArgoCD reconciliation completely ------------------------------------
+    # Suspend individual Apps is a race with app-of-apps: root re-syncs child
+    # app syncPolicies back from git faster than we can disable them.
+    # Scaling the controller to 0 is the only way to freeze state immediately.
+
+    - name: ArgoCD | Stop application controller (prevents all reconciliation)
+      kubernetes.core.k8s_scale:
+        kind: StatefulSet
+        name: argocd-application-controller
+        namespace: argocd
+        replicas: 0
+        wait: true
+        wait_timeout: 120
+
+    - name: ArgoCD | Verify controller pod is gone
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: argocd
+        label_selectors:
+          - app.kubernetes.io/name=argocd-application-controller
+      register: controller_pods
+      until: controller_pods.resources | length == 0
+      retries: 24
+      delay: 5
+
+    # -- Scale down stateful workloads --------------------------------------------
+
+    - name: "Scale down | {{ item.name }} → 0"
+      kubernetes.core.k8s_scale:
+        kind: "{{ item.kind }}"
+        name: "{{ item.resource }}"
+        namespace: "{{ monitoring_ns }}"
+        replicas: 0
+        wait: true
+        wait_timeout: 180
+      loop: "{{ stateful_workloads }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: "Scale down | Wait for {{ item.name }} pods to terminate"
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ monitoring_ns }}"
+        label_selectors:
+          - "{{ item.pod_label }}"
+      register: pod_check
+      until: pod_check.resources | length == 0
+      retries: 36
+      delay: 5
+      loop: "{{ stateful_workloads }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # -- Verify volumes detached --------------------------------------------------
+
+    - name: Volumes | Wait for all hcloud PVs to reach Released or Available
+      kubernetes.core.k8s_info:
+        kind: PersistentVolume
+      register: pv_final
+      until: >
+        pv_final.resources | selectattr('spec.csi.driver', 'defined') | selectattr('spec.csi.driver', 'equalto', 'csi.hetzner.cloud') | selectattr('status.phase', 'equalto', 'Bound') | list | length == 0
+      retries: 12
+      delay: 5
+      failed_when: >
+        pv_final.resources | selectattr('spec.csi.driver', 'defined') | selectattr('spec.csi.driver', 'equalto', 'csi.hetzner.cloud') | selectattr('status.phase', 'equalto', 'Bound') | list | length > 0
+
+    - name: Volumes | Show final PV state
+      ansible.builtin.debug:
+        msg: "{{ item.metadata.name }}: phase={{ item.status.phase }}, handle={{ item.spec.csi.volumeHandle | default('n/a') }}"
+      loop: >-
+        {{ pv_final.resources
+           | selectattr('spec.csi.driver', 'defined')
+           | selectattr('spec.csi.driver', 'equalto', 'csi.hetzner.cloud')
+           | list }}
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    # -- Summary ------------------------------------------------------------------
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg: |
+          Pre-cutover complete. Cluster is frozen — safe to destroy.
+            • ArgoCD application controller: scaled to 0 (no reconciliation possible)
+            • Stateful pods at 0 replicas: {{ stateful_workloads | map(attribute='name') | join(', ') }}
+            • All hcloud PVs are Released — Hetzner volumes are detached
+
+          Proceed with:
+            just apply                        # destroys k3s nodes
+            just talos-apply-configs
+            just talos-bootstrap
+            just talos-upgrade v1.13.2
+            just talos-kubeconfig
+            just argocd-bootstrap
+            just argocd-ssh-bootstrap
+            just restore-sealed-secrets-key
+            just talos-cutover-post
+            just argocd-root-bootstrap
