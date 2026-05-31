@@ -16,11 +16,6 @@ devbox.d/
 # Implementation plans — local development aid, not for version control
 docs/plans/
 
-# Talos generated machineconfigs (contain cluster secrets — never commit)
-talos/clusterconfig/
-# Plaintext talenv in case someone decrypts in-place; talenv.sops.yaml is the source of truth
-talos/talenv.yaml
-
 # Python virtual environment (uv-managed; recreate with `uv sync --dev`)
 .venv/
 
