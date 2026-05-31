@@ -10,10 +10,6 @@ spec:
   channel: https://update.k3s.io/v1-release/channels/stable
   concurrency: 1
   cordon: true
-  drain:
-    timeout: 300
-    gracePeriod: 30
-    skipWaitForDeleteTimeout: 300
   serviceAccountName: system-upgrade
   nodeSelector:
     matchExpressions:
