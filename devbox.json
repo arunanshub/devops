@@ -20,7 +20,10 @@
     "uv@latest",
     "glibcLocales@latest",
     "kubeconform@latest",
-    "cilium-cli@latest"
+    "cilium-cli@latest",
+    "talosctl@latest",
+    "talhelper@latest",
+    "kubectl@latest"
   ],
   "env": {
     "LC_ALL": "C.UTF-8",
