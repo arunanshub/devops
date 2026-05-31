@@ -1,0 +1,11 @@
+# TLS SANs for the API server certificate.
+# Talos automatically adds node private IPs and hostnames.
+# We add the LB addresses so kubeconfig endpoints and Cilium k8sServiceHost work.
+machine:
+  certSANs:
+    - 10.0.0.100 # private API LB IP (k8sServiceHost in Cilium values)
+    - 95.217.172.147 # public API LB IPv4 (external kubeconfig endpoint)
+cluster:
+  etcd:
+    advertisedSubnets:
+      - 10.0.0.0/24 # restrict etcd peer traffic to the Hetzner private network

@@ -1,0 +1,15 @@
+# Equivalent of k3s flags:
+#   disable-kube-proxy, flannel-backend: none, kubelet-arg: cloud-provider=external
+#   + pod/service CIDRs matching k3s defaults (keeps hccm values.yaml unchanged)
+machine:
+  kubelet:
+    extraArgs:
+      cloud-provider: external
+cluster:
+  proxy:
+    disabled: true
+  network:
+    podSubnets:
+      - 10.42.0.0/16
+    serviceSubnets:
+      - 10.43.0.0/16

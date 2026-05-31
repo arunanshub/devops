@@ -1,0 +1,31 @@
+clusterName: hetzner-talos
+# Must match the Hetzner public ISO version used for bootstrap.
+# After bootstrap: talosctl upgrade --image ghcr.io/siderolabs/installer:v1.13.2 --nodes ...
+# Then bump this to v1.13.2 and re-run talhelper genconfig to keep configs in sync.
+talosVersion: v1.12.4
+kubernetesVersion: v1.33.1
+# Public LB IPv4 — used as the kubeconfig server endpoint for external access.
+# Internal Cilium k8sServiceHost continues to use the private LB IP (10.0.0.100).
+endpoint: https://95.217.172.147:6443
+
+patches:
+  - "@./patches/eviction.yaml"
+  - "@./patches/cluster-settings.yaml"
+
+controlPlane:
+  patches:
+    - "@./patches/controlplane.yaml"
+
+nodes:
+  - hostname: cp-1
+    ipAddress: 10.0.0.2
+    installDisk: /dev/sda
+    controlPlane: true
+  - hostname: cp-2
+    ipAddress: 10.0.0.3
+    installDisk: /dev/sda
+    controlPlane: true
+  - hostname: cp-3
+    ipAddress: 10.0.0.4
+    installDisk: /dev/sda
+    controlPlane: true

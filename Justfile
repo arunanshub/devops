@@ -1,14 +1,16 @@
 infra := justfile_dir() / "infra"
 k8s := justfile_dir() / "kubernetes"
 export KUBECONFIG := infra / "kubeconfig.yaml"
-ansible_dir := justfile_dir() / "ansible"
-ansible_inventory := ansible_dir / "inventory/tofu_inventory"
-ansible_playbooks := ansible_dir / "playbooks"
-ansible_env := "LC_ALL=C.UTF-8 LANG=C.UTF-8 KUBECONFIG='" + infra / "kubeconfig.yaml" + "'"
 
 # Internal API endpoint used by Cilium and other in-cluster components.
-# Points at the API server LB private IP, not a specific node.
 export K8S_API_ENDPOINT := "10.0.0.100"
+
+# Node IPs — used by talosctl recipes.
+talos_nodes := "10.0.0.2,10.0.0.3,10.0.0.4"
+talos_dir := justfile_dir() / "talos"
+talos_configs := talos_dir / "clusterconfig"
+
+# ── Infrastructure ────────────────────────────────────────────────────────────
 
 @plan:
     just _tofu plan
@@ -22,77 +24,119 @@ destroy:
 @_tofu command:
     cd "{{ infra }}" && sops exec-env "{{ infra / "secrets.yaml" }}" "tofu {{ command }}"
 
-@launch-argocd-ui:
-    just _port-forward "ArgoCD UI" "http://localhost:8080" "svc/argocd-server -n argocd 8080:443"
+# ── Talos bootstrap (cutover day) ─────────────────────────────────────────────
 
-@launch-grafana:
-    just _port-forward "Grafana UI" "http://localhost:3000" "svc/kube-prometheus-stack-grafana -n monitoring 3000:80"
+# Apply machineconfigs to all nodes while in maintenance mode (first boot from ISO).
+# Nodes must be reachable but not yet bootstrapped. --insecure: no mTLS cert yet.
+talos-apply-configs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{ talos_dir }}" && talhelper genconfig
+    for node in 10.0.0.2 10.0.0.3 10.0.0.4; do
+        suffix=$(echo "$node" | awk -F. '{print $4 - 1}')
+        cfg="{{ talos_configs }}/hetzner-talos-cp-${suffix}.yaml"
+        echo "▸ Applying config to $node ($cfg)"
+        talosctl apply-config --insecure --nodes "$node" --file "$cfg"
+    done
 
-@launch-hubble-ui:
-    just _port-forward "Hubble UI" "http://localhost:12000" "svc/hubble-ui -n kube-system 12000:80"
+# Bootstrap etcd on the first control-plane node. Run once after apply-configs.
+@talos-bootstrap:
+    talosctl bootstrap --nodes 10.0.0.2
+    talosctl health --nodes {{ talos_nodes }}
 
-@_port-forward name url target:
-    echo "Launching {{ name }} at {{ url }}"
-    kubectl port-forward {{ target }}
+# Fetch kubeconfig from the cluster and write to infra/kubeconfig.yaml.
+@talos-kubeconfig:
+    talosctl kubeconfig --nodes 10.0.0.2 "{{ infra / "kubeconfig.yaml" }}"
 
-# Apply the hcloud Secret to kube-system. Required before argocd-bootstrap
-# because hccm (installed by helmfile) reads this secret on startup. The Secret
-# carries the `sealedsecrets.bitnami.com/managed: "true"` annotation in the
-# SOPS source, so the SealedSecret in kubernetes/infra/ can adopt it later
-# without conflict. Idempotent.
+# ── Talos day-two ops ─────────────────────────────────────────────────────────
+
+# Rolling Talos OS upgrade across all nodes. Updates the OS + kernel.
+# Usage: just talos-upgrade v1.13.2
+talos-upgrade version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    IMAGE="ghcr.io/siderolabs/installer:{{ version }}"
+    echo "▸ Upgrading Talos to {{ version }} (image: $IMAGE)"
+    for node in 10.0.0.2 10.0.0.3 10.0.0.4; do
+        echo "▸ Upgrading $node"
+        talosctl upgrade --nodes "$node" --image "$IMAGE" --wait
+        talosctl health --nodes "$node"
+    done
+    echo "✓ All nodes upgraded to {{ version }}"
+
+# Upgrade Kubernetes version. Run after talos-upgrade if bumping k8s.
+# Usage: just talos-upgrade-k8s 1.34.0
+@talos-upgrade-k8s version:
+    talosctl upgrade-k8s --to {{ version }} --nodes 10.0.0.2
+
+# Apply a machineconfig patch to all nodes (no reboot for most changes).
+# Usage: just talos-patch @docs/plans/talos-spike/patches/eviction.yaml
+@talos-patch patch:
+    talosctl patch machineconfig --nodes {{ talos_nodes }} --patch "{{ patch }}"
+
+# ── Cluster bootstrap (ArgoCD) ────────────────────────────────────────────────
+
+# Apply the hcloud Secret before helmfile bootstrap — hccm reads it on startup.
 @hcloud-secret-bootstrap:
     just _sops-apply "{{ k8s / "bootstrap/secrets/hcloud-ccm-secret.sops.yaml" }}"
 
 argocd-bootstrap: hcloud-secret-bootstrap
     cd "{{ k8s / "bootstrap/" }}" && helmfile deps && sops exec-env "{{ k8s / "bootstrap/secrets/helmfile.secrets.yaml" }}" "helmfile apply"
 
-# Bootstrap ArgoCD with the SSH key for accessing the private repo.
 @argocd-ssh-bootstrap:
     just _sops-apply "{{ k8s / "bootstrap/secrets/argocd-repo-ssh.sops.yaml" }}"
 
 @argocd-root-bootstrap:
     kubectl apply -f "{{ k8s / "root-application.yaml" }}"
 
-@ansible-inventory:
-    cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
-        "{{ ansible_env }} '{{ ansible_inventory }}' --list"
-
-@ansible-check playbook="site":
-    just _ansible-playbook "{{ playbook }}" "--check --diff"
-
-ansible-converge playbook="site":
-    just _ansible-playbook "{{ playbook }}"
-
-@_ansible-playbook playbook args="":
-    test -f "{{ ansible_playbooks }}/{{ playbook }}.yml"
-    cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
-        "{{ ansible_env }} uv run ansible-playbook -i '{{ ansible_inventory }}' '{{ ansible_playbooks }}/{{ playbook }}.yml' {{ args }}"
-
-# Install Python deps (uv) and Ansible collections. Run once after cloning or
-# after pyproject.toml / ansible/requirements.yml changes.
-ansible-setup:
-    uv sync --dev
-    uv run ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections/ --force
-
-ansible-apply playbook="site":
-    just ansible-converge "{{ playbook }}"
-
-@ansible-baseline-check:
-    just ansible-check baseline
-
-ansible-baseline:
-    just ansible-converge baseline
-
-# Restore the sealed-secrets master key from the offline backup.
-# Must run BEFORE ArgoCD syncs any SealedSecret resources on a rebuilt cluster.
-# After applying, restart the controller so it picks up the restored key.
+# Restore the sealed-secrets master key. Must run BEFORE ArgoCD syncs any
+# SealedSecret resources. Key is SOPS-encrypted in-repo; age key required.
 restore-sealed-secrets-key:
     just _sops-apply "{{ k8s / "bootstrap/secrets/sealed-secrets-master-key.sops.yaml" }}"
     kubectl rollout restart deployment sealed-secrets-controller -n kube-system
 
-# Seal the Cloudflare Tunnel token as a SealedSecret.
-# Run AFTER `just apply` creates the tunnel. Requires cluster access.
-# After running, add sealed-tunnel-token.yaml to the kustomization resources list and commit.
+# ── etcd ─────────────────────────────────────────────────────────────────────
+
+# Take a manual etcd snapshot and upload to R2.
+# Talos replacement for k3s's automatic --etcd-snapshot-schedule-cron.
+# TODO: wrap in a CronJob so this runs automatically (see etcd-snapshot-health).
+talos-etcd-snapshot:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    SNAPSHOT="/tmp/etcd-snapshot-$(date +%Y%m%d-%H%M%S).db"
+    echo "▸ Taking etcd snapshot → $SNAPSHOT"
+    talosctl etcd snapshot --nodes 10.0.0.2 "$SNAPSHOT"
+    echo "▸ Uploading to R2 (arunanshu-etcd-snapshots/prod/)"
+    sops exec-env "{{ infra / "secrets.yaml" }}" \
+        "AWS_ENDPOINT_URL_S3=https://\${R2_ACCOUNT_ID}.r2.cloudflarestorage.com \
+         AWS_ACCESS_KEY_ID=\${R2_ETCD_ACCESS_KEY} \
+         AWS_SECRET_ACCESS_KEY=\${R2_ETCD_SECRET_KEY} \
+         aws s3 cp $SNAPSHOT s3://arunanshu-etcd-snapshots/prod/ --region auto"
+    rm -f "$SNAPSHOT"
+    echo "✓ Snapshot uploaded"
+
+# Print the Talos etcd restore procedure.
+@etcd-restore:
+    @echo "=== Talos etcd restore procedure ==="
+    @echo ""
+    @echo "1. Download snapshot from R2:"
+    @echo "   AWS_ACCESS_KEY_ID=<key> AWS_SECRET_ACCESS_KEY=<secret> \\"
+    @echo "   aws s3 cp s3://arunanshu-etcd-snapshots/prod/<snapshot> /tmp/snapshot.db \\"
+    @echo "   --endpoint-url https://<account_id>.r2.cloudflarestorage.com --region auto"
+    @echo ""
+    @echo "2. Bootstrap cluster from snapshot (replaces normal talos-bootstrap):"
+    @echo "   talosctl bootstrap --nodes 10.0.0.2 --recover-from=/tmp/snapshot.db"
+    @echo ""
+    @echo "3. If cluster is partially up, wipe and rebuild first:"
+    @echo "   talosctl reset --nodes <node> --graceful=false --reboot"
+    @echo "   (then re-apply machineconfig and bootstrap from snapshot)"
+    @echo ""
+    @echo "See: https://www.talos.dev/latest/advanced/disaster-recovery/"
+    @echo ""
+    @echo "Legacy k3s procedure: docs/legacy/k3s-ops.just :: etcd-restore"
+
+# ── Sealing ───────────────────────────────────────────────────────────────────
+
 seal-cloudflared-token:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -111,9 +155,9 @@ seal-cloudflared-token:
     echo "Sealed token written to $out"
     echo "Next: add 'sealed-tunnel-token.yaml' to kubernetes/base/infra/cloudflared/resources/kustomization.yaml, then commit both."
 
-# Seal R2 credentials for k3s etcd snapshot S3 upload.
-# Run AFTER Task 2 (R2 buckets created, credentials in secrets.yaml).
-# Requires cluster access (kubeseal reads the sealed-secrets controller pubkey).
+# Seal R2 credentials for etcd snapshot health CronJob.
+# Secret type is Opaque (not k3s-specific). CronJob reads keys directly.
+# Legacy k3s version (type etcd.k3s.cattle.io/s3-config-secret): docs/legacy/k3s-ops.just
 seal-etcd-s3:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -121,7 +165,6 @@ seal-etcd-s3:
     sops exec-env "{{ infra / "secrets.yaml" }}" \
         'kubectl create secret generic k3s-etcd-snapshot-s3-config \
             --namespace kube-system \
-            --type etcd.k3s.cattle.io/s3-config-secret \
             --from-literal=etcd-s3-endpoint="${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
             --from-literal=etcd-s3-access-key="${R2_ETCD_ACCESS_KEY}" \
             --from-literal=etcd-s3-secret-key="${R2_ETCD_SECRET_KEY}" \
@@ -137,10 +180,8 @@ seal-etcd-s3:
             --controller-name sealed-secrets-controller \
             --format yaml' \
         > "$out"
-    printf 'Sealed to %s - add sealedsecret-etcd-s3.yaml to resources/kustomization.yaml and commit.\n' "$out"
+    printf 'Sealed to %s\n' "$out"
 
-# Seal R2 credentials for Velero BackupStorageLocation.
-# Run AFTER Task 2. Requires cluster access.
 seal-velero-s3:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -156,68 +197,10 @@ seal-velero-s3:
             --controller-name sealed-secrets-controller \
             --format yaml' \
         > "$out"
-    printf 'Sealed to %s - add sealedsecret-velero-r2.yaml to velero-restore-drill/resources/kustomization.yaml and commit.\n' "$out"
+    printf 'Sealed to %s\n' "$out"
 
-# Show current Velero backup and restore status.
-@velero-status:
-    @echo "=== Backups ==="
-    kubectl exec -n velero deploy/velero -- /velero backup get
-    @echo ""
-    @echo "=== Restores ==="
-    kubectl exec -n velero deploy/velero -- /velero restore get
-    @echo ""
-    @echo "=== Backup Storage Location ==="
-    kubectl exec -n velero deploy/velero -- /velero backup-location get
+# ── LUKS ─────────────────────────────────────────────────────────────────────
 
-# Create a Velero restore from a named backup into a target namespace.
-# IMPORTANT: disable ArgoCD auto-sync on NAMESPACE before running; re-enable after verifying.
-# Usage: just velero-restore <backup-name> <namespace>
-velero-restore backup namespace:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    printf '>> Disable ArgoCD auto-sync first:\n'
-    printf '   kubectl patch application {{ namespace }} -n argocd --type merge -p '"'"'{"spec":{"syncPolicy":{"automated":null}}}'"'"'\n'
-    printf '\n'
-    read -r -p "Confirm auto-sync is disabled for '{{ namespace }}' [y/N]: " confirm
-    [[ "$confirm" == "y" ]] || { printf 'Aborted.\n'; exit 1; }
-    kubectl exec -n velero deploy/velero -- /velero restore create \
-        --from-backup "{{ backup }}" \
-        --include-namespaces "{{ namespace }}" \
-        --wait
-    printf '\n'
-    printf '>> Restore complete. Verify state, then re-enable auto-sync:\n'
-    printf '   kubectl patch application {{ namespace }} -n argocd --type merge -p '"'"'{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'"'"'\n'
-
-# Print the manual etcd restore procedure. Credentials must be passed directly via CLI.
-@etcd-restore:
-    @echo "=== Manual etcd restore procedure ==="
-    @echo ""
-    @echo "1. Download the target snapshot from R2:"
-    @echo "   AWS_ACCESS_KEY_ID=<key> AWS_SECRET_ACCESS_KEY=<secret> \\"
-    @echo "   aws s3 cp s3://arunanshu-etcd-snapshots/prod/<snapshot-name> /tmp/snapshot.db \\"
-    @echo "   --endpoint-url https://<account_id>.r2.cloudflarestorage.com --region auto"
-    @echo ""
-    @echo "2. Stop k3s on ALL nodes:"
-    @echo "   ansible all -i ansible/inventory/tofu_inventory -m service -a 'name=k3s state=stopped' --become"
-    @echo ""
-    @echo "3. Reset etcd on ONE control-plane node (e.g. cp-0):"
-    @echo "   k3s server --cluster-reset --cluster-reset-restore-path=/tmp/snapshot.db"
-    @echo "   (This node will exit after reset — that is expected)"
-    @echo ""
-    @echo "4. Start k3s on the RESET node first, wait for it to become Ready:"
-    @echo "   systemctl start k3s && kubectl get nodes"
-    @echo ""
-    @echo "5. Start k3s on remaining CP nodes (one at a time):"
-    @echo "   systemctl start k3s"
-    @echo ""
-    @echo "Note: the S3 config Secret is unavailable during restore."
-    @echo "Pass credentials directly via --etcd-s3-* flags if downloading live."
-
-# ── Encrypted PV operations ───────────────────────────────────────────────────
-
-# Rotate the LUKS passphrase: generate, seal, commit, push, sync.
-# The passphrase is never printed — recoverable via SOPS → sealed-secrets chain.
-# Run `just ops-recreate-encrypted-pvcs` afterwards to reformat the PVCs.
 rotate-luks-passphrase:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -235,39 +218,60 @@ rotate-luks-passphrase:
     argocd app sync hcloud-luks-key --core
     echo ""
     echo "Passphrase rotated and live in cluster."
-    echo "Run 'just ops-recreate-encrypted-pvcs' to reformat PVCs with the new passphrase."
+    echo "Volumes will unlock with new passphrase on next pod restart."
 
-# Recreate encrypted PVCs for Grafana, Alertmanager, Tempo (data loss is OK).
-# Run after just rotate-luks-passphrase, or any time PVCs need to be rebuilt.
-ops-recreate-encrypted-pvcs *args:
-    just _ansible-playbook "ops/recreate-encrypted-pvcs" "{{ args }}"
+# ── Velero ────────────────────────────────────────────────────────────────────
 
-# Migrate Prometheus TSDB data to the encrypted StorageClass.
-# Interactive — has two human checkpoints. Read the playbook before running.
-# Do NOT pass --check: command tasks are no-ops in check mode.
-ops-migrate-prometheus:
-    just _ansible-playbook "ops/migrate-prometheus-encrypted"
+@velero-status:
+    @echo "=== Backups ==="
+    kubectl exec -n velero deploy/velero -- /velero backup get
+    @echo ""
+    @echo "=== Restores ==="
+    kubectl exec -n velero deploy/velero -- /velero restore get
+    @echo ""
+    @echo "=== Backup Storage Location ==="
+    kubectl exec -n velero deploy/velero -- /velero backup-location get
+
+velero-restore backup namespace:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    printf '>> Disable ArgoCD auto-sync first:\n'
+    printf '   kubectl patch application {{ namespace }} -n argocd --type merge -p '"'"'{"spec":{"syncPolicy":{"automated":null}}}'"'"'\n'
+    printf '\n'
+    read -r -p "Confirm auto-sync is disabled for '{{ namespace }}' [y/N]: " confirm
+    [[ "$confirm" == "y" ]] || { printf 'Aborted.\n'; exit 1; }
+    kubectl exec -n velero deploy/velero -- /velero restore create \
+        --from-backup "{{ backup }}" \
+        --include-namespaces "{{ namespace }}" \
+        --wait
+    printf '\n'
+    printf '>> Restore complete. Verify state, then re-enable auto-sync:\n'
+    printf '   kubectl patch application {{ namespace }} -n argocd --type merge -p '"'"'{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'"'"'\n'
+
+# ── Observability ─────────────────────────────────────────────────────────────
+
+@launch-argocd-ui:
+    just _port-forward "ArgoCD UI" "http://localhost:8080" "svc/argocd-server -n argocd 8080:443"
+
+@launch-grafana:
+    just _port-forward "Grafana UI" "http://localhost:3000" "svc/kube-prometheus-stack-grafana -n monitoring 3000:80"
+
+@launch-hubble-ui:
+    just _port-forward "Hubble UI" "http://localhost:12000" "svc/hubble-ui -n kube-system 12000:80"
+
+@_port-forward name url target:
+    echo "Launching {{ name }} at {{ url }}"
+    kubectl port-forward {{ target }}
 
 # Verify the VXLAN+WireGuard MTU stack is correctly configured.
-#
-# Cilium's MTU param is the physical device MTU (auto-detect = enp7s0 = 1450).
-# Expected stack: enp7s0=1450 → cilium_wg0=1370 (-80 WireGuard overhead).
-# Pod interface MTU stays at 1450; path MTU enforcement is done via PMTUD
-# (packetization-layer-pmtud-mode=always) for UDP/ICMP and eBPF MSS clamping
-# for TCP. Packets at the VXLAN ceiling (payload ≤ 1292b = 1320b IP) must pass.
-#
-# Run after bootstrap or any Cilium config change. Exits non-zero on failure.
+# Run after bootstrap or any Cilium config change.
 verify-mtu:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    # enp7s0 (Hetzner private NIC) - WireGuard IPv6 overhead (80 bytes)
     EXPECTED_WG_MTU=1370
-    # Cilium sets pod interfaces to the native device MTU (enp7s0 = 1450)
     EXPECTED_POD_MTU=1450
-    # 1292 + 28 (IP+ICMP headers) = 1320 bytes = max IP packet through VXLAN/WireGuard
     CEILING_PAYLOAD=1292
-    # Comfortable margin below ceiling
     PASS_PAYLOAD=1280
 
     kubectl delete pod mtu-verify-a mtu-verify-b \
@@ -299,7 +303,6 @@ verify-mtu:
     POD_B_IP=$(kubectl get pod mtu-verify-b -o jsonpath='{.status.podIP}')
     PASS=true
 
-    # ── Check 1: pod interface MTU (should equal native device MTU) ────────────
     echo "▸ Checking pod interface MTU"
     ACTUAL_MTU=$(kubectl exec mtu-verify-a -- ip link show eth0 2>/dev/null | grep -oP 'mtu \K\d+')
     if [[ "$ACTUAL_MTU" -eq "$EXPECTED_POD_MTU" ]]; then
@@ -309,7 +312,6 @@ verify-mtu:
       PASS=false
     fi
 
-    # ── Check 2: cross-node connectivity at comfortable margin ─────────────────
     echo "▸ Cross-node ping: payload=${PASS_PAYLOAD}b (packet=$((PASS_PAYLOAD+28))b)"
     LOSS=$(kubectl exec mtu-verify-a -- ping -s "$PASS_PAYLOAD" -c 3 -W 2 "$POD_B_IP" 2>&1 \
            | grep -oP '\d+(?=% packet loss)' | head -1 || echo "100")
@@ -320,7 +322,6 @@ verify-mtu:
       PASS=false
     fi
 
-    # ── Check 3: cross-node at VXLAN/WireGuard path ceiling ───────────────────
     echo "▸ Cross-node ping: payload=${CEILING_PAYLOAD}b (packet=$((CEILING_PAYLOAD+28))b, path ceiling)"
     LOSS=$(kubectl exec mtu-verify-a -- ping -s "$CEILING_PAYLOAD" -c 3 -W 2 "$POD_B_IP" 2>&1 \
            | grep -oP '\d+(?=% packet loss)' | head -1 || echo "100")
@@ -331,7 +332,6 @@ verify-mtu:
       PASS=false
     fi
 
-    # ── Check 4: WireGuard interface MTU on each node ──────────────────────────
     echo "▸ Checking cilium_wg0 MTU on each node (expected: enp7s0 1450 - WG 80 = ${EXPECTED_WG_MTU})"
     for POD in $(kubectl get pod -n kube-system -l k8s-app=cilium -o name | cut -d/ -f2); do
       NODE=$(kubectl get pod -n kube-system "$POD" -o jsonpath='{.spec.nodeName}')
@@ -345,7 +345,6 @@ verify-mtu:
       fi
     done
 
-    # ── Check 5: PMTUD enabled (safety net for oversized UDP/ICMP) ─────────────
     echo "▸ Checking PMTUD is enabled in Cilium configmap"
     PMTUD=$(kubectl get configmap -n kube-system cilium-config \
             -o jsonpath='{.data.enable-pmtu-discovery}' 2>/dev/null || echo "false")
@@ -358,10 +357,6 @@ verify-mtu:
       PASS=false
     fi
 
-    # ── Check 6: cloudflared QUIC MTU (egress path sanity check) ──────────────
-    # quic_client_mtu reflects the pod egress path MTU minus QUIC/tunnel overhead.
-    # Expected: ~1344 when pod MTU=1450. Dropping below 1300 means pod MTU
-    # is being clamped too aggressively somewhere in the stack.
     MIN_QUIC_MTU=1300
     CF_POD=$(kubectl get pod -n cloudflared -l app=cloudflared -o name 2>/dev/null \
              | head -1 | cut -d/ -f2)
@@ -394,6 +389,8 @@ verify-mtu:
       echo "✗ MTU verification FAILED — see above" >&2
       exit 1
     fi
+
+# ── Internal ──────────────────────────────────────────────────────────────────
 
 @_sops-apply file:
     sops --decrypt "{{ file }}" | kubectl apply -f -

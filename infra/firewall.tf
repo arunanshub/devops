@@ -1,11 +1,11 @@
 resource "hcloud_firewall" "main" {
   name = "${local.cluster_name}-firewall"
 
-  # SSH — your IP only
+  # Talos API — your IP only (replaces SSH; Talos has no SSH daemon)
   rule {
     direction  = "in"
     protocol   = "tcp"
-    port       = "22"
+    port       = "50000"
     source_ips = [var.home_ip]
   }
 
@@ -15,9 +15,6 @@ resource "hcloud_firewall" "main" {
     protocol   = "icmp"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
-
-  # Port 6443 lives in hcloud_firewall.control_plane_api so future workers do
-  # not get an unnecessary public API rule.
 }
 
 resource "hcloud_firewall_attachment" "main" {
@@ -28,8 +25,7 @@ resource "hcloud_firewall_attachment" "main" {
 resource "hcloud_firewall" "control_plane_api" {
   name = "${local.cluster_name}-control-plane-api"
 
-  # Temporary admin access path: direct-to-CP public IPv6, restricted to home.
-  # Cluster components use the private API LB instead.
+  # kube-API — your IP only; all nodes are control planes in Talos.
   rule {
     direction  = "in"
     protocol   = "tcp"
@@ -40,5 +36,5 @@ resource "hcloud_firewall" "control_plane_api" {
 
 resource "hcloud_firewall_attachment" "control_plane_api" {
   firewall_id = hcloud_firewall.control_plane_api.id
-  server_ids  = [for k in keys(local.cp_nodes) : hcloud_server.nodes[k].id]
+  server_ids  = values(hcloud_server.nodes)[*].id
 }

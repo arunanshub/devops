@@ -1,0 +1,14 @@
+# Replaces ansible/playbooks/k3s-eviction.yml
+# In k3s: kubelet-arg+ in config.yaml.d/eviction.yaml + ansible restart dance
+# In Talos: declared here, applied via talosctl machineconfig patch — no SSH, no restart needed
+machine:
+  kubelet:
+    extraConfig:
+      evictionHard:
+        memory.available: "500Mi"
+        imagefs.available: "5%"
+        nodefs.available: "5%"
+      evictionSoft:
+        memory.available: "1Gi"
+      evictionSoftGracePeriod:
+        memory.available: "2m0s"
