@@ -63,8 +63,12 @@
       kubernetes.core.k8s_info:
         kind: PersistentVolume
       register: pv_list
-      failed_when: >
-        pv_list.resources | selectattr('spec.csi.driver', 'defined') | selectattr('spec.csi.driver', 'equalto', 'csi.hetzner.cloud') | selectattr('spec.persistentVolumeReclaimPolicy', 'equalto', 'Delete') | list | length > 0 #magic___^_^___line
+      failed_when: >-
+        pv_list.resources
+        | selectattr('spec.csi.driver', 'defined')
+        | selectattr('spec.csi.driver', 'equalto', 'csi.hetzner.cloud')
+        | selectattr('spec.persistentVolumeReclaimPolicy', 'equalto', 'Delete')
+        | list | length > 0
     - name: Pre-flight | Show PV state
       ansible.builtin.debug:
         msg: "{{ item.metadata.name }}: policy={{ item.spec.persistentVolumeReclaimPolicy }}, phase={{ item.status.phase }}, handle={{ item.spec.csi.volumeHandle | default('n/a') }}"

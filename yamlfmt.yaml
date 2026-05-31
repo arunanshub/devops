@@ -9,8 +9,11 @@ include:
 exclude:
   - "**/*.{secrets,sops}.{yml,yaml}"
   - "**/{secrets,sops}.{yml,yaml}"
-  # yamlfmt reformats inline flow mappings in ways that conflict with
-  # ansible-lint's yaml[commas] rule (trailing comma in `{k: v},}` pattern).
+  # yamlfmt collapses multi-line Jinja2 filter chains in failed_when/until
+  # onto one line and appends #magic___^_^___line which Jinja2 parses as a
+  # comment, silently truncating the expression and breaking the condition.
   - "ansible/playbooks/ops/migrate-prometheus-encrypted.yml"
+  - "ansible/playbooks/ops/talos-pre-cutover.yml"
+  - "ansible/playbooks/ops/talos-post-bootstrap.yml"
 
 match_type: doublestar
