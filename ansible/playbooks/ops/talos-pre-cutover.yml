@@ -80,10 +80,11 @@
       loop_control:
         label: "{{ item.metadata.name }}"
 
-    # -- Stop ArgoCD reconciliation completely ------------------------------------
-    # Suspend individual Apps is a race with app-of-apps: root re-syncs child
-    # app syncPolicies back from git faster than we can disable them.
-    # Scaling the controller to 0 is the only way to freeze state immediately.
+    # -- Stop controllers that would fight the scale-down ------------------------
+    # Two controllers must be stopped before scaling workloads:
+    #   1. ArgoCD application controller — would re-sync child apps from git
+    #   2. Prometheus Operator — watches Prometheus/Alertmanager CRDs and
+    #      immediately restores StatefulSet replicas if we scale them directly
 
     - name: ArgoCD | Stop application controller (prevents all reconciliation)
       kubernetes.core.k8s_scale:
@@ -104,6 +105,15 @@
       until: controller_pods.resources | length == 0
       retries: 24
       delay: 5
+
+    - name: Prometheus Operator | Stop operator (prevents StatefulSet restore)
+      kubernetes.core.k8s_scale:
+        kind: Deployment
+        name: kube-prometheus-stack-operator
+        namespace: "{{ monitoring_ns }}"
+        replicas: 0
+        wait: true
+        wait_timeout: 120
 
     # -- Scale down stateful workloads --------------------------------------------
 
@@ -133,20 +143,32 @@
       loop_control:
         label: "{{ item.name }}"
 
-    # -- Verify volumes detached --------------------------------------------------
+    # -- Verify no monitoring pods remain -----------------------------------------
+    # PVs stay Bound as long as PVCs exist (we don't delete them — Retain policy
+    # keeps data for reattachment). Hetzner detaches at the block-device level once
+    # the pod is gone. The correct check is pod absence, not PV phase.
 
-    - name: Volumes | Wait for all hcloud PVs to reach Released or Available
+    - name: Volumes | Confirm no workload pods running in monitoring
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ monitoring_ns }}"
+        field_selectors:
+          - status.phase=Running
+      register: running_pods
+      failed_when: >-
+        running_pods.resources
+        | selectattr('metadata.labels', 'defined')
+        | selectattr('metadata.labels.app\\.kubernetes\\.io/name', 'defined')
+        | list | length > 0
+      retries: 6
+      delay: 5
+
+    - name: Volumes | Show PV handles for reference during teardown
       kubernetes.core.k8s_info:
         kind: PersistentVolume
       register: pv_final
-      until: >
-        pv_final.resources | selectattr('spec.csi.driver', 'defined') | selectattr('spec.csi.driver', 'equalto', 'csi.hetzner.cloud') | selectattr('status.phase', 'equalto', 'Bound') | list | length == 0
-      retries: 12
-      delay: 5
-      failed_when: >
-        pv_final.resources | selectattr('spec.csi.driver', 'defined') | selectattr('spec.csi.driver', 'equalto', 'csi.hetzner.cloud') | selectattr('status.phase', 'equalto', 'Bound') | list | length > 0
 
-    - name: Volumes | Show final PV state
+    - name: Volumes | Print PV state
       ansible.builtin.debug:
         msg: "{{ item.metadata.name }}: phase={{ item.status.phase }}, handle={{ item.spec.csi.volumeHandle | default('n/a') }}"
       loop: >-
