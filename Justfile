@@ -35,11 +35,7 @@ destroy:
     echo "Launching {{ name }} at {{ url }}"
     kubectl port-forward {{ target }}
 
-# Apply the hcloud Secret to kube-system. Required before argocd-bootstrap
-# because hccm (installed by helmfile) reads this secret on startup. The Secret
-# carries the `sealedsecrets.bitnami.com/managed: "true"` annotation in the
-# SOPS source, so the SealedSecret in kubernetes/infra/ can adopt it later
-# without conflict. Idempotent.
+# Applies the hcloud Secret before helmfile so hccm can start.
 @hcloud-secret-bootstrap:
     just _sops-apply "{{ k8s / "bootstrap/secrets/hcloud-ccm-secret.sops.yaml" }}"
 
@@ -73,15 +69,6 @@ ansible-converge playbook="site":
 ansible-setup:
     uv sync --dev
     uv run ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections/ --force
-
-ansible-apply playbook="site":
-    just ansible-converge "{{ playbook }}"
-
-@ansible-baseline-check:
-    just ansible-check baseline
-
-ansible-baseline:
-    just ansible-converge baseline
 
 # Restore the sealed-secrets master key from the offline backup.
 # Must run BEFORE ArgoCD syncs any SealedSecret resources on a rebuilt cluster.
