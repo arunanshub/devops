@@ -11,9 +11,9 @@ spec:
   concurrency: 1
   cordon: true
   drain:
-    timeout: 300s
+    timeout: 300
     gracePeriod: 30
-    skipWaitForDeleteTimeout: 0
+    skipWaitForDeleteTimeout: 300
   serviceAccountName: system-upgrade
   nodeSelector:
     matchExpressions:
