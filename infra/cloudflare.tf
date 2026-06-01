@@ -117,6 +117,60 @@ data "cloudflare_zero_trust_tunnel_cloudflared_token" "main" {
   tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.main.id
 }
 
+# Edge-cache Grafana's static frontend bundles at the Cloudflare edge.
+#
+# Why: grafana.arunanshu.dev is reached from India via a CF edge ~76-100ms away,
+# with the origin (Grafana) in Hetzner DE behind the cloudflared tunnel. A cold
+# dashboard load pulls ~3.3MB of JS across ~34 files all the way from DE on every
+# visit, because the wildcard Cloudflare Access app attaches CF_Authorization /
+# Set-Cookie, and CF's default cache skips responses with Set-Cookie or
+# Cache-Control: private/no-store. mode=override_origin ignores those and makes
+# the bundles cacheable, so they serve from the user's local edge instead.
+#
+# Safety: scoped STRICTLY to /public/build/ — these files are content-hashed
+# (e.g. app.1e0deb6b.js), identical for every Grafana user (open-source frontend),
+# and contain no secrets or per-user data. A Grafana upgrade changes the hash, so
+# the cache self-invalidates. Access still gates the app: logged-in users pass the
+# edge auth check, then get an edge cache hit (no tunnel/DE round trip). NEVER widen
+# this to /api, /d, /avatar, etc. — that would risk web cache deception (serving one
+# user's private response to another). Cost: $0 (Cache Rules are free; this is NOT
+# Cache Reserve, which is the paid, R2-backed feature).
+resource "cloudflare_ruleset" "grafana_static_cache" {
+  zone_id = var.cloudflare_zone_id
+  name    = "grafana-static-asset-cache"
+  kind    = "zone"
+  phase   = "http_request_cache_settings"
+
+  rules = [
+    {
+      description = "Edge-cache Grafana hashed JS/CSS bundles (/public/build/)"
+      expression  = "(http.host eq \"grafana.arunanshu.dev\" and starts_with(http.request.uri.path, \"/public/build/\"))"
+      action      = "set_cache_settings"
+      enabled     = true
+      action_parameters = {
+        cache = true
+        edge_ttl = {
+          # Hashed filenames make these safe to hold; 7d is conservative.
+          # Bump toward a month once you've confirmed hit rate in Cache Analytics.
+          mode    = "override_origin"
+          default = 604800
+        }
+      }
+    },
+  ]
+}
+
+# 0-RTT Connection Resumption: lets returning clients send their first request
+# inside the opening TLS1.3/QUIC handshake packet, saving ~1 RTT (~80ms from .in)
+# on every resumed connection. Free, all plans. Safe: Cloudflare restricts 0-RTT
+# early data to idempotent GETs (early data is replayable), which is what Grafana's
+# read path is. Zone-wide (affects all *.arunanshu.dev), not Grafana-specific.
+resource "cloudflare_zone_setting" "zero_rtt" {
+  zone_id    = var.cloudflare_zone_id
+  setting_id = "0rtt"
+  value      = "on"
+}
+
 resource "cloudflare_r2_bucket" "etcd_snapshots" {
   account_id = var.cloudflare_account_id
   name       = "arunanshu-etcd-snapshots"
