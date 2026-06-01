@@ -19,32 +19,29 @@ grafana:
         serviceMap:
           datasourceUid: prometheus
 
-  # Stateless Grafana: dashboards and datasources are provisioned from Git via
-  # the sidecars, so no PVC is needed. Dropping persistence removes the RWO
-  # detach/attach gap on node reboots (the blip seen during kured sweeps) and
-  # lets us run 2 replicas for genuine HA on a cheap, stateless workload.
-  replicas: 2
+  # Single replica, intentionally. Grafana stores auth/session tokens in its
+  # database (SQLite on the PVC below). Two replicas would split the session
+  # store across pods — one authenticates while the other returns "user token
+  # not found" — bouncing the browser (ERR_TOO_MANY_REDIRECTS). Genuine HA
+  # needs a shared store (external Postgres, or Redis remote_cache for
+  # sessions); deferred until that tax is worth it.
+  replicas: 1
 
-  deploymentStrategy:
-    type: RollingUpdate
-
+  # Persist Grafana's SQLite on an encrypted Hetzner volume so UI state (users,
+  # prefs, annotations, API keys) and login sessions survive pod restarts.
+  # Dashboards and datasources are still provisioned from Git via the sidecars.
   persistence:
-    enabled: false
+    enabled: true
+    storageClassName: hcloud-volumes-encrypted
+    accessModes: ["ReadWriteOnce"]
+    size: 10Gi
 
-  # Permit one replica down during voluntary disruptions (node drain/reboot).
-  podDisruptionBudget:
-    maxUnavailable: 1
-
-  # Prefer spreading replicas across nodes, but never block scheduling if it
-  # can't be satisfied (ScheduleAnyway per cluster convention).
-  topologySpreadConstraints:
-    - maxSkew: 1
-      topologyKey: kubernetes.io/hostname
-      whenUnsatisfiable: ScheduleAnyway
-      labelSelector:
-        matchLabels:
-          app.kubernetes.io/name: grafana
-          app.kubernetes.io/instance: kube-prometheus-stack
+  # Recreate is REQUIRED with one replica on an RWO volume: RollingUpdate would
+  # spin up a second pod that can't attach the already-attached volume,
+  # deadlocking the rollout. Recreate terminates the old pod first. Trade-off:
+  # a brief detach/attach gap when the host node reboots (kured sweeps).
+  deploymentStrategy:
+    type: Recreate
 
   ingress:
     enabled: false
