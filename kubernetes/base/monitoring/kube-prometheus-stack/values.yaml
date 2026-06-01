@@ -19,16 +19,32 @@ grafana:
         serviceMap:
           datasourceUid: prometheus
 
-  # persist Grafana data in the hetzner volume instead of emptyDir to persist
-  # data across pod restarts
+  # Stateless Grafana: dashboards and datasources are provisioned from Git via
+  # the sidecars, so no PVC is needed. Dropping persistence removes the RWO
+  # detach/attach gap on node reboots (the blip seen during kured sweeps) and
+  # lets us run 2 replicas for genuine HA on a cheap, stateless workload.
+  replicas: 2
+
   deploymentStrategy:
-    type: Recreate
+    type: RollingUpdate
 
   persistence:
-    enabled: true
-    storageClassName: hcloud-volumes-encrypted
-    accessModes: ["ReadWriteOnce"]
-    size: 10Gi
+    enabled: false
+
+  # Permit one replica down during voluntary disruptions (node drain/reboot).
+  podDisruptionBudget:
+    maxUnavailable: 1
+
+  # Prefer spreading replicas across nodes, but never block scheduling if it
+  # can't be satisfied (ScheduleAnyway per cluster convention).
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: grafana
+          app.kubernetes.io/instance: kube-prometheus-stack
 
   ingress:
     enabled: false
