@@ -52,8 +52,12 @@ tempo:
           - service-graphs
           - local-blocks
 
+# Disabled: the tempo chart's ServiceMonitor hardcodes a second endpoint for a
+# "jaeger-metrics" port that this OTLP-only Tempo doesn't expose, producing a scrape pool
+# with 0 discovered targets (false alert). Replaced by a single-endpoint VMServiceScrape
+# defined in victoria-metrics-k8s-stack values (extraObjects) targeting only tempo-prom-metrics.
 serviceMonitor:
-  enabled: true
+  enabled: false
 
 persistence:
   enabled: true

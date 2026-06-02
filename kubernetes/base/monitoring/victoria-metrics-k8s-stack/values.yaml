@@ -12,6 +12,14 @@
 # ArgoCD Application name. See chart values comment on argocdReleaseOverride.
 argocdReleaseOverride: victoria-metrics-k8s-stack
 
+# Base Grafana URL used to build alert "source"/dashboard links in vmalert (and the
+# notifications it sends). Without this they render hostless (http://explore/...). The
+# datasource name must match the provisioned VM datasource so Explore links resolve.
+external:
+  grafana:
+    host: https://grafana.arunanshu.dev
+    datasource: VictoriaMetrics
+
 victoria-metrics-operator:
   enabled: true
   # operator.disable_prometheus_converter defaults to false → ServiceMonitor /
@@ -26,12 +34,16 @@ vmsingle:
     retentionPeriod: "14d" # matches the previous Prometheus retention
     replicaCount: 1
     extraArgs:
-      # By default vmsingle sizes its in-memory caches to memory.allowedPercent=60% of
-      # the cgroup limit (614MiB at a 1Gi limit) — so RSS scales with the limit and a
-      # 1Gi limit OOMKilled it. Cap the cache to a fixed, modest size instead so vmsingle
-      # stays genuinely lean (the whole point of moving off Prometheus). 350MB is ample
-      # for this cluster's ~400k series; raise it if query latency suffers at scale.
-      memory.allowedBytes: "350MB"
+      # vmsingle sizes caches to memory.allowedPercent=60% of the cgroup limit by default,
+      # so RSS scales with the limit. We pin the cache to a FIXED size via allowedBytes
+      # (decoupled from the limit) so we control memory directly.
+      #
+      # History: 350MB was set to stop an OOM on a 1Gi limit during the parallel run. The
+      # ~80% slow-insert ratio (TooHighSlowInsertsRate) was driven mostly by uncontrolled
+      # apiserver/etcd histogram cardinality (~340k series) — fixed by the kubeApiServer
+      # metric drops below, which cut active series back to the kube-prom baseline. 512MB
+      # comfortably holds that working set; no OOM (cache fixed by allowedBytes, not the limit).
+      memory.allowedBytes: "512MB"
     storage:
       storageClassName: hcloud-volumes-encrypted
       accessModes:
@@ -42,12 +54,12 @@ vmsingle:
     resources:
       requests:
         cpu: 100m
-        memory: 384Mi
+        memory: 512Mi
       limits:
-        # Safety ceiling only. With memory.allowedBytes capping the cache above, steady
-        # RSS sits well under this (and well under Prometheus's ~1.5Gi). Do NOT raise this
-        # to "fix" an OOM — a higher limit just lets the cache grow; lower allowedBytes.
-        memory: 1Gi
+        # Safety ceiling only (cache is fixed by memory.allowedBytes above, so RSS does NOT
+        # track this). Headroom = limit − cache for the ingest/query working set. Don't raise
+        # this to "fix" an OOM — raise/lower memory.allowedBytes instead.
+        memory: 1536Mi
 
 # vmagent: scraping, replaces Prometheus scrape loop. selectAllByDefault (chart default)
 # makes it scrape every converted ServiceMonitor/PodMonitor cluster-wide — mirrors the old
@@ -266,6 +278,29 @@ prometheus-node-exporter:
     - >-
       --collector.netstat.fields=^(.*_(InErrors|InErrs)|Ip_Forwarding|Ip_FragFails|Ip_ReasmFails|Ip(6|Ext)_(InOctets|OutOctets)|Icmp6?_(InMsgs|OutMsgs)|TcpExt_(Listen.*|Syncookies.*|TCPSynRetrans|TCPTimeouts|TCPOFOQueue|TCPRcvQDrop)|Tcp_(ActiveOpens|InSegs|OutSegs|OutRsts|PassiveOpens|RetransSegs|CurrEstab)|Udp6?_(InDatagrams|OutDatagrams|NoPorts|RcvbufErrors|SndbufErrors))$
 
+# apiserver/etcd request-duration histograms are the dominant cardinality source
+# (~340k of ~580k active series). kube-prometheus-stack dropped the intermediate histogram
+# buckets by default via metricRelabelings; the VM chart's apiserver scrape does NOT, so the
+# migration silently ingested the full firehose — driving node memory up and the tsid cache
+# to ~80% (TooHighSlowInsertsRate). Restore the exact kube-prom drop (keeps the SLO-relevant
+# le buckets so the kubeApiserver* rules still work). The full endpoint spec is repeated
+# because providing .endpoints replaces the chart default list.
+kubeApiServer:
+  enabled: true
+  vmScrape:
+    spec:
+      endpoints:
+        - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+          port: https
+          scheme: https
+          tlsConfig:
+            caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            serverName: kubernetes
+          metricRelabelConfigs:
+            - action: drop
+              sourceLabels: [__name__, le]
+              regex: '(etcd_request|apiserver_request_slo|apiserver_request_sli|apiserver_request)_duration_seconds_bucket;(0\.15|0\.2|0\.3|0\.35|0\.4|0\.45|0\.6|0\.7|0\.8|0\.9|1\.25|1\.5|1\.75|2|3|3\.5|4|4\.5|6|7|8|9|15|20|40|45|50)(\.0)?'
+
 # k3s embeds/hides these control-plane components (mirrors the old kube-prom config).
 kubeControllerManager:
   enabled: false
@@ -290,3 +325,20 @@ defaultRules:
       enabled: false
     kubernetesSystemControllerManager:
       enabled: false
+
+# Native scrape for Tempo, replacing its chart ServiceMonitor (disabled in tempo/values.yaml
+# because it hardcodes a dead jaeger-metrics endpoint → 0-target false alert). Targets only
+# the real tempo-prom-metrics port (3200).
+extraObjects:
+  - apiVersion: operator.victoriametrics.com/v1beta1
+    kind: VMServiceScrape
+    metadata:
+      name: tempo-metrics
+      namespace: monitoring
+    spec:
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: tempo
+          app.kubernetes.io/instance: tempo
+      endpoints:
+        - port: tempo-prom-metrics
