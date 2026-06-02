@@ -1,0 +1,101 @@
+# victoria-metrics-k8s-stack — drop-in replacement for kube-prometheus-stack.
+#
+# MIGRATION STATE: Phase 0/1 (deployed ALONGSIDE kube-prometheus-stack).
+# grafana, kube-state-metrics and prometheus-node-exporter are DISABLED here: the
+# still-running kube-prometheus-stack owns them, and vmagent scrapes them via the
+# VMServiceScrapes auto-converted from kube-prom's ServiceMonitors. These three get
+# enabled (and their kube-prom customizations ported over) in the Phase 4 cutover
+# commit that removes kube-prometheus-stack. See docs/plans + the migration plan.
+
+# REQUIRED in ArgoCD when the Application sets helm.releaseName, otherwise the
+# generated VMServiceScrapes cannot select the chart's own Services. Must equal the
+# ArgoCD Application name. See chart values comment on argocdReleaseOverride.
+argocdReleaseOverride: victoria-metrics-k8s-stack
+
+victoria-metrics-operator:
+  enabled: true
+  # operator.disable_prometheus_converter defaults to false → ServiceMonitor /
+  # PodMonitor / PrometheusRule objects are auto-converted to VM CRDs. This is what
+  # keeps cloudflared/Cilium/Traefik/KEDA/Tempo/hcloud-ccm/alert-app definitions working
+  # untouched during and after the migration.
+
+# vmsingle: single-binary TSDB + query, replaces the Prometheus server.
+vmsingle:
+  enabled: true
+  spec:
+    retentionPeriod: "14d" # matches the previous Prometheus retention
+    replicaCount: 1
+    storage:
+      storageClassName: hcloud-volumes-encrypted
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+
+# vmagent: scraping, replaces Prometheus scrape loop. selectAllByDefault (chart default)
+# makes it scrape every converted ServiceMonitor/PodMonitor cluster-wide — mirrors the old
+# serviceMonitorSelectorNilUsesHelmValues: false behaviour.
+vmagent:
+  enabled: true
+  spec:
+    scrapeInterval: 30s # matches the previous Prometheus default scrape interval
+    resources:
+      requests:
+        cpu: 50m
+        memory: 96Mi
+
+# vmalert: rule evaluation. selectAllByDefault (chart default) evaluates every converted
+# PrometheusRule/VMRule cluster-wide.
+vmalert:
+  enabled: true
+
+# Alertmanager (operator-managed upstream prom/alertmanager).
+# During the parallel run we keep the default blackhole receiver so we do NOT emit
+# DUPLICATE emails alongside the still-running kube-prometheus-stack Alertmanager. The
+# real Resend SMTP / email / Watchdog config is ported in at the Phase 4 cutover.
+# The SMTP SealedSecret is mounted now so it is ready when the config switches.
+alertmanager:
+  enabled: true
+  spec:
+    secrets:
+      - alertmanager-smtp
+
+# --- disabled during the parallel run; enabled in the Phase 4 cutover ---
+grafana:
+  enabled: false
+kube-state-metrics:
+  enabled: false
+prometheus-node-exporter:
+  enabled: false
+
+# k3s embeds/hides these control-plane components (mirrors the old kube-prom config).
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+
+# Re-ships the kube-prometheus dashboards + recording/alerting rules. Disable the rule
+# groups for components k3s does not expose, to avoid no-data panels and false alerts.
+defaultDashboards:
+  enabled: true
+
+defaultRules:
+  enabled: true
+  groups:
+    etcd:
+      enabled: false
+    kubeScheduler:
+      enabled: false
+    kubernetesSystemScheduler:
+      enabled: false
+    kubernetesSystemControllerManager:
+      enabled: false

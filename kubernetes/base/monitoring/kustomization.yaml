@@ -6,6 +6,7 @@ resources:
   - appproject.yaml
   - kube-prometheus-stack/application.yaml
   - kube-prometheus-stack-secrets/application.yaml
+  - victoria-metrics-k8s-stack/application.yaml
   - tempo/application.yaml
   - grafana-route/application.yaml
   - prometheus-route/application.yaml
