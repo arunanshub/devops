@@ -58,6 +58,30 @@ recording/alerting rules (and dashboards). Leaving kube-prom's enabled would dup
 rule (the VM operator would convert kube-prom's PrometheusRules into VMRules on top of the VM
 chart's own). VM is the single source post-cutover.
 
+### The VM chart does NOT drop apiserver/etcd histogram buckets — kube-prom did
+
+This was the reason "memory didn't drop after the migration" and the cause of
+`TooHighSlowInsertsRate`. kube-prometheus-stack's apiserver ServiceMonitor ships a
+`metricRelabelings` drop for the intermediate `le` buckets of the apiserver/etcd
+request-duration histograms. The `victoria-metrics-k8s-stack` apiserver scrape (`kubeApiServer`)
+has **no such drop**, so post-migration we ingested ~340k extra series (≈58% of ~580k active),
+which kept memory high and ran the `storage/tsid` cache ~80% full and evicting.
+
+Diagnosis (per VictoriaMetrics#3976): `vm_slow_row_inserts_total` rises when a series' tsid
+isn't cached. Causes are (1) churn — here ~1.8 series/s, negligible; (2) cache too small for
+the active series; (3) sample interval > `-cacheExpireDuration` (30m) — here ~25s, so no. That
+left (2): cache pressure from cardinality. Fix = cut cardinality, not inflate the cache. The
+exact kube-prom drop is restored on `kubeApiServer.vmScrape` (keeps SLO-relevant buckets). After
+that the cache stays modest (`memory.allowedBytes: 512MB`). If more savings are wanted, drop the
+apiserver SLO histograms entirely and disable the `kubeApiserver*` rule groups (opt-in — reduces
+apiserver observability).
+
+Related: when neutering kube-prom, disable ALL `kube*` scrape components (kubeApiServer/kubelet/
+coreDns/kubeControllerManager/kubeScheduler/kubeEtcd/kubeProxy). The k3s-absent ones
+(controller-manager/scheduler/etcd) otherwise create ServiceMonitors with 0 targets (false
+alerts); kubelet/apiserver/coredns are scraped natively by the VM chart, so leaving kube-prom's
+enabled just double-scrapes (extra load + cardinality).
+
 ### vmsingle memory scales with its limit — cap the cache, don't raise the limit
 
 vmsingle sizes its caches to `-memory.allowedPercent=60%` of the cgroup limit (614MiB at a

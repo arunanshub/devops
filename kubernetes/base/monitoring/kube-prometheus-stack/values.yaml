@@ -39,3 +39,25 @@ nodeExporter:
 # avoids duplicate rules (the VM operator would otherwise also convert these to VMRules).
 defaultRules:
   create: false
+
+# Disable ALL kube-* scrape components so this chart emits ZERO ServiceMonitors (truly
+# CRD-only). Otherwise the chart defaults (kubeControllerManager/Scheduler/Etcd enabled)
+# would create ServiceMonitors for control-plane components k3s doesn't expose → scrapes
+# with 0 discovered targets → false "0 discovered targets" alerts. kubelet/apiserver/coredns
+# scrapes are provided natively by the VM chart, so disable them here too to avoid duplicates.
+kubeApiServer:
+  enabled: false
+kubelet:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeEtcd:
+  enabled: false
+coreDns:
+  enabled: false
+kubeDns:
+  enabled: false
