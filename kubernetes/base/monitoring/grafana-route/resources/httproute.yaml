@@ -20,6 +20,6 @@ spec:
       backendRefs:
         - group: ""
           kind: Service
-          name: kube-prometheus-stack-grafana
+          name: victoria-metrics-k8s-stack-grafana
           port: 80
           weight: 1

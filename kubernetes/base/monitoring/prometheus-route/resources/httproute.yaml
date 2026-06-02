@@ -13,22 +13,9 @@ spec:
   hostnames:
     - prometheus.arunanshu.dev
   rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /assets/
-      filters:
-        - type: ExtensionRef
-          extensionRef:
-            group: traefik.io
-            kind: Middleware
-            name: cache-assets
-      backendRefs:
-        - group: ""
-          kind: Service
-          name: kube-prometheus-stack-prometheus
-          port: 9090
-          weight: 1
+    # vmsingle serves its UI (vmui) and the Prometheus-compatible API on :8428.
+    # The previous /assets/ cache rule was Prometheus-UI-specific; vmui serves under
+    # /vmui/ and sets its own asset cache headers, so it's dropped.
     - matches:
         - path:
             type: PathPrefix
@@ -36,6 +23,6 @@ spec:
       backendRefs:
         - group: ""
           kind: Service
-          name: kube-prometheus-stack-prometheus
-          port: 9090
+          name: vmsingle-victoria-metrics-k8s-stack
+          port: 8428
           weight: 1

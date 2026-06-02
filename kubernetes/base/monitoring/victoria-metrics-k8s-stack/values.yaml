@@ -77,9 +77,60 @@ alertmanager:
     secrets:
       - alertmanager-smtp
 
-# --- disabled during the parallel run; enabled in the Phase 4 cutover ---
+# Grafana is enabled and serves grafana.arunanshu.dev (route repointed to the VM
+# grafana service). Fresh PVC — clean cut on local UI state, per migration decision;
+# dashboards/datasources are provisioned, admin comes from the grafana-admin secret.
+defaultDatasources:
+  victoriametrics:
+    datasources:
+      # uid "prometheus" so the bundled kube-prometheus dashboards (${DS_PROMETHEUS})
+      # and Tempo's serviceMap.datasourceUid: prometheus resolve without edits. The VM
+      # URL is injected by the chart. (Dropped the default victoriametrics-metrics
+      # datasource entry — it needs an internet-installed plugin we don't ship.)
+      - name: VictoriaMetrics
+        type: prometheus
+        access: proxy
+        uid: prometheus
+        isDefault: true
+  extra:
+    - name: Tempo
+      type: tempo
+      uid: tempo
+      url: http://tempo.monitoring.svc.cluster.local:3200
+      access: proxy
+      jsonData:
+        nodeGraph:
+          enabled: true
+        serviceMap:
+          datasourceUid: prometheus
+
 grafana:
-  enabled: false
+  enabled: true
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  # Single replica + Recreate on an RWO encrypted volume — same rationale as the old
+  # kube-prom Grafana: SQLite session store can't be split across pods, and RollingUpdate
+  # would deadlock on the already-attached RWO volume.
+  replicas: 1
+  persistence:
+    enabled: true
+    storageClassName: hcloud-volumes-encrypted
+    accessModes: ["ReadWriteOnce"]
+    size: 10Gi
+  deploymentStrategy:
+    type: Recreate
+  ingress:
+    enabled: false
+  resources:
+    requests:
+      cpu: 25m
+      memory: 384Mi
+
+# Still DISABLED until the phase-4 cutover: enabling now would clash with kube-prom's
+# running node-exporter on hostPort 9100 and duplicate kube-state-metrics. vmagent
+# scrapes the kube-prom-owned exporters via converted scrapes until then.
 kube-state-metrics:
   enabled: false
 prometheus-node-exporter:
