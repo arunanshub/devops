@@ -25,6 +25,13 @@ vmsingle:
   spec:
     retentionPeriod: "14d" # matches the previous Prometheus retention
     replicaCount: 1
+    extraArgs:
+      # By default vmsingle sizes its in-memory caches to memory.allowedPercent=60% of
+      # the cgroup limit (614MiB at a 1Gi limit) — so RSS scales with the limit and a
+      # 1Gi limit OOMKilled it. Cap the cache to a fixed, modest size instead so vmsingle
+      # stays genuinely lean (the whole point of moving off Prometheus). 350MB is ample
+      # for this cluster's ~400k series; raise it if query latency suffers at scale.
+      memory.allowedBytes: "350MB"
     storage:
       storageClassName: hcloud-volumes-encrypted
       accessModes:
@@ -35,8 +42,11 @@ vmsingle:
     resources:
       requests:
         cpu: 100m
-        memory: 256Mi
+        memory: 384Mi
       limits:
+        # Safety ceiling only. With memory.allowedBytes capping the cache above, steady
+        # RSS sits well under this (and well under Prometheus's ~1.5Gi). Do NOT raise this
+        # to "fix" an OOM — a higher limit just lets the cache grow; lower allowedBytes.
         memory: 1Gi
 
 # vmagent: scraping, replaces Prometheus scrape loop. selectAllByDefault (chart default)
