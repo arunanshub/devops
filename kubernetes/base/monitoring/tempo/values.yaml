@@ -31,7 +31,7 @@ tempo:
 
   metricsGenerator:
     enabled: true
-    remoteWriteUrl: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write"
+    remoteWriteUrl: "http://vmsingle-victoria-metrics-k8s-stack.monitoring.svc.cluster.local:8428/api/v1/write"
     processor:
       service_graphs:
         wait: 10s
