@@ -16,3 +16,4 @@ resources:
   - cluster-alerts/application.yaml
   - tempo-pdb/application.yaml
   - vpa-dashboard/application.yaml
+  - pv-dashboard/application.yaml
