@@ -66,16 +66,41 @@ vmagent:
 vmalert:
   enabled: true
 
-# Alertmanager (operator-managed upstream prom/alertmanager).
-# During the parallel run we keep the default blackhole receiver so we do NOT emit
-# DUPLICATE emails alongside the still-running kube-prometheus-stack Alertmanager. The
-# real Resend SMTP / email / Watchdog config is ported in at the Phase 4 cutover.
-# The SMTP SealedSecret is mounted now so it is ready when the config switches.
+# Alertmanager (operator-managed upstream prom/alertmanager). Now the primary alert
+# router (kube-prom's Alertmanager is decommissioned in the same cutover). Config ported
+# from the old kube-prometheus-stack values; the SMTP SealedSecret is mounted via
+# spec.secrets at /etc/vm/secrets/alertmanager-smtp/ (note: different path than
+# prometheus-operator's Alertmanager). useManagedConfig defaults false, so config uses the
+# standard Prometheus Alertmanager schema.
 alertmanager:
   enabled: true
   spec:
     secrets:
       - alertmanager-smtp
+  config:
+    global:
+      resolve_timeout: 5m
+      smtp_smarthost: "smtp.resend.com:587"
+      smtp_from: "onboarding@resend.dev"
+      smtp_auth_username: "resend"
+      smtp_auth_password_file: /etc/vm/secrets/alertmanager-smtp/password
+      smtp_require_tls: true
+    route:
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: email
+      routes:
+        - matchers:
+            - alertname = "Watchdog"
+          receiver: "null"
+    receivers:
+      - name: "null"
+      - name: email
+        email_configs:
+          - to: mydellpc07@gmail.com
+            send_resolved: true
 
 # Grafana is enabled and serves grafana.arunanshu.dev (route repointed to the VM
 # grafana service). Fresh PVC — clean cut on local UI state, per migration decision;
@@ -128,13 +153,118 @@ grafana:
       cpu: 25m
       memory: 384Mi
 
-# Still DISABLED until the phase-4 cutover: enabling now would clash with kube-prom's
-# running node-exporter on hostPort 9100 and duplicate kube-state-metrics. vmagent
-# scrapes the kube-prom-owned exporters via converted scrapes until then.
+# VM-managed now (kube-prom's are decommissioned in the same cutover; the node-exporter
+# hostPort 9100 handoff self-resolves once kube-prom's DaemonSet is pruned).
 kube-state-metrics:
-  enabled: false
+  enabled: true
+  # VPA recommendations as custom-resource-state metrics (ported from kube-prom). KSM
+  # auto-prefixes kube_customresource_, yielding kube_customresource_vpa_containerrecommendations_*
+  # which Grafana dashboard 14588 expects.
+  rbac:
+    extraRules:
+      - apiGroups: ["autoscaling.k8s.io"]
+        resources: ["verticalpodautoscalers"]
+        verbs: ["list", "watch"]
+  customResourceState:
+    enabled: true
+    config:
+      kind: CustomResourceStateMetrics
+      spec:
+        resources:
+          - groupVersionKind:
+              group: autoscaling.k8s.io
+              version: v1
+              kind: VerticalPodAutoscaler
+            labelsFromPath:
+              verticalpodautoscaler: [metadata, name]
+              namespace: [metadata, namespace]
+              target_api_version: [apiVersion]
+              target_kind: [spec, targetRef, kind]
+              target_name: [spec, targetRef, name]
+            metrics:
+              - name: vpa_containerrecommendations_target
+                help: "VPA target resource recommendation per container."
+                commonLabels: {resource: memory, unit: byte}
+                each:
+                  type: Gauge
+                  gauge:
+                    path: [status, recommendation, containerRecommendations]
+                    labelsFromPath: {container: [containerName]}
+                    valueFrom: [target, memory]
+              - name: vpa_containerrecommendations_target
+                help: "VPA target resource recommendation per container."
+                commonLabels: {resource: cpu, unit: core}
+                each:
+                  type: Gauge
+                  gauge:
+                    path: [status, recommendation, containerRecommendations]
+                    labelsFromPath: {container: [containerName]}
+                    valueFrom: [target, cpu]
+              - name: vpa_containerrecommendations_lowerbound
+                help: "VPA lower bound recommendation per container."
+                commonLabels: {resource: memory, unit: byte}
+                each:
+                  type: Gauge
+                  gauge:
+                    path: [status, recommendation, containerRecommendations]
+                    labelsFromPath: {container: [containerName]}
+                    valueFrom: [lowerBound, memory]
+              - name: vpa_containerrecommendations_lowerbound
+                help: "VPA lower bound recommendation per container."
+                commonLabels: {resource: cpu, unit: core}
+                each:
+                  type: Gauge
+                  gauge:
+                    path: [status, recommendation, containerRecommendations]
+                    labelsFromPath: {container: [containerName]}
+                    valueFrom: [lowerBound, cpu]
+              - name: vpa_containerrecommendations_upperbound
+                help: "VPA upper bound recommendation per container."
+                commonLabels: {resource: memory, unit: byte}
+                each:
+                  type: Gauge
+                  gauge:
+                    path: [status, recommendation, containerRecommendations]
+                    labelsFromPath: {container: [containerName]}
+                    valueFrom: [upperBound, memory]
+              - name: vpa_containerrecommendations_upperbound
+                help: "VPA upper bound recommendation per container."
+                commonLabels: {resource: cpu, unit: core}
+                each:
+                  type: Gauge
+                  gauge:
+                    path: [status, recommendation, containerRecommendations]
+                    labelsFromPath: {container: [containerName]}
+                    valueFrom: [upperBound, cpu]
+              - name: vpa_containerrecommendations_uncappedtarget
+                help: "VPA uncapped target recommendation per container (ignores resourcePolicy)."
+                commonLabels: {resource: memory, unit: byte}
+                each:
+                  type: Gauge
+                  gauge:
+                    path: [status, recommendation, containerRecommendations]
+                    labelsFromPath: {container: [containerName]}
+                    valueFrom: [uncappedTarget, memory]
+              - name: vpa_containerrecommendations_uncappedtarget
+                help: "VPA uncapped target recommendation per container (ignores resourcePolicy)."
+                commonLabels: {resource: cpu, unit: core}
+                each:
+                  type: Gauge
+                  gauge:
+                    path: [status, recommendation, containerRecommendations]
+                    labelsFromPath: {container: [containerName]}
+                    valueFrom: [uncappedTarget, cpu]
+
 prometheus-node-exporter:
-  enabled: false
+  enabled: true
+  # List REPLACES the chart default, so the chart's filesystem excludes are repeated here
+  # alongside the netstat regex ported from kube-prom (extended with Ip_FragFails /
+  # Ip_ReasmFails — direct MTU-misconfiguration indicators in the overlay stack).
+  extraArgs:
+    - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/.+)($|/)
+    - --collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|erofs|sysfs|tracefs)$
+    - >-
+      --collector.netstat.fields=^(.*_(InErrors|InErrs)|Ip_Forwarding|Ip_FragFails|Ip_ReasmFails|Ip(6|Ext)_(InOctets|OutOctets)|Icmp6?_(InMsgs|OutMsgs)|TcpExt_(Listen.*|Syncookies.*|TCPSynRetrans|TCPTimeouts|TCPOFOQueue|TCPRcvQDrop)|Tcp_(ActiveOpens|InSegs|OutSegs|OutRsts|PassiveOpens|RetransSegs|CurrEstab)|Udp6?_(InDatagrams|OutDatagrams|NoPorts|RcvbufErrors|SndbufErrors))$
 
 # k3s embeds/hides these control-plane components (mirrors the old kube-prom config).
 kubeControllerManager:

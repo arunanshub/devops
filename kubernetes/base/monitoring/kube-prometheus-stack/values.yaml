@@ -1,302 +1,41 @@
+# kube-prometheus-stack is NEUTERED: it now exists ONLY to provide the
+# prometheus-operator CRD definitions (servicemonitors / podmonitors / prometheusrules /
+# probes / scrapeconfigs / ...). Those CRDs are still required because third-party charts
+# (cilium, traefik, keda, tempo, cloudflared, hcloud-ccm) emit ServiceMonitor/PodMonitor
+# objects, which the VictoriaMetrics operator converts to VM-native scrapes. All actual
+# monitoring workloads now run on VictoriaMetrics — see victoria-metrics-k8s-stack/ and
+# docs/victoriametrics-migration.md.
+#
+# ⚠️  DO NOT delete this Application. Pruning it would delete the prometheus-operator CRDs,
+# and Kubernetes garbage-collects every CR of a kind when its CRD is deleted — that would
+# cascade-delete every ServiceMonitor/PodMonitor/PrometheusRule cluster-wide and blind
+# vmagent. Disabling the workloads (below) while keeping crds.enabled lets normal sync prune
+# only the workloads; the CRDs stay explicitly desired and are never prune candidates.
+#
+# Follow-up: replace this neutered chart with the dedicated prometheus-operator-crds chart
+# (see the migration doc) once the VM stack has settled.
+
 fullnameOverride: kube-prometheus-stack
 
-grafana:
+# The whole reason this chart is retained — keep the CRDs.
+crds:
   enabled: true
-  admin:
-    existingSecret: grafana-admin
-    userKey: admin-user
-    passwordKey: admin-password
 
-  additionalDataSources:
-    - name: Tempo
-      type: tempo
-      uid: tempo
-      url: http://tempo.monitoring.svc.cluster.local:3200
-      access: proxy
-      jsonData:
-        nodeGraph:
-          enabled: true
-        serviceMap:
-          datasourceUid: prometheus
-
-  # Single replica, intentionally. Grafana stores auth/session tokens in its
-  # database (SQLite on the PVC below). Two replicas would split the session
-  # store across pods — one authenticates while the other returns "user token
-  # not found" — bouncing the browser (ERR_TOO_MANY_REDIRECTS). Genuine HA
-  # needs a shared store (external Postgres, or Redis remote_cache for
-  # sessions); deferred until that tax is worth it.
-  replicas: 1
-
-  # Persist Grafana's SQLite on an encrypted Hetzner volume so UI state (users,
-  # prefs, annotations, API keys) and login sessions survive pod restarts.
-  # Dashboards and datasources are still provisioned from Git via the sidecars.
-  persistence:
-    enabled: true
-    storageClassName: hcloud-volumes-encrypted
-    accessModes: ["ReadWriteOnce"]
-    size: 10Gi
-
-  # Recreate is REQUIRED with one replica on an RWO volume: RollingUpdate would
-  # spin up a second pod that can't attach the already-attached volume,
-  # deadlocking the rollout. Recreate terminates the old pod first. Trade-off:
-  # a brief detach/attach gap when the host node reboots (kured sweeps).
-  deploymentStrategy:
-    type: Recreate
-
-  ingress:
-    enabled: false
-
-  resources:
-    requests:
-      cpu: 25m
-      memory: 384Mi
-
+# All workloads moved to VictoriaMetrics (victoria-metrics-k8s-stack).
 prometheus:
-  ingress:
-    enabled: false
-
-  podDisruptionBudget:
-    enabled: true
-    minAvailable: null
-    maxUnavailable: 1
-    unhealthyPodEvictionPolicy: AlwaysAllow
-
-  verticalPodAutoscaler:
-    enabled: true
-    minAllowed:
-      cpu: 100m
-      memory: 512Mi
-    maxAllowed:
-      cpu: 2
-      memory: 4Gi
-    updatePolicy:
-      updateMode: InPlaceOrRecreate
-      minReplicas: 1
-
-  prometheusSpec:
-    externalUrl: https://prometheus.arunanshu.dev
-    enableRemoteWriteReceiver: true
-    retention: 14d
-    retentionSize: 8GiB
-    serviceMonitorSelectorNilUsesHelmValues: false
-    podMonitorSelectorNilUsesHelmValues: false
-    ruleSelectorNilUsesHelmValues: false
-    # store in the hetzner volume instead of emptyDir to persist data across pod
-    # restarts
-    storageSpec:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: hcloud-volumes-encrypted
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 10Gi
-
+  enabled: false
 alertmanager:
-  ingress:
-    enabled: false
-
-  enabled: true
-  alertmanagerSpec:
-    retention: 120h
-    # Mount the SealedSecret into the Alertmanager pod
-    secrets:
-      - alertmanager-smtp
-    # store in the hetzner volume instead of emptyDir to persist data across pod
-    storage:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: hcloud-volumes-encrypted
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 10Gi
-
-  config:
-    global:
-      resolve_timeout: 5m
-      smtp_smarthost: "smtp.resend.com:587"
-      smtp_from: "onboarding@resend.dev"
-      smtp_auth_username: "resend"
-      # File path is /etc/alertmanager/secrets/<secret-name>/<key>
-      smtp_auth_password_file: /etc/alertmanager/secrets/alertmanager-smtp/password
-      smtp_require_tls: true
-
-    route:
-      group_by: ["alertname", "namespace"]
-      group_wait: 30s
-      group_interval: 5m
-      repeat_interval: 12h
-      receiver: "email"
-      routes:
-        - matchers:
-            - alertname = "Watchdog"
-          receiver: "null"
-
-    receivers:
-      - name: "null"
-      - name: "email"
-        email_configs:
-          - to: "mydellpc07@gmail.com" # ← your actual email
-            send_resolved: true
-
-prometheus-node-exporter:
-  extraArgs:
-    # Default netstat fields regex extended with Ip_FragFails and Ip_ReasmFails.
-    # Ip_FragFails = packets with DF bit set dropped because they exceeded path MTU.
-    # Ip_ReasmFails = fragmented packets that arrived but failed reassembly.
-    # Both are direct indicators of MTU misconfiguration in the overlay stack.
-    - >-
-      --collector.netstat.fields=^(.*_(InErrors|InErrs)|Ip_Forwarding|Ip_FragFails|Ip_ReasmFails|Ip(6|Ext)_(InOctets|OutOctets)|Icmp6?_(InMsgs|OutMsgs)|TcpExt_(Listen.*|Syncookies.*|TCPSynRetrans|TCPTimeouts|TCPOFOQueue|TCPRcvQDrop)|Tcp_(ActiveOpens|InSegs|OutSegs|OutRsts|PassiveOpens|RetransSegs|CurrEstab)|Udp6?_(InDatagrams|OutDatagrams|NoPorts|RcvbufErrors|SndbufErrors))$
-
+  enabled: false
+grafana:
+  enabled: false
 prometheusOperator:
-  admissionWebhooks:
-    patch:
-      # "hook-succeeded" (chart default) deletes the job immediately after completion,
-      # before ArgoCD can observe the Complete condition — causing infinite sync retries.
-      # "before-hook-creation" keeps the completed job until the next sync, giving
-      # ArgoCD time to register success.
-      hookDeletePolicy: before-hook-creation
-
-# embedded etcd runs inside the k3s server process, not as a visible static pod like kubeadm
-kubeEtcd:
+  enabled: false
+kubeStateMetrics:
+  enabled: false
+nodeExporter:
   enabled: false
 
-# disable these since we run k3s which doesn't have these components
-kubeControllerManager:
-  enabled: false
-kubeScheduler:
-  enabled: false
-kubeProxy:
-  enabled: false
-
+# The VM chart re-ships the kube-prometheus mixin recording/alerting rules; disabling here
+# avoids duplicate rules (the VM operator would otherwise also convert these to VMRules).
 defaultRules:
-  rules:
-    kubeControllerManager: false
-    kubeSchedulerAlerting: false
-    kubeSchedulerRecording: false
-    kubeProxy: false
-    etcd: false
-
-kube-state-metrics:
-  rbac:
-    extraRules:
-      - apiGroups: ["autoscaling.k8s.io"]
-        resources: ["verticalpodautoscalers"]
-        verbs: ["list", "watch"]
-  customResourceState:
-    enabled: true
-    config:
-      kind: CustomResourceStateMetrics
-      spec:
-        resources:
-          - groupVersionKind:
-              group: autoscaling.k8s.io
-              version: v1
-              kind: VerticalPodAutoscaler
-            # No metricNamePrefix — KSM auto-applies kube_customresource_ prefix,
-            # producing kube_customresource_vpa_containerrecommendations_* which
-            # is exactly what Grafana dashboard 14588 expects.
-            labelsFromPath:
-              verticalpodautoscaler: [metadata, name]
-              namespace: [metadata, namespace]
-              target_api_version: [apiVersion]
-              target_kind: [spec, targetRef, kind]
-              target_name: [spec, targetRef, name]
-            metrics:
-              - name: vpa_containerrecommendations_target
-                help: "VPA target resource recommendation per container."
-                commonLabels:
-                  resource: memory
-                  unit: byte
-                each:
-                  type: Gauge
-                  gauge:
-                    path: [status, recommendation, containerRecommendations]
-                    labelsFromPath:
-                      container: [containerName]
-                    valueFrom: [target, memory]
-              - name: vpa_containerrecommendations_target
-                help: "VPA target resource recommendation per container."
-                commonLabels:
-                  resource: cpu
-                  unit: core
-                each:
-                  type: Gauge
-                  gauge:
-                    path: [status, recommendation, containerRecommendations]
-                    labelsFromPath:
-                      container: [containerName]
-                    valueFrom: [target, cpu]
-              - name: vpa_containerrecommendations_lowerbound
-                help: "VPA lower bound recommendation per container."
-                commonLabels:
-                  resource: memory
-                  unit: byte
-                each:
-                  type: Gauge
-                  gauge:
-                    path: [status, recommendation, containerRecommendations]
-                    labelsFromPath:
-                      container: [containerName]
-                    valueFrom: [lowerBound, memory]
-              - name: vpa_containerrecommendations_lowerbound
-                help: "VPA lower bound recommendation per container."
-                commonLabels:
-                  resource: cpu
-                  unit: core
-                each:
-                  type: Gauge
-                  gauge:
-                    path: [status, recommendation, containerRecommendations]
-                    labelsFromPath:
-                      container: [containerName]
-                    valueFrom: [lowerBound, cpu]
-              - name: vpa_containerrecommendations_upperbound
-                help: "VPA upper bound recommendation per container."
-                commonLabels:
-                  resource: memory
-                  unit: byte
-                each:
-                  type: Gauge
-                  gauge:
-                    path: [status, recommendation, containerRecommendations]
-                    labelsFromPath:
-                      container: [containerName]
-                    valueFrom: [upperBound, memory]
-              - name: vpa_containerrecommendations_upperbound
-                help: "VPA upper bound recommendation per container."
-                commonLabels:
-                  resource: cpu
-                  unit: core
-                each:
-                  type: Gauge
-                  gauge:
-                    path: [status, recommendation, containerRecommendations]
-                    labelsFromPath:
-                      container: [containerName]
-                    valueFrom: [upperBound, cpu]
-              - name: vpa_containerrecommendations_uncappedtarget
-                help: "VPA uncapped target recommendation per container (ignores resourcePolicy)."
-                commonLabels:
-                  resource: memory
-                  unit: byte
-                each:
-                  type: Gauge
-                  gauge:
-                    path: [status, recommendation, containerRecommendations]
-                    labelsFromPath:
-                      container: [containerName]
-                    valueFrom: [uncappedTarget, memory]
-              - name: vpa_containerrecommendations_uncappedtarget
-                help: "VPA uncapped target recommendation per container (ignores resourcePolicy)."
-                commonLabels:
-                  resource: cpu
-                  unit: core
-                each:
-                  type: Gauge
-                  gauge:
-                    path: [status, recommendation, containerRecommendations]
-                    labelsFromPath:
-                      container: [containerName]
-                    valueFrom: [uncappedTarget, cpu]
+  create: false
