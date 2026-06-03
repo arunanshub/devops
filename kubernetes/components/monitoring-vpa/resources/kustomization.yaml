@@ -3,3 +3,9 @@ kind: Kustomization
 resources:
   - vpa-grafana.yaml
   - vpa-tempo.yaml
+  - vpa-vmsingle.yaml
+  - vpa-vmagent.yaml
+  - vpa-vmalert.yaml
+  - vpa-vmalertmanager.yaml
+  - vpa-vm-operator.yaml
+  - vpa-kube-state-metrics.yaml
