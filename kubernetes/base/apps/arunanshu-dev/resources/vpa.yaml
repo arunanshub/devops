@@ -9,7 +9,7 @@ spec:
     kind: Deployment
     name: arunanshu-dev
   updatePolicy:
-    updateMode: "Off"
+    updateMode: InPlaceOrRecreate
   resourcePolicy:
     containerPolicies:
       - containerName: arunanshu-dev
