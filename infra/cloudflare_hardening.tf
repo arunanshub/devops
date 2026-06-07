@@ -2,11 +2,12 @@
 
 # Bot Fight Mode: challenges cloud-provider bots and headless browsers.
 # AI bots (GPTBot, ClaudeBot, etc.) are allowed — they're polite crawlers and
-# serve cached responses from the CF edge, so the origin sees negligible load.
-# fight_mode still blocks the actually-malicious unverified bots.
+# the CF edge serves them cached content, so the origin sees negligible load.
+# Requires "Bot Management" permission on the API token.
 resource "cloudflare_bot_management" "main" {
   zone_id            = var.cloudflare_zone_id
   fight_mode         = true
+  enable_js          = true
   ai_bots_protection = "disabled"
 }
 
