@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - httproute.yaml
+  - scaledobject.yaml
+  - vpa.yaml
+
+images:
+  - name: arunanshu-dev
+    newName: ghcr.io/arunanshub/arunanshu.dev
+    newTag: 20260607141707-9305683

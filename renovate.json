@@ -13,6 +13,9 @@
   "argocd": {
     "managerFilePatterns": ["/^kubernetes/.+\\.ya?ml$/"]
   },
+  "kustomize": {
+    "managerFilePatterns": ["/^kubernetes/.+kustomization\\.ya?ml$/"]
+  },
   "packageRules": [
     {
       "description": "Group infra kernel updates: ArgoCD, Cilium, sealed-secrets, hcloud-ccm/csi, kured, system-upgrade",
@@ -44,6 +47,18 @@
         "kubernetes/base/monitoring/**"
       ],
       "groupName": "monitoring"
+    },
+    {
+      "description": "Regex versioning for GHCR image: YYYYMMDDHHMMSS-sha tag format",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/arunanshub/arunanshu.dev"],
+      "versioning": "regex:^(?<major>\\d{4})(?<minor>\\d{4})(?<patch>\\d{6})-(?<build>[a-f0-9]+)$"
+    },
+    {
+      "description": "Group arunanshu-dev image updates",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/arunanshub/arunanshu.dev"],
+      "groupName": "arunanshu-dev"
     }
   ]
 }

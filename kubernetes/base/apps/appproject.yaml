@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: apps
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  description: Workload applications — user-facing services deployed to dedicated namespaces
+
+  sourceRepos:
+    - git@github.com:arunanshub/devops.git
+
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: arunanshu-dev
+
+  orphanedResources:
+    warn: true
+    ignore:
+      - group: autoscaling
+        kind: HorizontalPodAutoscaler
+      - group: ""
+        kind: ConfigMap
+        name: kube-root-ca.crt
+      - group: ""
+        kind: ServiceAccount
+        name: default
+
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

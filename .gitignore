@@ -1,3 +1,5 @@
+.serena/
+
 *.tfstate
 *.tfstate.backup
 kubeconfig.yaml
