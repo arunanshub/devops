@@ -11,9 +11,16 @@ spec:
   minReplicaCount: 1
   maxReplicaCount: 5
   pollingInterval: 30
-  cooldownPeriod: 300
+  cooldownPeriod: 120
+  fallback:
+    failureThreshold: 3
+    replicas: 1
   triggers:
-    - type: cpu
-      metricType: Utilization
+    - type: prometheus
       metadata:
-        value: "60"
+        serverAddress: http://vmsingle-victoria-metrics-k8s-stack.monitoring.svc.cluster.local:8428
+        metricName: arunanshu_dev_rps_per_replica
+        query: |
+          sum(rate(traefik_router_requests_total{router=~"httproute-arunanshu-dev.*"}[2m]))
+          / max(kube_deployment_status_replicas_available{deployment="arunanshu-dev",namespace="arunanshu-dev"})
+        threshold: "50"
