@@ -23,8 +23,12 @@ spec:
         # Hubble-level drops from Cilium's eBPF datapath. Covers policy
         # violations, MTU drops that bypass the kernel counter above, and
         # any unknown traffic. Threshold of 10 filters one-off noise.
+        # UNSUPPORTED_L3_PROTOCOL is excluded: Cilium is IPv4-only, so IPv6
+        # link-local Router Solicitation packets (fe80::* → ff02::2) from the
+        # host kernel's NDP stack always land here during Cilium restarts/reboots.
+        # These are harmless and expected — not a real datapath failure.
         - alert: HubbleDropsDetected
-          expr: increase(hubble_drop_total[5m]) > 10
+          expr: increase(hubble_drop_total{reason!="UNSUPPORTED_L3_PROTOCOL"}[5m]) > 10
           for: 5m
           labels:
             severity: warning
