@@ -19,6 +19,13 @@ spec:
     server: https://kubernetes.default.svc
     namespace: arunanshu-dev
 
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: arunanshu-dev
+      jsonPointers:
+        - /spec/replicas
+
   syncPolicy:
     automated:
       prune: true

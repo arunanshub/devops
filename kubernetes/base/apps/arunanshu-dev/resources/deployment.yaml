@@ -4,7 +4,6 @@ metadata:
   name: arunanshu-dev
   namespace: arunanshu-dev
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: arunanshu-dev
