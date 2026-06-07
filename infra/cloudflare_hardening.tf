@@ -33,11 +33,9 @@ resource "cloudflare_zone_setting" "min_tls_version" {
   value      = "1.2"
 }
 
-resource "cloudflare_zone_setting" "tls_1_3" {
-  zone_id    = var.cloudflare_zone_id
-  setting_id = "tls_1_3"
-  value      = "on"
-}
+# tls_1_3 is intentionally omitted — enabling zero_rtt (above) sets the internal
+# value to "zrt" (TLS1.3 + 0-RTT), which conflicts with value="on" every plan.
+# 0-RTT requires TLS 1.3, so zero_rtt=on already implies TLS 1.3 is active.
 
 # Redirect bare http:// requests to https:// at the edge.
 resource "cloudflare_zone_setting" "always_use_https" {
