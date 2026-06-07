@@ -60,6 +60,15 @@ resource "cloudflare_managed_transforms" "main" {
 
 # -------------------------------- Performance --------------------------------
 
+# Brotli: CF re-compresses origin responses with brotli for supporting browsers,
+# gzip for others. Origin (Next.js) has compress:false so CF owns this entirely.
+resource "cloudflare_zone_setting" "brotli" {
+  zone_id    = var.cloudflare_zone_id
+  setting_id = "brotli"
+  value      = "on"
+}
+
+
 # 0-RTT Connection Resumption: lets returning clients send their first request
 # inside the opening TLS1.3/QUIC handshake packet, saving ~1 RTT (~80ms from .in)
 # on every resumed connection. Free, all plans. Safe: Cloudflare restricts 0-RTT
