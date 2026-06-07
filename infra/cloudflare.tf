@@ -63,31 +63,6 @@ resource "cloudflare_dns_record" "wildcard" {
   ttl     = 1
 }
 
-# Bypass CF Access for the Prometheus SSE notifications endpoint.
-# Cloudflare's Zero Trust tunnel cancels idle QUIC streams before the 200 OK
-# reaches the browser — Prometheus holds this SSE connection open and only pushes
-# events when a notification fires (config reload, rule error), so the stream
-# appears stalled and Cloudflare resets it. X-Accel-Buffering: no does not help
-# at the QUIC/ZT layer. Path-scoped bypass makes the stream go straight through.
-# The endpoint emits only operational notifications — no metrics, no auth needed.
-resource "cloudflare_zero_trust_access_application" "prometheus_sse_bypass" {
-  account_id            = var.cloudflare_account_id
-  name                  = "prometheus-notifications-live-bypass"
-  domain                = "prometheus.arunanshu.dev/api/v1/notifications/live"
-  type                  = "self_hosted"
-  session_duration      = "24h"
-  enable_binding_cookie = false
-
-  policies = [
-    {
-      name       = "bypass"
-      decision   = "bypass"
-      precedence = 1
-      include    = [{ everyone = {} }]
-    },
-  ]
-}
-
 # Public bypass for the blog's www subdomain — no auth required.
 # The wildcard *.arunanshu.dev policy below would otherwise gate www.arunanshu.dev
 # with email OTP since wildcard Access apps match all subdomains.
