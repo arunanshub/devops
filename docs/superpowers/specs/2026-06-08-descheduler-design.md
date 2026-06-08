@@ -76,6 +76,7 @@ The 20–50% gap zone is intentional: nodes in this band are left alone, prevent
 - `maxNoOfPodsToEvictTotal: 15` — global per-run budget
 - Descheduler uses the **Eviction API**, so PodDisruptionBudgets are honoured automatically
 - DaemonSet pods and static pods (k3s control-plane components) are excluded by DefaultEvictor automatically — no namespace exclusions needed
+- **PVC-backed pods are NOT in `extraEnabled`** — this keeps them protected by default. Evicting RWO PVC pods causes CSI detach/reattach downtime; for single-replica stateful workloads (vmsingle, grafana, tempo, and any future Postgres) this is an outage. Stateless pod rebalancing is sufficient to fix drain skew.
 
 ### No namespace exclusions
 

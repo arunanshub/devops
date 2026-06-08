@@ -29,8 +29,6 @@ deschedulerPolicy:
             podProtections:
               defaultDisabled:
                 - "PodsWithLocalStorage"
-              extraEnabled:
-                - "PodsWithPVC"
 
         - name: LowNodeUtilization
           args:
