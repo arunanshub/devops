@@ -288,24 +288,25 @@ kubeApiServer:
 
 # k3s is a single binary: apiserver+etcd+scheduler+controller-manager all run in one
 # process. Port 10250 /metrics exposes ALL embedded component metrics, so ~104k series
-# would duplicate the kubeApiServer job without these drops. .spec.metricRelabelConfigs
+# would duplicate the kubeApiServer job without these drops. .vmScrape.spec.metricRelabelConfigs
 # replaces the chart default list, so the 3 chart defaults are re-stated below.
 kubelet:
-  spec:
-    metricRelabelConfigs:
-      - action: labeldrop
-        regex: (uid)
-      - action: labeldrop
-        regex: (id|name)
-      - action: drop
-        sourceLabels: [__name__]
-        regex: 'rest_client_request_duration_seconds_(bucket|sum|count)'
-      # Drop apiserver_* and etcd_* leaked via the k3s embedded binary; job="apiserver"
-      # (kubeApiServer above) is the canonical source. Verified: 0 etcd sub-metrics are
-      # exclusive to the kubelet job; no rule pins job="kubelet" for these.
-      - action: drop
-        sourceLabels: [__name__]
-        regex: '(apiserver|etcd)_.*'
+  vmScrape:
+    spec:
+      metricRelabelConfigs:
+        - action: labeldrop
+          regex: (uid)
+        - action: labeldrop
+          regex: (id|name)
+        - action: drop
+          sourceLabels: [__name__]
+          regex: 'rest_client_request_duration_seconds_(bucket|sum|count)'
+        # Drop apiserver_* and etcd_* leaked via the k3s embedded binary; job="apiserver"
+        # (kubeApiServer above) is the canonical source. Verified: 0 etcd sub-metrics are
+        # exclusive to the kubelet job; no rule pins job="kubelet" for these.
+        - action: drop
+          sourceLabels: [__name__]
+          regex: '(apiserver|etcd)_.*'
 
 # k3s embeds these — no separate scrape targets exist.
 kubeControllerManager:
