@@ -332,6 +332,33 @@ kubeApiServer:
               sourceLabels: [__name__]
               regex: 'apiserver_(request_body_size_bytes|response_sizes|watch_list_duration_seconds|watch_cache_read_wait_seconds|watch_events_sizes)_(bucket|sum|count)'
 
+# k3s is a single binary: apiserver + etcd + scheduler + controller-manager all share one
+# process. The kubelet port 10250 /metrics endpoint on control-plane nodes therefore exposes
+# ALL embedded component metrics — not just kubelet metrics. Without explicit drops, ~104k
+# series duplicate what the kubeApiServer job above already scrapes (apiserver_*) or are
+# the internal histograms targeted by the drops above (request_body_size, watch_list, etc.).
+#
+# .spec.metricRelabelConfigs replaces the chart's default list, so the 3 chart defaults
+# (uid/id+name labeldrop, rest_client drop) are re-stated here to preserve them.
+kubelet:
+  spec:
+    metricRelabelConfigs:
+      # chart defaults — preserve (list-replace means we must re-state these)
+      - action: labeldrop
+        regex: (uid)
+      - action: labeldrop
+        regex: (id|name)
+      - action: drop
+        sourceLabels: [__name__]
+        regex: 'rest_client_request_duration_seconds_(bucket|sum|count)'
+      # k3s-specific: drop apiserver_* and etcd_* that leak into the kubelet scrape via the
+      # embedded binary. job="apiserver" (kubeApiServer above) is the canonical source for
+      # these; the kubelet copies are pure duplicates. Verified: no alerting/recording rule
+      # pins job="kubelet" for any apiserver_* or etcd_* metric. Expected cut: ~104k series.
+      - action: drop
+        sourceLabels: [__name__]
+        regex: '(apiserver|etcd)_.*'
+
 # k3s embeds/hides these control-plane components (mirrors the old kube-prom config).
 kubeControllerManager:
   enabled: false
