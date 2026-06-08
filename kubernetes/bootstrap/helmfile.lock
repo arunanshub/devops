@@ -1,13 +1,13 @@
-version: v1.5.0
+version: 1.5.0
 dependencies:
   - name: argo-cd
     repository: https://argoproj.github.io/argo-helm
     version: 9.5.15
   - name: cilium
     repository: https://helm.cilium.io/
-    version: 1.20.0-pre.2
+    version: 1.20.0-pre.3
   - name: hcloud-cloud-controller-manager
     repository: https://charts.hetzner.cloud
     version: 1.31.1
-digest: sha256:db0f21b9d8195b758d98233ff6ead53f4d45919e3ca890113121900ffac91fdd
-generated: "2026-06-01T00:04:33.384057696+05:30"
+digest: sha256:5c5848381dee9489e78cdb89df47a0931abd7680432613401f33913bc14a8653
+generated: "2026-06-08T00:58:33.44896553Z"
