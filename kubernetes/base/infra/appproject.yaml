@@ -16,6 +16,7 @@ spec:
     - https://github.com/rancher/system-upgrade-controller
     - https://charts.hetzner.cloud
     - https://helm.cilium.io/
+    - https://kubernetes-sigs.github.io/descheduler/
 
   destinations:
     - server: https://kubernetes.default.svc
@@ -28,6 +29,8 @@ spec:
       namespace: cilium-secrets
     - server: https://kubernetes.default.svc
       namespace: monitoring
+    - server: https://kubernetes.default.svc
+      namespace: descheduler
 
   clusterResourceWhitelist:
     - group: "*"

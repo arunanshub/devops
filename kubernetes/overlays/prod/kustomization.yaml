@@ -28,3 +28,4 @@ components:
   - ../../components/network-policies
   - ../../components/headlamp-route
   - ../../components/headlamp-vpa
+  - ../../components/descheduler

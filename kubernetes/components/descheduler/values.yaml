@@ -1,0 +1,52 @@
+kind: CronJob
+schedule: "0 */6 * * *"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+priorityClassName: system-cluster-critical
+
+deschedulerPolicyAPIVersion: "descheduler/v1alpha2"
+
+deschedulerPolicy:
+  maxNoOfPodsToEvictPerNode: 5
+  maxNoOfPodsToEvictTotal: 15
+
+  metricsProviders:
+    - source: KubernetesMetrics
+
+  profiles:
+    - name: default
+      pluginConfig:
+        - name: DefaultEvictor
+          args:
+            nodeFit: true
+            podProtections:
+              defaultDisabled:
+                - "PodsWithLocalStorage"
+              extraEnabled:
+                - "PodsWithPVC"
+
+        - name: LowNodeUtilization
+          args:
+            thresholds:
+              cpu: 20
+              memory: 20
+              pods: 20
+            targetThresholds:
+              cpu: 50
+              memory: 50
+              pods: 50
+
+        - name: RemoveDuplicates
+
+      plugins:
+        balance:
+          enabled:
+            - LowNodeUtilization
+            - RemoveDuplicates
