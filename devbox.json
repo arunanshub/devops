@@ -23,11 +23,12 @@
     "cilium-cli@latest",
     "talosctl@latest",
     "talhelper@latest",
-    "kubectl@latest"
+    "kubectl@latest",
+    "argocd@latest"
   ],
   "env": {
     "LC_ALL": "C.UTF-8",
-    "LANG": "C.UTF-8"
+    "LANG":   "C.UTF-8"
   },
   "shell": {
     "init_hook": [
