@@ -238,24 +238,31 @@ ops-migrate-prometheus:
 # Verify the VXLAN+WireGuard MTU stack is correctly configured.
 #
 # Cilium's MTU param is the physical device MTU (auto-detect = enp7s0 = 1450).
-# Expected stack: enp7s0=1450 → cilium_wg0=1370 (-80 WireGuard overhead).
+# Expected stack: enp7s0=1450 → cilium_wg0=1355 (-95 WireGuard overhead).
+# NOTE: the 95-byte overhead (and thus 1355) assumes Cilium >= 1.20.0-pre.3,
+# which corrected WireguardOverhead to reserve the 15-byte framing padding.
+# On <= 1.20.0-pre.2 the overhead was 80 and cilium_wg0 was 1370.
 # Pod interface MTU stays at 1450; path MTU enforcement is done via PMTUD
 # (packetization-layer-pmtud-mode=always) for UDP/ICMP and eBPF MSS clamping
-# for TCP. Packets at the VXLAN ceiling (payload ≤ 1292b = 1320b IP) must pass.
+# for TCP. Packets at the VXLAN ceiling (payload ≤ 1276b = 1304b IP) must pass.
 #
 # Run after bootstrap or any Cilium config change. Exits non-zero on failure.
 verify-mtu:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    # enp7s0 (Hetzner private NIC) - WireGuard IPv6 overhead (80 bytes)
-    EXPECTED_WG_MTU=1370
+    # enp7s0 (Hetzner private NIC 1450) - WireGuard IPv6 overhead (95 bytes).
+    # 95 = 40 IPv6 + 8 UDP + 16 WG fields + 16 Poly1305 + 15 framing padding.
+    # Assumes Cilium >= 1.20.0-pre.3; on <= pre.2 this was 80 → wg0 1370.
+    EXPECTED_WG_MTU=1355
     # Cilium sets pod interfaces to the native device MTU (enp7s0 = 1450)
     EXPECTED_POD_MTU=1450
-    # 1292 + 28 (IP+ICMP headers) = 1320 bytes = max IP packet through VXLAN/WireGuard
-    CEILING_PAYLOAD=1292
+    # Overlay route clamp = wg0 1355 - 50 (VXLAN) = 1305 = max IP packet cross-node.
+    # 1276 + 28 (IP+ICMP headers) = 1304 bytes; sits just under the 1305 clamp
+    # (one byte of slack avoids an off-by-one flap right at the boundary).
+    CEILING_PAYLOAD=1276
     # Comfortable margin below ceiling
-    PASS_PAYLOAD=1280
+    PASS_PAYLOAD=1200
 
     kubectl delete pod mtu-verify-a mtu-verify-b \
       --ignore-not-found=true --wait=true >/dev/null 2>&1 || true
@@ -298,8 +305,9 @@ verify-mtu:
 
     # ── Check 2: cross-node connectivity at comfortable margin ─────────────────
     echo "▸ Cross-node ping: payload=${PASS_PAYLOAD}b (packet=$((PASS_PAYLOAD+28))b)"
-    LOSS=$(kubectl exec mtu-verify-a -- ping -s "$PASS_PAYLOAD" -c 3 -W 2 "$POD_B_IP" 2>&1 \
-           | grep -oP '\d+(?=% packet loss)' | head -1 || echo "100")
+    OUT=$(kubectl exec mtu-verify-a -- ping -s "$PASS_PAYLOAD" -c 3 -W 2 "$POD_B_IP" 2>&1 || true)
+    LOSS=$(echo "$OUT" | grep -oP '\d+(?=% packet loss)' | head -1)
+    LOSS=${LOSS:-100}
     if [[ "$LOSS" -eq 0 ]]; then
       echo "  ${PASS_PAYLOAD}b payload → ${LOSS}% loss ✓"
     else
@@ -309,17 +317,18 @@ verify-mtu:
 
     # ── Check 3: cross-node at VXLAN/WireGuard path ceiling ───────────────────
     echo "▸ Cross-node ping: payload=${CEILING_PAYLOAD}b (packet=$((CEILING_PAYLOAD+28))b, path ceiling)"
-    LOSS=$(kubectl exec mtu-verify-a -- ping -s "$CEILING_PAYLOAD" -c 3 -W 2 "$POD_B_IP" 2>&1 \
-           | grep -oP '\d+(?=% packet loss)' | head -1 || echo "100")
+    OUT=$(kubectl exec mtu-verify-a -- ping -s "$CEILING_PAYLOAD" -c 3 -W 2 "$POD_B_IP" 2>&1 || true)
+    LOSS=$(echo "$OUT" | grep -oP '\d+(?=% packet loss)' | head -1)
+    LOSS=${LOSS:-100}
     if [[ "$LOSS" -eq 0 ]]; then
       echo "  ${CEILING_PAYLOAD}b payload → ${LOSS}% loss ✓"
     else
-      echo "  FAIL: ${CEILING_PAYLOAD}b payload → ${LOSS}% loss — effective path MTU below 1320 ✗"
+      echo "  FAIL: ${CEILING_PAYLOAD}b payload → ${LOSS}% loss — effective path MTU below 1305 ✗"
       PASS=false
     fi
 
     # ── Check 4: WireGuard interface MTU on each node ──────────────────────────
-    echo "▸ Checking cilium_wg0 MTU on each node (expected: enp7s0 1450 - WG 80 = ${EXPECTED_WG_MTU})"
+    echo "▸ Checking cilium_wg0 MTU on each node (expected: enp7s0 1450 - WG 95 = ${EXPECTED_WG_MTU})"
     for POD in $(kubectl get pod -n kube-system -l k8s-app=cilium -o name | cut -d/ -f2); do
       NODE=$(kubectl get pod -n kube-system "$POD" -o jsonpath='{.spec.nodeName}')
       WG_MTU=$(kubectl exec -n kube-system "$POD" -c cilium-agent -- \

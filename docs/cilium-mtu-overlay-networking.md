@@ -4,13 +4,29 @@ What happened, what we fixed, and why things work the way they do. Read this bef
 
 ---
 
+## Version note: the WireGuard overhead changed at pre.2 → pre.3
+
+This doc was originally written against **Cilium 1.19.4**, where Cilium's internal `WireguardOverhead` constant was **80 bytes**. The running cluster is now on **Cilium 1.20.0-pre.3** (measured: live image digest `c25d38b0…`, `cilium_wg0 = 1355` on all three nodes), where that constant is **95 bytes** (measured: 1450 − wg0 1355). The most likely reason for the +15 is that Cilium began reserving WireGuard's framing padding — plaintext is padded to the next 16-byte boundary before encryption, worst case 15 bytes — but I have not confirmed that against the Cilium source at the pre.3 tag; treat the *mechanism* as inferred even though the *95* itself is measured. The pin to `1.20.0-pre.3` lives in `kubernetes/base/infra/cilium/application.yaml` (set in #29, commit `e240e0a`); Renovate PR #43 (`1cd0b03`, 2026-06-08) only realigned the now-superseded bootstrap helmfile and did not drive the running cluster's version. The overhead appears to have changed at the pre.2 → pre.3 boundary. This is a correctness fix on Cilium's side, not a regression to undo: the old 80 was a latent under-count that could overflow the 1450 NIC MTU for near-MTU packets with worst-case alignment.
+
+The whole MTU chain shifts by 15 bytes between the two eras:
+
+| | ≤ 1.20.0-pre.2 (overhead 80) | ≥ 1.20.0-pre.3 (overhead 95) |
+|---|---|---|
+| `cilium_wg0` MTU | 1370 | **1355** |
+| effective cross-node ceiling | 1320 | **1305** |
+| max ICMP echo payload | 1292 | **1277** (`verify-mtu` tests 1276) |
+
+Both chains still close cleanly to the 1450 NIC MTU. **The numbers in the historical/investigation sections below (ping tests, host-route `mtu 1320`, FragFails) were measured under 1.19.4 and reflect the 80-byte era.** Current-state references and the quick-reference table use the 95-byte (pre.3) numbers.
+
+---
+
 ## Assumptions
 
 This doc is specific to this cluster's setup. The numbers only apply if all of the following hold:
 
 - Hetzner Cloud private network (MTU 1450)
 - Cilium tunnel mode: VXLAN
-- Cilium WireGuard node encryption enabled, **using IPv6 as the outer transport** (cilium_wg0 overhead = 80 bytes; if Cilium were using IPv4 for the outer tunnel, the overhead would be 60 bytes and cilium_wg0 MTU would be 1390 instead of 1370)
+- Cilium WireGuard node encryption enabled, using IPv6 as the outer transport. `cilium_wg0` overhead is a **fixed `WireguardOverhead` constant** in Cilium — **95 bytes on ≥ 1.20.0-pre.3** (cilium_wg0 MTU 1355), **80 bytes on ≤ pre.2** (cilium_wg0 MTU 1370). It does *not* branch on the IP family of the outer tunnel; an earlier version of this doc claimed an IPv4 outer would make it 60 → wg0 1390, but that "60-for-IPv4" figure was a hand-derivation that doesn't match what Cilium actually computes. The constant appears to have changed (80 → 95) at the pre.2 → pre.3 boundary (the exact transition release is inferred — 80 is measured at 1.19.4, 95 at pre.3), not because of IP family.
 - kube-proxy replacement enabled
 - Cilium is the sole CNI — no chaining with another CNI
 
@@ -26,7 +42,7 @@ Before anything else: there are three different things called "MTU" that behave 
 
 **Route MTU.** A hint stored on a specific route entry, like `10.42.1.0/24 via ... mtu 1320`. It tells the kernel: "for packets going to this destination, act as if the MTU is 1320 even though the interface MTU is higher." This is what TCP uses to compute MSS for a specific connection, and what PMTUD updates when it discovers the real path ceiling. Route MTU can be lower than interface MTU without changing the interface.
 
-**Effective tunnel MTU.** The maximum payload the full overlay stack can carry without fragmenting or dropping. This is what you calculate from first principles: start with the physical NIC MTU, subtract each encapsulation layer's overhead. For this cluster: 1450 − 80 (WireGuard) − 50 (VXLAN) = **1320 bytes**.
+**Effective tunnel MTU.** The maximum payload the full overlay stack can carry without fragmenting or dropping. This is what you calculate from first principles: start with the physical NIC MTU, subtract each encapsulation layer's overhead. For this cluster (Cilium ≥ pre.3): 1450 − 95 (WireGuard) − 50 (VXLAN) = **1305 bytes**. (Under ≤ pre.2 it was 1450 − 80 − 50 = 1320.)
 
 The distinction matters because Cilium sets interface MTU and route MTU in different places, and the two don't always agree.
 
@@ -49,7 +65,7 @@ If you're here because something is broken, look for these:
 
 **The physical layer.** Hetzner gives each node a private network interface (`enp7s0`) with **MTU 1450**. Hetzner's own SDN takes 50 bytes for its internal encapsulation before your packets hit the wire. You cannot change this.
 
-**WireGuard.** Cilium runs WireGuard between every pair of nodes to encrypt all pod-to-pod traffic in transit. WireGuard wraps each packet in an outer UDP datagram. The overhead is exactly **80 bytes**, broken down as:
+**WireGuard.** Cilium runs WireGuard between every pair of nodes to encrypt all pod-to-pod traffic in transit. WireGuard wraps each packet in an outer UDP datagram. On Cilium ≥ 1.20.0-pre.3 the reserved overhead is **95 bytes**, broken down as:
 
 ```
 IPv6 outer header:       40 bytes   (Cilium uses IPv6 between nodes)
@@ -58,11 +74,14 @@ WireGuard type field:     4 bytes
 WireGuard reserved:       4 bytes
 WireGuard nonce:          8 bytes   (security-critical; prevents replay attacks)
 Poly1305 auth tag:       16 bytes   (integrity check over the encrypted payload)
+WireGuard framing pad:   15 bytes   (inferred: pad to next 16-byte boundary, worst case)
 ─────────────────────────────────
-Total:                   80 bytes
+Total:                   95 bytes   (80 on ≤ 1.20.0-pre.2, which omitted the padding term)
 ```
 
-Cilium creates a virtual interface `cilium_wg0` for this tunnel. Its MTU: `1450 − 80 = 1370`.
+The +15 is *measured at the aggregate level* (1450 − wg0 1355 = 95, vs 80 before), but the framing-pad attribution is **inferred, not verified against the Cilium pre.3 source**: the most likely explanation is that Cilium began reserving the maximum padding WireGuard adds to align the plaintext to a 16-byte boundary before encryption, so the interface MTU guarantees no packet ≤ wg0-MTU can overflow the NIC after padding. On that reading the ≤ pre.2 value of 80 omitted the term — a latent under-count that only bit intermittently, near the MTU, with bad alignment. Treat the 95 as fact and the 15-byte mechanism as the leading hypothesis.
+
+Cilium creates a virtual interface `cilium_wg0` for this tunnel. Its MTU: `1450 − 95 = 1355` (was `1450 − 80 = 1370` on ≤ pre.2).
 
 **VXLAN.** Cilium uses VXLAN to route pod traffic across nodes independently of Hetzner's routing table — necessary because Hetzner's network doesn't know about pod CIDRs, especially in multicluster mode. VXLAN wraps the pod's IP packet inside another UDP/IP packet. Overhead: **50 bytes**. The VXLAN packet then travels inside the WireGuard tunnel.
 
@@ -78,8 +97,8 @@ lxc interface (veth pair, host side)
 VXLAN encapsulation  (+50 bytes overhead)
   │
   ▼
-cilium_wg0  (MTU 1370)
-  │  WireGuard encrypts  (+80 bytes overhead, sent as outer UDP)
+cilium_wg0  (MTU 1355; was 1370 on ≤ pre.2)
+  │  WireGuard encrypts  (+95 bytes overhead, sent as outer UDP; was +80 on ≤ pre.2)
   ▼
 enp7s0  (MTU 1450)
   │
@@ -91,19 +110,19 @@ Maximum IP packet size that fits through this full chain:
 
 ```
 enp7s0 MTU:         1450
-- WireGuard:         - 80
-= cilium_wg0 MTU:   1370
+- WireGuard:         - 95   (was -80 on ≤ pre.2)
+= cilium_wg0 MTU:   1355   (was 1370)
 - VXLAN:             - 50
-= effective ceiling: 1320 bytes
+= effective ceiling: 1305 bytes   (was 1320)
 ```
 
-**1320 bytes is the ceiling.** Any cross-node IP packet larger than 1320 bytes has a problem.
+**1305 bytes is the ceiling** (Cilium ≥ pre.3; it was 1320 on ≤ pre.2). Any cross-node IP packet larger than 1305 bytes has a problem.
 
 ---
 
 ## The problem we found
 
-Cilium sets the MTU of pod network interfaces (`eth0` inside a pod) to **1450** — matching the native device MTU. Not 1320. This is intentional: Cilium's design is to handle the overhead transparently via eBPF rather than reducing what pods see.
+Cilium sets the MTU of pod network interfaces (`eth0` inside a pod) to **1450** — matching the native device MTU. Not the ~1305 path ceiling. This is intentional: Cilium's design is to handle the overhead transparently via eBPF rather than reducing what pods see.
 
 For TCP, this works well in practice. Cilium's eBPF clamps the TCP MSS (Maximum Segment Size) during the three-way handshake so TCP connections are told upfront to use segments that fit within the path. TCP is mostly protected in the normal Cilium-managed path and rarely generates a drop. (If traffic were to bypass Cilium's eBPF path or use unusual encapsulation, TCP could still be affected.)
 
@@ -111,14 +130,16 @@ For **UDP and ICMP**, there is no MSS negotiation. The application sends whateve
 
 The default Cilium behavior for these oversized non-TCP packets was `packetization-layer-pmtud-mode: blackhole` — **silent drop with no feedback**. No error, no log, no ICMP response to the sender. For TCP this is tolerable. For UDP, data vanishes.
 
-**We confirmed this with packet-size tests:**
+**We confirmed this with packet-size tests** (measured under Cilium 1.19.4, 80-byte era, ceiling 1320 — under ≥ pre.3 shift each threshold down 15 bytes, ceiling 1305):
 
 ```sh
 # From a pod on node A to a pod on node B (different nodes):
 ping -s 1290 -c 3 <remote-pod-ip>   # payload 1290 + 28 headers = 1318 bytes → passes
-ping -s 1292 -c 3 <remote-pod-ip>   # payload 1292 + 28 headers = 1320 bytes → passes (right at ceiling)
+ping -s 1292 -c 3 <remote-pod-ip>   # payload 1292 + 28 headers = 1320 bytes → passes (right at the 1.19.4 ceiling)
 ping -s 1295 -c 3 <remote-pod-ip>   # payload 1295 + 28 headers = 1323 bytes → 100% loss
 ```
+
+(Caveat learned in the 2026-06-08 investigation: busybox `ping` does not set DF, so an oversized *ICMP echo* gets fragmented and the fragments are dropped by Cilium's `DROP_INVALID` path by design — so a too-large ping shows 100% loss for a reason distinct from the clean route-MTU clamp. UDP/TCP fragments are instead forwarded via Cilium's fragment port-tracking. This is why `verify-mtu` probes *below* the ceiling rather than straddling it.)
 
 Note: busybox `ping` doesn't support `-M do` (explicit DF bit). The drops we measured happen inside Cilium's eBPF datapath, not at the kernel IP layer, which is why the kernel's `FragFails` counter doesn't always capture them.
 
@@ -194,7 +215,7 @@ The goal was to set pod interface MTU to 1320, so pods never generate oversized 
 The problem: Cilium's `MTU` Helm value is the **physical device MTU**, not a direct pod interface setting. Cilium derives other values from it, including `cilium_wg0 = MTU − WireGuard_overhead`. Setting `MTU: 1320`:
 
 - Pod eth0 → 1320 ✓
-- `cilium_wg0` → `1320 − 80 = 1240` ✗
+- `cilium_wg0` → `1320 − 80 = 1240` ✗  (on ≥ pre.3, `1320 − 95 = 1225` — even smaller; conclusion identical)
 
 A pod sending a 1320-byte packet generates a `1320 + 50 (VXLAN) = 1370`-byte packet destined for `cilium_wg0`. But `cilium_wg0` MTU is only 1240. `1370 > 1240`. The VXLAN traffic can't fit through the WireGuard tunnel, and everything breaks.
 
@@ -208,7 +229,7 @@ In practice: the option only activates when **CNI chaining** is in use — i.e.,
 
 ### Why the ideal fix doesn't exist in 1.19.x (observed behavior and upstream status)
 
-Cilium *does* install correct route MTU on the **host-side** cross-node routes. We verified this in our cluster:
+Cilium *does* install correct route MTU on the **host-side** cross-node routes. We verified this in our cluster (captured under 1.19.4; on ≥ pre.3 these read `mtu 1305`, tracking the 15-byte overhead bump):
 
 ```sh
 # Inside a Cilium agent pod on hetzner-k3s-cp-1:
@@ -261,9 +282,9 @@ just verify-mtu
 Six checks, what each one actually verifies:
 
 1. **Pod `eth0` MTU == 1450** — confirms Cilium auto-detected `enp7s0` correctly and no accidental `MTU:` override snuck in
-2. **Cross-node ping, 1280-byte payload** — `1280 + 28 = 1308`-byte packet; comfortable margin below ceiling, path is functional
-3. **Cross-node ping, 1292-byte payload** — `1292 + 28 = 1320`-byte packet; exactly at the VXLAN+WireGuard ceiling, any regression shows here
-4. **`cilium_wg0` MTU == 1370 on all nodes** — confirms WireGuard overhead is correctly subtracted from 1450; wrong value means MTU formula broke
+2. **Cross-node ping, 1200-byte payload** — `1200 + 28 = 1228`-byte packet; comfortable margin below ceiling, path is functional
+3. **Cross-node ping, 1276-byte payload** — `1276 + 28 = 1304`-byte packet; one byte under the 1305 VXLAN+WireGuard ceiling (pre.3), any regression shows here. (Deliberately probes just *below* the ceiling, not at it: busybox ping can't set DF, so a packet *over* the route MTU becomes a fragmented ICMP echo that Cilium drops as `DROP_INVALID` by design — that would be a false FAIL.)
+4. **`cilium_wg0` MTU == 1355 on all nodes** — confirms the 95-byte WireGuard overhead is correctly subtracted from 1450 (Cilium ≥ pre.3; 1370 on ≤ pre.2); wrong value means the MTU formula broke *or* the Cilium version changed
 5. **PMTUD active** — checks configmap for `enable-pmtu-discovery=true` and `packetization-layer-pmtud-mode=always`
 6. **cloudflared `quic_client_mtu` ≥ 1300** — egress sanity check (pod→internet path, not pod→pod overlay). cloudflared subtracts its own protocol overhead from the pod's 1450 MTU: `1450 − 20 (IPv4) − 8 (UDP) − 17 (QUIC header) − 16 (AEAD tag) − 45 (Cloudflare tunnel framing) = 1344`. If this drops below 1300, the pod MTU is being clamped somewhere it shouldn't be.
 
@@ -273,14 +294,18 @@ Run this after `just argocd-bootstrap`, after any Cilium Helm values change, and
 
 ## Quick reference: every number cold
 
+Current cluster runs Cilium ≥ 1.20.0-pre.3 (overhead 95). Numbers in parentheses are the ≤ pre.2 (overhead 80) era for reference.
+
 ```
 enp7s0 (Hetzner private NIC):          1450  ← cannot change
-WireGuard IPv6 outer breakdown:          -80  (40 IPv6 + 8 UDP + 4+4+8 WG fields + 16 Poly1305)
-  └─ if IPv4 outer (not this cluster):  -60  (20 IPv4 + 8 UDP + 4+4+8 WG fields + 16 Poly1305)
-cilium_wg0:                             1370  ← Cilium auto-calculates from enp7s0 MTU
+WireGuard overhead (WireguardOverhead): -95  (40 IPv6 + 8 UDP + 4+4+8 WG fields + 16 Poly1305 + 15 framing pad)
+  └─ ≤ pre.2 (omitted the 15B pad):     -80
+  └─ NOTE: a fixed Cilium constant; does NOT branch on IPv4 vs IPv6 outer transport
+cilium_wg0:                             1355  ← Cilium auto-calculates from enp7s0 MTU   (≤ pre.2: 1370)
 VXLAN overhead:                          -50
-Effective cross-node path ceiling:      1320  ← max IP packet size for cross-node pod traffic
-Max ICMP payload before drop:           1292  ← 1292 + 8 (ICMP) + 20 (IP) = 1320
-TCP MSS (eBPF-clamped):               ≤1280  ← TCP never reaches the ceiling
-cloudflared QUIC MTU (egress only):    ~1344  ← unrelated to overlay; reflects pod→internet path
+Effective cross-node path ceiling:      1305  ← max IP packet size for cross-node pod traffic   (≤ pre.2: 1320)
+Max ICMP echo payload before frag:      1277  ← 1277 + 8 (ICMP) + 20 (IP) = 1305   (≤ pre.2: 1292)
+  └─ verify-mtu probes 1276 (1 byte of slack below the boundary)
+TCP MSS (eBPF-clamped):              ≤ ~1265  ← TCP never reaches the ceiling (clamps to path, scales with overhead)
+cloudflared QUIC MTU (egress only):    ~1344  ← unrelated to overlay; reflects pod→internet (north-south) path
 ```
