@@ -8,9 +8,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: arunanshu-dev
-  # Temporarily raised 1 -> 2 for the CX33 node migration so a replica always
-  # survives on a non-draining node (zero downtime). Revert to 1 once migration done.
-  minReplicaCount: 2
+  minReplicaCount: 1
   maxReplicaCount: 5
   pollingInterval: 30
   cooldownPeriod: 120

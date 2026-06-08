@@ -8,9 +8,9 @@ is_cluster_initialized = true
 # Cluster topology. To add a node: add an entry, run tofu apply.
 # To remove a node: drain it first, then remove the entry and apply.
 # CP count must remain odd.
-# cx33 unavailable in hel1 — using cpx32 (same 4 vCPU / 8GB RAM spec).
+# All nodes on cx33 (migrated from cpx32 2026-06-08 via rolling -replace; ~50% cost cut).
 nodes = {
-  "cp-1" = { server_type = "cpx32", role = "cp_worker", location = "hel1", private_ip = "10.0.0.2" }
-  "cp-2" = { server_type = "cpx32", role = "cp_worker", location = "hel1", private_ip = "10.0.0.3" }
-  "cp-3" = { server_type = "cpx32", role = "cp_worker", location = "hel1", private_ip = "10.0.0.4" }
+  "cp-1" = { server_type = "cx33", role = "cp_worker", location = "hel1", private_ip = "10.0.0.2" }
+  "cp-2" = { server_type = "cx33", role = "cp_worker", location = "hel1", private_ip = "10.0.0.3" }
+  "cp-3" = { server_type = "cx33", role = "cp_worker", location = "hel1", private_ip = "10.0.0.4" }
 }
