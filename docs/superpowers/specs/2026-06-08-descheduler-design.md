@@ -24,7 +24,9 @@ kubernetes/components/descheduler/
   values.yaml
 ```
 
-Wired into `kubernetes/base/infra/` (kustomization + appproject).
+Wired into `kubernetes/overlays/prod/` (kustomization `components:`) and `kubernetes/base/infra/` (appproject).
+
+Note: `kind: Component` kustomizations must be referenced via `components:` not `resources:`, so the Application lives in the prod overlay alongside hcloud-csi, kured, etc. The AppProject changes stay in `base/infra/appproject.yaml` since that is a static resource, not a Component.
 
 ## ArgoCD Application
 
@@ -106,5 +108,5 @@ The descheduler is API-server-bound, not compute-intensive. `system-cluster-crit
 | `kubernetes/components/descheduler/kustomization.yaml` | new |
 | `kubernetes/components/descheduler/application.yaml` | new |
 | `kubernetes/components/descheduler/values.yaml` | new |
-| `kubernetes/base/infra/kustomization.yaml` | add `../../../components/descheduler` |
+| `kubernetes/overlays/prod/kustomization.yaml` | add `../../components/descheduler` under `components:` |
 | `kubernetes/base/infra/appproject.yaml` | add repoURL + descheduler destination |
