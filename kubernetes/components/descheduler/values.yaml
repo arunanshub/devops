@@ -1,5 +1,5 @@
 kind: CronJob
-schedule: "0 */6 * * *"
+schedule: "15 */6 * * *"
 
 resources:
   requests:
@@ -26,9 +26,6 @@ deschedulerPolicy:
         - name: DefaultEvictor
           args:
             nodeFit: true
-            podProtections:
-              defaultDisabled:
-                - "PodsWithLocalStorage"
 
         - name: LowNodeUtilization
           args:

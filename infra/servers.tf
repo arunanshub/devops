@@ -33,16 +33,16 @@ resource "hcloud_server" "nodes" {
     role                        = each.value.role
   })
 
-  # Intentional friction: set these to true once the cluster carries real workloads.
-  # tofu destroy will fail until explicitly set to false.
-  delete_protection  = false
-  rebuild_protection = false
+  # Intentional friction now that the cluster carries workloads.
+  # tofu destroy/rebuild requires an explicit runbook change to relax this guard.
+  delete_protection  = true
+  rebuild_protection = true
 
   # Replacing an embedded-etcd server is an operational event, not a routine
   # apply. Let plans reveal replacement pressure, but block accidental destroys;
   # rolling replacement requires an explicit runbook step to relax this guard.
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
 
     # user_data (cloud-init) runs once at first boot only — it has no effect on
     # running nodes. Ignoring changes here prevents a script edit from issuing a
