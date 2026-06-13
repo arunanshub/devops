@@ -51,6 +51,19 @@ vmagent:
 
 vmalert:
   enabled: true
+  spec:
+    # Without this block the VM operator applies its DEFAULT resources, which
+    # include a tiny CPU limit (~92m) — and vmalert is bursty (rule-group eval),
+    # so it gets CFS-throttled ~1% of periods. No CPU limit here (matches vmsingle/
+    # vmagent): CPU is compressible and requests already guarantee scheduling.
+    # Memory limit retained — incompressible, keep OOM protection. Sized to ~41m/50Mi
+    # observed usage.
+    resources:
+      requests:
+        cpu: 75m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
 
 # spec.secrets mounts the SealedSecret at /etc/vm/secrets/alertmanager-smtp/ (different
 # path from prometheus-operator's Alertmanager at /etc/alertmanager/secrets/...).
@@ -59,6 +72,15 @@ alertmanager:
   spec:
     secrets:
       - alertmanager-smtp
+    # Same rationale as vmalert above: drop the operator-default CPU limit (~36m)
+    # that throttles alertmanager ~4% of periods during notify/gossip bursts.
+    # No CPU limit; memory limit kept. Sized to ~4m/30Mi observed usage.
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
   config:
     global:
       resolve_timeout: 5m
