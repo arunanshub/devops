@@ -8,8 +8,9 @@ resources:
   - httproute.yaml
   - scaledobject.yaml
   - vpa.yaml
+  - vmservicescrape.yaml
 
 images:
   - name: arunanshu-dev
     newName: ghcr.io/arunanshub/arunanshu.dev
-    newTag: 20260613083002-c8f99e4
+    newTag: 20260613091204-dae2f7f

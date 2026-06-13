@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: arunanshu-dev
   namespace: arunanshu-dev
+  labels:
+    app: arunanshu-dev # VMServiceScrape selector target
 spec:
   type: ClusterIP
   selector:
@@ -10,4 +12,9 @@ spec:
   ports:
     - port: 3000
       targetPort: 3000
+      name: http
+      protocol: TCP
+    - port: 9091
+      targetPort: 9091
+      name: metrics
       protocol: TCP
