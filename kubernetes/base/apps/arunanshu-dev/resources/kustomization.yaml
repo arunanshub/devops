@@ -9,6 +9,7 @@ resources:
   - scaledobject.yaml
   - vpa.yaml
   - vmservicescrape.yaml
+  - middleware.yaml
 
 images:
   - name: arunanshu-dev
