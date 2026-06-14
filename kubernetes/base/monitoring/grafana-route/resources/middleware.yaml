@@ -7,13 +7,12 @@ spec:
   compress:
     encodings: [br, zstd, gzip]
     defaultEncoding: br
-    minResponseBodyBytes: 98
+    minResponseBodyBytes: 56
     includedContentTypes:
-      - text/javascript; charset=utf-8
-    #   - text/html
-    #   - text/css
-    #   - text/javascript
-    #   - application/javascript
-    #   - application/json
-    #   - image/svg+xml
-    #   - application/octet-stream
+      - text/html
+      - text/css
+      - text/javascript
+      - application/javascript
+      - application/json
+      - image/svg+xml
+      - application/octet-stream
