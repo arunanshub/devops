@@ -63,6 +63,8 @@ tracing:
 metrics:
   prometheus:
     entryPoint: metrics
+    addEntryPointsLabels: true
+    addServicesLabels: true # Helps isolate backend-specific middleware drops
     addRoutersLabels: true # per-route metrics, useful for KEDA query
     service:
       enabled: true # creates a dedicated metrics Service
