@@ -18,3 +18,4 @@ spec:
       - application/javascript
       - application/json
       - image/svg+xml
+      - application/octet-stream # hubble's stream can be massive (400kB+)
