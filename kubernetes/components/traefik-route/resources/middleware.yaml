@@ -15,8 +15,9 @@ metadata:
   namespace: traefik
 spec:
   compress:
-    encodings: [zstd, br, gzip]
-    defaultEncoding: zstd
+    encodings: [br, zstd, gzip]
+    defaultEncoding: br
+    minResponseBodyBytes: 56
     includedContentTypes:
       - text/html
       - text/css
@@ -25,3 +26,4 @@ spec:
       - application/json
       - image/svg+xml
       - application/octet-stream
+      - text/event-stream
