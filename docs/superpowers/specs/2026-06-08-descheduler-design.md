@@ -41,22 +41,29 @@ Note: `kind: Component` kustomizations must be referenced via `components:` not 
 
 ### Mode
 
-`kind: CronJob`, `schedule: "0 */6 * * *"` (every 6 hours).
+**Updated 2026-06-14:** switched from CronJob to a leader-elected `Deployment`.
 
-- Default chart schedule (`*/2 * * * *`) is far too aggressive for a homelab.
-- Daily at 2am converges too slowly after a drain (3+ days to fully rebalance).
-- Every 6 hours converges within 24 hours and is operationally quiet.
+`kind: Deployment`, `replicas: 1`, `leaderElection.enabled: true`, `deschedulingInterval: 1h`.
+
+- The original `CronJob` at `15 */6 * * *` worked, but a continuous Deployment reacts faster to drain skew without waiting for the next cron slot.
+- `replicas: 1` is sufficient here; a warm standby buys nothing on a 3-node homelab. Leader election stays enabled so scaling to 2 is a no-op.
+- Chart default interval (`5m`) is far too aggressive — invites thrash. `1h` converges quickly while staying operationally quiet.
 
 ### Policy
 
-`deschedulerPolicyAPIVersion: descheduler/v1alpha2` with a single `default` profile.
+`deschedulerPolicyAPIVersion: descheduler/v1alpha2` with a single `safe-production-profile` profile.
 
-**Plugins enabled:**
+**Plugins enabled** (expanded 2026-06-14):
 
 | Plugin | Extension point | Purpose |
 |---|---|---|
 | `LowNodeUtilization` | `balance` | Primary rebalancer: evicts from overloaded nodes to underloaded ones |
 | `RemoveDuplicates` | `balance` | Ensures no two replicas of the same Deployment land on the same node |
+| `RemovePodsHavingTooManyRestarts` | `deschedule` | Reschedules crash-looping pods (`podRestartThreshold: 10`) off a possibly-bad node |
+| `RemovePodsViolatingNodeAffinity` | `deschedule` | Moves pods whose node no longer satisfies `requiredDuringScheduling` affinity |
+| `RemovePodsViolatingInterPodAntiAffinity` | `deschedule` | Fixes anti-affinity violations left behind after a drain |
+
+These extra `deschedule` plugins are safe: every eviction still passes through `DefaultEvictor` (PDBs, `nodeFit`, eviction caps, and the protections below all apply).
 
 **LowNodeUtilization thresholds:**
 
@@ -76,7 +83,11 @@ The 20–50% gap zone is intentional: nodes in this band are left alone, prevent
 - `maxNoOfPodsToEvictTotal: 15` — global per-run budget
 - Descheduler uses the **Eviction API**, so PodDisruptionBudgets are honoured automatically
 - DaemonSet pods and static pods (k3s control-plane components) are excluded by DefaultEvictor automatically — no namespace exclusions needed
-- **PVC-backed pods are NOT in `extraEnabled`** — this keeps them protected by default. Evicting RWO PVC pods causes CSI detach/reattach downtime; for single-replica stateful workloads (vmsingle, grafana, tempo, and any future Postgres) this is an outage. Stateless pod rebalancing is sufficient to fix drain skew.
+- **PVC-backed pods are protected via `podProtections.extraEnabled: ["PodsWithPVC"]`.** Evicting RWO PVC pods causes CSI detach/reattach downtime; for single-replica stateful workloads (vmsingle, grafana, tempo, and any future Postgres) on `hcloud-volumes-encrypted` that is an outage.
+
+  > **Correction (2026-06-14):** the original revision claimed PVC pods were "protected by default" because they were "NOT in `extraEnabled`". That was backwards. In descheduler 0.35, `PodsWithPVC` is an *opt-in* protection (legacy `ignorePvcPods` defaults to `false`), so the original config — which set neither — was in fact **evicting** those single-replica stateful pods. The protection is now made explicit.
+
+- **Local-storage pods are now evictable** (`podProtections.defaultDisabled: ["PodsWithLocalStorage"]`). `emptyDir`/`hostPath` pods are banal stateless-ish workloads that are safe to rebalance; in-flight `emptyDir` buffers (e.g. vmagent) are lost on move, which is acceptable. This is the intentional "less restrictive" lever.
 
 ### No namespace exclusions
 

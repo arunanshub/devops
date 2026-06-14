@@ -1,5 +1,15 @@
-kind: CronJob
-schedule: "15 */6 * * *"
+# Run as a continuous, leader-elected Deployment instead of a disruptive CronJob.
+# A single replica is enough on this cluster; leaderElection stays enabled so
+# scaling to 2 later is a no-op. deschedulingInterval governs scan frequency.
+kind: Deployment
+replicas: 1
+leaderElection:
+  enabled: true
+
+# Calm cadence. The chart default (5m) is far too aggressive for a homelab and
+# invites thrash; the previous CronJob ran every 6h. 1h converges quickly after
+# a node drain without churning the cluster.
+deschedulingInterval: 1h
 
 resources:
   requests:
@@ -9,39 +19,98 @@ resources:
     cpu: 500m
     memory: 256Mi
 
+# Prevents the descheduler from being evicted by its own decisions.
 priorityClassName: system-cluster-critical
+
+cmdOptions:
+  v: 3
+  # Pro-tip: uncomment when changing thresholds/protections for the first time.
+  # dry-run: true
 
 deschedulerPolicyAPIVersion: "descheduler/v1alpha2"
 
 deschedulerPolicy:
+  # Blast-radius caps per descheduling cycle. Kept from the original config.
   maxNoOfPodsToEvictPerNode: 5
   maxNoOfPodsToEvictTotal: 15
 
+  # Use ground-truth usage from metrics-server (already running in kube-system)
+  # rather than resource requests, which lag because VPA rewrites them on a
+  # schedule.
   metricsProviders:
     - source: KubernetesMetrics
 
   profiles:
-    - name: default
+    - name: safe-production-profile
       pluginConfig:
         - name: DefaultEvictor
           args:
+            # Only evict a pod if it can actually land on another node.
             nodeFit: true
 
-        - name: LowNodeUtilization
+            # SystemCriticalPods and FailedBarePods stay protected because they
+            # are NOT listed in defaultDisabled below (they are on by default).
+            # DaemonSet and static pods are likewise protected by default.
+            podProtections:
+              defaultDisabled:
+                # Lift the local-storage guard: emptyDir/hostPath pods are
+                # "banal" stateless-ish workloads that are safe to rebalance.
+                # (In-flight emptyDir buffers, e.g. vmagent, are lost on move —
+                # acceptable for these.)
+                - "PodsWithLocalStorage"
+              extraEnabled:
+                # Protect PVC-backed pods. NOTE: in descheduler 0.35 PVC pods
+                # are NOT protected by default, so without this line the
+                # single-replica stateful workloads (vmsingle, grafana, tempo)
+                # on hcloud RWO block storage would be evicted — forcing a CSI
+                # detach/reattach outage. This protects ALL PVC pods; today
+                # every PVC workload is single-replica so that matches intent.
+                # When a multi-replica PVC workload (e.g. HA Postgres) is added
+                # and should be reschedulable, switch to a replica-aware scheme
+                # (drop this and gate eviction on DefaultEvictor minReplicas in
+                # a dedicated profile).
+                - "PodsWithPVC"
+
+        - name: "RemovePodsHavingTooManyRestarts"
           args:
+            podRestartThreshold: 10
+            includingInitContainers: true
+
+        - name: "RemovePodsViolatingNodeAffinity"
+          args:
+            nodeAffinityType:
+              - "requiredDuringSchedulingIgnoredDuringExecution"
+
+        - name: "LowNodeUtilization"
+          args:
+            # Underutilized (target) nodes.
             thresholds:
               cpu: 20
               memory: 20
               pods: 20
+            # Overloaded (source) nodes to evict from. Kept at 50 (not 80) so
+            # drain skew is actually corrected; the 20-50 gap zone is left
+            # alone to avoid re-targeting freshly balanced nodes.
             targetThresholds:
               cpu: 50
               memory: 50
               pods: 50
 
-        - name: RemoveDuplicates
-
       plugins:
+        # Evictability is decided by DefaultEvictor's args above.
+        filter:
+          enabled:
+            - "DefaultEvictor"
+        preEvictionFilter:
+          enabled:
+            - "DefaultEvictor"
+
+        deschedule:
+          enabled:
+            - "RemovePodsHavingTooManyRestarts"
+            - "RemovePodsViolatingNodeAffinity"
+            - "RemovePodsViolatingInterPodAntiAffinity"
         balance:
           enabled:
-            - LowNodeUtilization
-            - RemoveDuplicates
+            - "RemoveDuplicates"
+            - "LowNodeUtilization"
