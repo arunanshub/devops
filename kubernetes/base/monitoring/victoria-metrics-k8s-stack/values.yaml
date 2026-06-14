@@ -173,6 +173,10 @@ grafana:
     requests:
       cpu: 25m
       memory: 384Mi
+  # TODO: remove me if it turns out to be redundant or wasteful
+  grafana.ini:
+    server:
+      enable_gzip: false # Disables Grafana's internal compression
 
 kube-state-metrics:
   enabled: true
