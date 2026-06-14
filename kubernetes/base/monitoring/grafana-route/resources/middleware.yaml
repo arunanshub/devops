@@ -8,7 +8,8 @@ spec:
     encodings: [br, zstd, gzip]
     defaultEncoding: br
     minResponseBodyBytes: 98
-    # includedContentTypes:
+    includedContentTypes:
+      - text/javascript; charset=utf-8
     #   - text/html
     #   - text/css
     #   - text/javascript
