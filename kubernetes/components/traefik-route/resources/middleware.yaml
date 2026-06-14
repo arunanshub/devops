@@ -7,4 +7,13 @@ spec:
   headers:
     customResponseHeaders:
       Cache-Control: "public, max-age=31536000, immutable"
-  compress: {}
+  compress:
+    encodings: [zstd, br, gzip]
+    includedContentTypes:
+      - text/html
+      - text/css
+      - text/javascript
+      - application/javascript
+      - application/json
+      - image/svg+xml
+      - application/octet-stream
