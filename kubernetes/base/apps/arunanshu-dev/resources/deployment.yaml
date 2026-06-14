@@ -75,19 +75,23 @@ spec:
               mountPath: /tmp
             - name: next-cache
               mountPath: /app/.next/cache
+          # Lenient probes: don't kill or flap a busy-but-alive pod under load
+          # (that drops capacity mid-hug and cascades). 5s timeout vs the 1s default.
           livenessProbe:
             httpGet:
               path: /favicon.ico
               port: 3000
             initialDelaySeconds: 10
             periodSeconds: 30
-            failureThreshold: 3
+            timeoutSeconds: 5
+            failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /favicon.ico
               port: 3000
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
             failureThreshold: 3
           resources:
             requests:

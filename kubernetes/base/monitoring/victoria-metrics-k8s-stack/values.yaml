@@ -173,10 +173,11 @@ grafana:
     requests:
       cpu: 25m
       memory: 384Mi
-  # TODO: remove me if it turns out to be redundant or wasteful
+  # Keep off: the Traefik compress middleware owns origin-side compression for all
+  # routes; in-process gzip here would be redundant and would no-op that middleware.
   grafana.ini:
     server:
-      enable_gzip: false # Disables Grafana's internal compression
+      enable_gzip: false
 
 kube-state-metrics:
   enabled: true

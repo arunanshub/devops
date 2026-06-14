@@ -17,5 +17,7 @@ spec:
           cpu: 5m
           memory: 20Mi
         maxAllowed:
-          cpu: 200m
+          # 400m: sole conduit for all (uncached) dynamic traffic — cheap headroom
+          # against throttling under a spike.
+          cpu: 400m
           memory: 128Mi

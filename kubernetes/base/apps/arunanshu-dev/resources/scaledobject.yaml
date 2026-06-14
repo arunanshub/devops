@@ -9,9 +9,10 @@ spec:
     kind: Deployment
     name: arunanshu-dev
   minReplicaCount: 1
-  maxReplicaCount: 5
-  pollingInterval: 30
-  cooldownPeriod: 120
+  # Scale horizontally (Next.js is single-threaded); 8 replicas fits the node budget.
+  maxReplicaCount: 8
+  pollingInterval: 15
+  cooldownPeriod: 60
   fallback:
     failureThreshold: 3
     replicas: 1
@@ -19,8 +20,10 @@ spec:
     - type: prometheus
       metadata:
         serverAddress: http://vmsingle-victoria-metrics-k8s-stack.monitoring.svc.cluster.local:8428
-        metricName: arunanshu_dev_rps_per_replica
+        metricName: arunanshu_dev_rps
+        # KEDA's HPA is AverageValue (divides by replica count), so query must be the
+        # raw total RPS — pre-dividing double-counts and under-scales. threshold is
+        # the per-replica RPS target.
         query: |
-          sum(rate(traefik_router_requests_total{router=~"httproute-arunanshu-dev.*"}[2m]))
-          / max(kube_deployment_status_replicas_available{deployment="arunanshu-dev",namespace="arunanshu-dev"})
+          sum(rate(traefik_router_requests_total{router=~"httproute-arunanshu-dev.*"}[1m]))
         threshold: "50"

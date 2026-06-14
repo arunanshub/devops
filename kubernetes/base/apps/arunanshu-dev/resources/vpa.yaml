@@ -17,5 +17,7 @@ spec:
           cpu: 10m
           memory: 64Mi
         maxAllowed:
-          cpu: 500m
+          # 1 core: Next.js is single-threaded — capacity comes from replicas, not
+          # bigger pods. Just enough headroom so one pod isn't starved mid-render.
+          cpu: 1
           memory: 512Mi
