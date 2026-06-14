@@ -7,6 +7,13 @@ spec:
   headers:
     customResponseHeaders:
       Cache-Control: "public, max-age=31536000, immutable"
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: compress
+  namespace: traefik
+spec:
   compress:
     encodings: [zstd, br, gzip]
     includedContentTypes:
