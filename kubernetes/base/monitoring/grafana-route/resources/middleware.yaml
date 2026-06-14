@@ -8,11 +8,11 @@ spec:
     encodings: [br, zstd, gzip]
     defaultEncoding: br
     minResponseBodyBytes: 98
-    includedContentTypes:
-      - text/html
-      - text/css
-      - text/javascript
-      - application/javascript
-      - application/json
-      - image/svg+xml
-      - application/octet-stream
+    # includedContentTypes:
+    #   - text/html
+    #   - text/css
+    #   - text/javascript
+    #   - application/javascript
+    #   - application/json
+    #   - image/svg+xml
+    #   - application/octet-stream
