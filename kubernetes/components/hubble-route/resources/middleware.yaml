@@ -5,9 +5,12 @@ metadata:
   namespace: kube-system
 spec:
   compress:
-    encodings: [br, zstd, gzip]
+    # NOTE: Cloudflare requests content from the origin with `Accept-Encoding: br, gzip`
+    # (never zstd — not supported end-to-end as of 2025). So on the CF path Traefik
+    # always serves br here; the zstd entry only fires for a direct, non-CF client.
+    encodings: [zstd, br, gzip]
     defaultEncoding: br
-    minResponseBodyBytes: 56
+    minResponseBodyBytes: 1024
     includedContentTypes:
       - text/html
       - text/css
@@ -15,5 +18,3 @@ spec:
       - application/javascript
       - application/json
       - image/svg+xml
-      - application/octet-stream
-      - text/event-stream
