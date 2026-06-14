@@ -83,18 +83,24 @@ deschedulerPolicy:
 
         - name: "LowNodeUtilization"
           args:
-            # Underutilized (target) nodes.
+            # Underutilized (target) nodes: a node must be below ALL of these to
+            # receive evicted pods. If no node qualifies, the plugin is a no-op.
             thresholds:
-              cpu: 20
-              memory: 20
-              pods: 20
-            # Overloaded (source) nodes to evict from. Kept at 50 (not 80) so
-            # drain skew is actually corrected; the 20-50 gap zone is left
-            # alone to avoid re-targeting freshly balanced nodes.
+              cpu: 25
+              memory: 25
+              pods: 25
+            # Overloaded (source) nodes to evict from: above ANY of these.
+            # Tuned for a busy 3-node cluster (cx33, ~8GB): nodes routinely sit
+            # at 50-65% under medium-high traffic, so a 50% source line would
+            # churn every cycle. 70 leaves normal load alone and only acts on
+            # genuine skew. The 25-70 gap zone is the anti-thrash band; e.g.
+            # 56/32/52% memory is left untouched (healthy variance, not skew),
+            # while a post-drain ~17% vs ~75% split clears both gates and
+            # rebalances.
             targetThresholds:
-              cpu: 50
-              memory: 50
-              pods: 50
+              cpu: 70
+              memory: 70
+              pods: 70
 
       plugins:
         # Evictability is decided by DefaultEvictor's args above.
