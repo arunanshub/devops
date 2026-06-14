@@ -81,6 +81,15 @@ deschedulerPolicy:
             nodeAffinityType:
               - "requiredDuringSchedulingIgnoredDuringExecution"
 
+        # v1alpha2 requires a pluginConfig entry for EVERY enabled plugin, even
+        # argless ones. These two take only optional args, so name-only entries
+        # are valid and inherit defaults. Omitting them aborts the whole profile
+        # build ("unable to find <plugin> plugin config") and crash-loops the
+        # pod after it wins the leader lease.
+        - name: "RemovePodsViolatingInterPodAntiAffinity"
+
+        - name: "RemoveDuplicates"
+
         - name: "LowNodeUtilization"
           args:
             # Underutilized (target) nodes: a node must be below ALL of these to
