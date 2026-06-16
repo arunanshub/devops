@@ -1,6 +1,19 @@
 nodeAgent:
   enabled: false
 
+# Harden the velero server container (cluster-admin SA, reads every Secret during
+# backup). drop ALL caps + no privilege escalation + non-root.
+# readOnlyRootFilesystem deliberately NOT set: velero stages backup/restore data
+# to writable scratch paths; flipping it risks silently breaking backups. Upgrade
+# path: set it + add writable emptyDir scratch volume, validated against a real
+# backup/restore run.
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  capabilities:
+    drop:
+      - ALL
+
 initContainers:
   - name: velero-plugin-for-aws
     image: velero/velero-plugin-for-aws:v1.12.0

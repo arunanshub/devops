@@ -51,7 +51,7 @@ resources:
     cpu: 10m
     memory: 32Mi # conservative floor, slightly above idle 23Mi
   limits:
-    memory: 128Mi # cap; no CPU limit intentionally
+    memory: 256Mi # matches VPA maxAllowed so a fresh/scaled-out pod can't OOM before VPA resizes; no CPU limit intentionally
 
 tracing:
   otlp:

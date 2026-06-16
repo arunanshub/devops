@@ -15,10 +15,7 @@ networking:
 monitoring:
   enabled: true
   podMonitor:
-    # kube-prometheus-stack is deployed, so PodMonitor CRD exists.
     enabled: true
-    labels:
-      release: kube-prometheus-stack
 
 strategy:
   type: RollingUpdate

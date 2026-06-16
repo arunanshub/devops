@@ -76,7 +76,5 @@ storageClasses:
 metrics:
   serviceMonitor:
     enabled: true
-    labels:
-      release: kube-prometheus-stack
 
 priorityClassName: system-cluster-critical

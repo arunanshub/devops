@@ -9,6 +9,34 @@ config:
 ingress:
   enabled: false
 
+# Bind the headlamp ServiceAccount to the built-in read-only `view` ClusterRole
+# instead of cluster-admin. The chart only creates the binding (roleRef), not the
+# role — `view` is the only built-in read-only role and, crucially, it EXCLUDES
+# Secrets. This removes the full-compromise path (a leaked/hijacked session can no
+# longer exec/write/delete or read Secrets). Tradeoff: cluster-scoped pages
+# (Nodes, PVs, CRDs) 403 in the UI. NOTE: roleRef is immutable — changing this on
+# a live cluster requires deleting the existing `headlamp-admin` CRB once so
+# ArgoCD recreates it. Upgrade path: a custom aggregated read role if richer
+# read-only visibility is needed. See memory: headlamp-auth-decision.
+clusterRoleBinding:
+  clusterRoleName: view
+
+# Harden the container: the chart's default securityContext sets runAsNonRoot but
+# omits the rest, so set them explicitly. readOnlyRootFilesystem: true makes the
+# chart auto-add a writable /tmp emptyDir.
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 100
+  runAsGroup: 101
+  privileged: false
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
 resources:
   requests:
     cpu: 25m
