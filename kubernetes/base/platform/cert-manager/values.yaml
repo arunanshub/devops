@@ -4,6 +4,16 @@
 crds:
   enabled: true
 
+# make sure cert manager is available at all times. Also helps descheduler.
+replicaCount: 2
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 25%
+    maxUnavailable: 25%
+podDisruptionBudget:
+  minAvailable: 1
+
 # Enable Gateway API support via file-based ControllerConfiguration.
 # Required since cert-manager 1.15 — without this, cert-manager.io/cluster-issuer
 # annotations on Gateway resources are silently ignored.
