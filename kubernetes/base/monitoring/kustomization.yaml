@@ -14,6 +14,5 @@ resources:
   - backup-dashboard/application.yaml
   - network-alerts/application.yaml
   - cluster-alerts/application.yaml
-  - tempo-pdb/application.yaml
   - vpa-dashboard/application.yaml
   - pv-dashboard/application.yaml

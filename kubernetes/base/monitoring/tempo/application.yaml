@@ -11,9 +11,9 @@ spec:
   project: monitoring
 
   sources:
-    - repoURL: https://grafana.github.io/helm-charts
+    - repoURL: https://grafana-community.github.io/helm-charts
       chart: tempo
-      targetRevision: 1.24.4
+      targetRevision: 2.2.2
       helm:
         releaseName: tempo
         valueFiles:
