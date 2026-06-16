@@ -63,8 +63,17 @@ spec:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
             runAsUser: 65534
+            readOnlyRootFilesystem: true
             capabilities:
               drop:
                 - ALL
             seccompProfile:
               type: RuntimeDefault
+          # cloudflared writes nothing to disk in token mode, but give it a
+          # writable /tmp so a read-only rootfs can't surprise us on upgrade.
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

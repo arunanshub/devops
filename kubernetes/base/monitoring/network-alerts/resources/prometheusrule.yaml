@@ -18,7 +18,7 @@ spec:
             severity: warning
           annotations:
             summary: "IP fragmentation failures on {{ $labels.instance }}"
-            description: "{{ $value }} packets with DF bit set dropped on {{ $labels.instance }} in 5m. MTU misconfiguration in overlay stack. Expected: enp7s0=1450, cilium_wg0=1370 (-80 WG), pod=1320 (-50 VXLAN). Check: ip link show | grep mtu"
+            description: "{{ $value }} packets with DF bit set dropped on {{ $labels.instance }} in 5m. MTU misconfiguration in overlay stack. Expected: enp7s0=1450, cilium_wg0=1355 (-95 WG), pod=1305 (-50 VXLAN). Check: ip link show | grep mtu"
 
         # Hubble-level drops from Cilium's eBPF datapath. Covers policy
         # violations, MTU drops that bypass the kernel counter above, and

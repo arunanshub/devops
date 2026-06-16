@@ -10,6 +10,10 @@ spec:
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
+      # Bound the run so a hung aws-cli call (R2 TCP black-hole) can't leave the
+      # Job Running for hours; the check itself takes seconds.
+      activeDeadlineSeconds: 300
+      backoffLimit: 2
       template:
         spec:
           restartPolicy: OnFailure

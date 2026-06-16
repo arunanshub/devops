@@ -36,8 +36,8 @@ bpf:
   masquerade: true
 
 # Send ICMP "Fragmentation Needed" back on oversized packets instead of
-# silently blackholing them. After setting MTU: 1320 this should never fire,
-# fire, but if it does, applications will see an explicit error.
+# silently blackholing them, so applications see an explicit error and can
+# retry with a smaller payload. See docs/cilium-mtu-overlay-networking.md.
 pmtuDiscovery:
   enabled: true
   packetizationLayerPMTUDMode: "always"

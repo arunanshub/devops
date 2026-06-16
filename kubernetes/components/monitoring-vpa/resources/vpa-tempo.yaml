@@ -9,8 +9,11 @@ spec:
     kind: StatefulSet
     name: tempo
   updatePolicy:
-    updateMode: InPlaceOrRecreate
-    minReplicas: 1
+    # Initial, not InPlaceOrRecreate: single-replica StatefulSet on an RWO PVC.
+    # In-place memory decrease is kernel-rejected, so InPlaceOrRecreate falls
+    # back to eviction → PVC detach/reattach gap. Initial applies recommendations
+    # only at pod creation, avoiding mid-life evictions.
+    updateMode: Initial
   resourcePolicy:
     containerPolicies:
       - containerName: tempo

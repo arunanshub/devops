@@ -9,8 +9,11 @@ spec:
     kind: Deployment
     name: vmsingle-victoria-metrics-k8s-stack
   updatePolicy:
-    updateMode: InPlaceOrRecreate
-    minReplicas: 1
+    # Initial, not InPlaceOrRecreate: this is a single-replica Deployment on an
+    # RWO PVC. In-place memory *decrease* is rejected by the kernel cgroup, so
+    # InPlaceOrRecreate falls back to eviction → PVC detach/reattach gap. Initial
+    # applies recommendations only at pod creation, avoiding mid-life evictions.
+    updateMode: Initial
   resourcePolicy:
     containerPolicies:
       - containerName: vmsingle

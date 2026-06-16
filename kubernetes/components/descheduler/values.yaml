@@ -15,8 +15,9 @@ resources:
   requests:
     cpu: 100m
     memory: 128Mi
+  # No CPU limit (matches house style across this repo — CPU is compressible and
+  # a limit just invites CFS throttling on scan bursts). Memory limit retained.
   limits:
-    cpu: 500m
     memory: 256Mi
 
 # Prevents the descheduler from being evicted by its own decisions.

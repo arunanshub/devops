@@ -8,4 +8,3 @@ resources:
   - vpa/application.yaml
   - velero/application.yaml
   - headlamp/application.yaml
-  - headlamp-pdb/application.yaml

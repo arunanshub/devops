@@ -4,7 +4,9 @@ metadata:
   name: arunanshu-dev
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    # Wave 1: this app ships a KEDA ScaledObject; KEDA (wave 0) must register its
+    # CRDs first or the ScaledObject apply fails on a clean bootstrap.
+    argocd.argoproj.io/sync-wave: "1"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:

@@ -10,6 +10,12 @@ spec:
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
+      # Bound the run so a hung kubectl (e.g. API server unreachable mid-drill)
+      # can't leave the Job Running forever and starve every future drill via
+      # concurrencyPolicy: Forbid. 45m covers the worst-case legit run
+      # (~10m namespace teardown + ~15m restore poll + overhead).
+      activeDeadlineSeconds: 2700
+      backoffLimit: 0
       template:
         spec:
           restartPolicy: OnFailure
