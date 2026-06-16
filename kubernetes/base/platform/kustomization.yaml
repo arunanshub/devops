@@ -7,6 +7,5 @@ resources:
   - keda/application.yaml
   - vpa/application.yaml
   - velero/application.yaml
-  - keda-pdb/application.yaml
   - headlamp/application.yaml
   - headlamp-pdb/application.yaml
