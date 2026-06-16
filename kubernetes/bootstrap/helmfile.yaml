@@ -35,7 +35,7 @@ releases:
     chart: argo/argo-cd
     needs:
       - kube-system/hccm
-    version: 9.5.20
+    version: 9.5.21
     namespace: argocd
     cleanupOnFail: true
     createNamespace: true
