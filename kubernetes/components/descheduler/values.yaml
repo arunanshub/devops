@@ -17,7 +17,10 @@ resources:
     memory: 128Mi
   # No CPU limit (matches house style across this repo — CPU is compressible and
   # a limit just invites CFS throttling on scan bursts). Memory limit retained.
+  # cpu: null is required to delete the chart's default 500m limit — Helm
+  # deep-merges maps, so simply omitting the key lets the default reappear.
   limits:
+    cpu: null
     memory: 256Mi
 
 # Prevents the descheduler from being evicted by its own decisions.
