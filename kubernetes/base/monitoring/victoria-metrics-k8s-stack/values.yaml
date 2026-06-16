@@ -16,6 +16,12 @@ victoria-metrics-operator:
   # objects are auto-converted to VM CRDs, keeping cilium/traefik/cloudflared/keda/tempo/
   # hcloud-ccm scrape definitions working untouched.
 
+  # since we already have cert manager, use cert-manager. If not required, ensure
+  # to use RespectIgnoreDifferences=true in syncOptions in argocd application.
+  admissionWebhooks:
+    certManager:
+      enabled: true
+
 vmsingle:
   enabled: true
   spec:
