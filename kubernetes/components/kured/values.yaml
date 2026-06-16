@@ -30,3 +30,7 @@ resources:
 
 metrics:
   create: true
+  # Dead-for-selection (VMAgent selectAllByDefault) but kept: removing it churns
+  # the ArgoCD diff. Not worth it.
+  labels:
+    release: kube-prometheus-stack

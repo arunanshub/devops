@@ -15,6 +15,13 @@ victoria-metrics-operator:
   # disable_prometheus_converter defaults to false — ServiceMonitor/PodMonitor/PrometheusRule
   # objects are auto-converted to VM CRDs, keeping cilium/traefik/cloudflared/keda/tempo/
   # hcloud-ccm scrape definitions working untouched.
+  operator:
+    # The converter copies the source object's argocd tracking-id annotation onto
+    # the generated VMServiceScrape/VMPodScrape. Without this flag ArgoCD treats
+    # those operator-owned objects as app-managed-but-not-in-git and tries to
+    # PRUNE them on every sync (→ perpetual OutOfSync, prune-vs-recreate fight).
+    # This stamps them with argocd ignore annotations so ArgoCD leaves them alone.
+    prometheus_converter_add_argocd_ignore_annotations: true
 
   # since we already have cert manager, use cert-manager. If not required, ensure
   # to use RespectIgnoreDifferences=true in syncOptions in argocd application.

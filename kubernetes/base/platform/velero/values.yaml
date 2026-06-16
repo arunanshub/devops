@@ -2,14 +2,15 @@ nodeAgent:
   enabled: false
 
 # Harden the velero server container (cluster-admin SA, reads every Secret during
-# backup). drop ALL caps + no privilege escalation + non-root.
-# readOnlyRootFilesystem deliberately NOT set: velero stages backup/restore data
-# to writable scratch paths; flipping it risks silently breaking backups. Upgrade
-# path: set it + add writable emptyDir scratch volume, validated against a real
-# backup/restore run.
+# backup): drop ALL caps + no privilege escalation. Applies to the velero
+# deployment AND the upgrade-crds hook job (same image).
+# runAsNonRoot NOT set: velero v1.18 is a buildpacks image with a non-numeric
+# USER (cnb), so kubelet can't verify non-root → CreateContainerConfigError. The
+# image already runs as the non-root cnb user by default, so the guard is moot.
+# readOnlyRootFilesystem NOT set: velero stages backup/restore data to writable
+# scratch paths; flipping it risks silently breaking backups.
 containerSecurityContext:
   allowPrivilegeEscalation: false
-  runAsNonRoot: true
   capabilities:
     drop:
       - ALL

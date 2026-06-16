@@ -16,6 +16,10 @@ monitoring:
   enabled: true
   podMonitor:
     enabled: true
+    # Dead-for-selection (VMAgent selectAllByDefault) but kept: removing it makes
+    # the chart render labels: null and churns the ArgoCD diff. Not worth it.
+    labels:
+      release: kube-prometheus-stack
 
 strategy:
   type: RollingUpdate
