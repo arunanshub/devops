@@ -11,7 +11,7 @@ spec:
   sourceRepos:
     - git@github.com:arunanshub/devops.git
     - https://argoproj.github.io/argo-helm
-    - https://bitnami-labs.github.io/sealed-secrets
+    - https://bitnami.github.io/sealed-secrets
     - https://kubereboot.github.io/charts
     - https://github.com/rancher/system-upgrade-controller
     - https://charts.hetzner.cloud
