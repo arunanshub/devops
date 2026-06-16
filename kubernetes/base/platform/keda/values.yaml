@@ -36,6 +36,34 @@ metricsServer:
 webhooks:
   replicaCount: 2
 
+topologySpreadConstraints:
+  operator:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: keda-operator
+          app.kubernetes.io/instance: keda
+
+  metricsServer:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: keda-operator-metrics-apiserver
+          app.kubernetes.io/instance: keda
+
+  webhooks:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: keda-admission-webhooks
+          app.kubernetes.io/instance: keda
+
 # Right-size KEDA control-plane pods. Chart defaults set a 1000Mi memory limit
 # on each (operator, metrics apiserver, webhooks) — ~3Gi of phantom limits for
 # pods that idle at tens of MiB, which inflates node limit-commit and defeats
