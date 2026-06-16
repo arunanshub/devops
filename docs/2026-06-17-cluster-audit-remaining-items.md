@@ -1,66 +1,65 @@
 # Cluster Audit — Remaining Items (2026-06-17)
 
 Follow-up to the full-cluster review run on 2026-06-17 (waste + security +
-reliability lenses, kubescape live scan, manual manifest review). **Tier 1
-(11 cheap, high-confidence fixes) was applied and verified green** in commits
-`a1def77` and `ca39949`. This doc tracks what was deliberately deferred:
-Tiers 2–4, ranked by fix cost.
+reliability lenses, kubescape live scan, manual manifest review).
 
-For the Tier 1 footgun lesson (Helm `cpu: null` to delete a chart-default
-limit), see the project memory `helm-null-override-deletes-chart-default`.
+- **Tier 1** (11 cheap fixes) — DONE, verified green (`a1def77`, `ca39949`).
+- **Tier 2** — DONE except #14 (`df431cc`, `c05f86d`); see status notes below.
+- **Tiers 3–4** — still deferred, ranked by fix cost.
+
+For footgun lessons see project memory: `helm-null-override-deletes-chart-default`
+(Helm `cpu: null`), `vm-operator-converter-argocd-prune` (ArgoCD pruning converted
+VM scrapes), `velero-runasnonroot-cnb-image` (buildpacks non-numeric USER).
 
 Severity = impact if exploited/hit. Fix-cost = effort to remediate.
 
 ---
 
-## Tier 2 — SMALL (few lines / one file, low risk)
+## Tier 2 — DONE except #14 (2026-06-17, commits `df431cc` + `c05f86d`)
 
-### [SEC-CRITICAL] Headlamp ServiceAccount bound to cluster-admin
-- **Where:** `kubernetes/base/platform/headlamp/values.yaml` (chart default
-  ClusterRoleBinding → `cluster-admin`; verified live)
-- **Risk:** Single-replica UI behind only Cloudflare Access OTP. A session
-  hijack, CF Access bypass, or a Headlamp CVE yields a cluster-admin token =
-  full cluster compromise. Highest-value cheap fix.
-- **Fix:** Override the chart's `clusterRoleBinding` to a custom **read-only**
-  ClusterRole (get/list/watch); add hardened `securityContext`
-  (`allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`,
-  `capabilities.drop: [ALL]`). Add write verbs back selectively if needed.
-- **Long term:** OIDC with short-lived tokens instead of the mounted SA token
-  (needs k3s OIDC flags — see memory `headlamp-auth-decision`).
+### [SEC-CRITICAL] ✅ Headlamp ServiceAccount bound to cluster-admin — DONE
+- `kubernetes/base/platform/headlamp/values.yaml`: bound to built-in read-only
+  `view` role (excludes Secrets) + hardened securityContext (drop ALL, RO-rootfs,
+  no-priv-esc). roleRef is immutable — ArgoCD auto-recreated the `headlamp-admin`
+  CRB. Verified live: SA can read pods, **cannot** read Secrets / create / delete.
+- **Known tradeoff:** `view` 403s the Nodes/PVs/CRDs pages in the UI. If richer
+  read-only is wanted, swap in a custom aggregated read role (everything except
+  Secrets). Long term: OIDC (see memory `headlamp-auth-decision`).
 
-### [SEC-HIGH] Velero unhardened + cluster-admin
-- **Where:** `kubernetes/base/platform/velero/values.yaml` (live container
-  `securityContext: {}`; holds cluster-admin, reads every Secret)
-- **Fix:** Add `containerSecurityContext` (`runAsNonRoot: true`,
-  `runAsUser: 65532`, `readOnlyRootFilesystem: true`, `capabilities.drop:
-  [ALL]`, `allowPrivilegeEscalation: false`). Verify the velero-restore-drill
-  job (needs kubectl) still works.
+### [SEC-HIGH] ✅ Velero unhardened + cluster-admin — DONE
+- `kubernetes/base/platform/velero/values.yaml`: `containerSecurityContext` with
+  `allowPrivilegeEscalation: false` + `capabilities.drop: [ALL]`.
+- **`runAsNonRoot` deliberately NOT set** — velero v1.18 is a buildpacks image
+  with non-numeric USER (`cnb`) → `CreateContainerConfigError`. Image already runs
+  non-root. **`readOnlyRootFilesystem` deferred** — backup scratch writes.
+  See memory `velero-runasnonroot-cnb-image`.
 
-### [SEC-HIGH] `terraform.tfvars` committed with account/zone IDs + email
+### [SEC-HIGH] ⏳ `terraform.tfvars` committed with account/zone IDs + email — #14, NOT DONE
 - **Where:** `infra/terraform.tfvars:1-3` (CF account ID, zone ID,
   `owner_email`); the account ID is also in `velero/values.yaml` `s3Url`
 - **Fix:** Move these into a gitignored `*.auto.tfvars` (add `*.tfvars` to
   `.gitignore`) or SOPS. API tokens are already SOPS-encrypted — only IDs/email
   leak here. Already in git history, so rotation is the only full remediation;
-  removing stops future exposure.
+  removing stops future exposure. **Deferred at user request.**
 
-### [WASTE-CONFIG] Dead `release: kube-prometheus-stack` labels
-- **Where:** `kubernetes/components/hcloud-csi/values.yaml:80`,
-  `hcloud-ccm/values.yaml:21`, `kured/values.yaml:35`
-- **Why waste:** That Prometheus is gone (`prometheus.enabled: false`); the VM
-  operator auto-converts all ServiceMonitor/PodMonitor objects regardless of
-  label. Labels + their comments are dead.
-- **Fix:** Remove the labels and the stale "kube-prometheus-stack is deployed"
-  comments (3 files).
+### [WASTE-CONFIG] ✅ Dead `release: kube-prometheus-stack` labels — ATTEMPTED, REVERTED
+- Removing them was net-negative: the chart rendered `labels: null` and churned
+  the ArgoCD diff. Kept the labels (harmless for selection — VMAgent uses
+  `selectAllByDefault`). Lowest-value item; not worth the churn.
 
-### [REL-HIGH] VPA-drift OOM window on traefik / cloudflared
-- **Where:** `kubernetes/base/platform/traefik/values.yaml`
-  (`limits.memory: 128Mi`) vs `components/traefik-scaling/resources/vpa.yaml`
-  (`maxAllowed.memory: 256Mi`); same gap for cloudflared (64Mi vs 128Mi)
-- **Risk:** On KEDA scale-out or pod replacement, a fresh pod starts at the
-  lower static limit. If real usage exceeds it before VPA re-resizes, OOMKill.
-- **Fix:** Set static `limits.memory` = VPA `maxAllowed.memory` so VPA in-place
-  resize is idempotent (lands at the ceiling it already set).
+### [REL-HIGH] ✅ VPA-drift OOM window on traefik / cloudflared — DONE
+- Raised static `limits.memory` to VPA `maxAllowed`: traefik 128→256Mi
+  (`base/platform/traefik/values.yaml`), cloudflared 64→128Mi
+  (`components/cloudflared/resources/deployment.yaml`). A fresh/scaled-out pod
+  can no longer OOM before VPA in-place resizes it.
+
+### Tier-2 sequel: a systemic latent bug surfaced and was fixed
+Tier-2 syncs exposed that the **VM operator's prometheus-converter copies ArgoCD's
+`tracking-id` annotation onto generated VMServiceScrape/VMPodScrape**, so ArgoCD
+tried to prune those operator-owned objects (perpetual OutOfSync). Fixed at the
+source: `victoria-metrics-operator.operator.prometheus_converter_add_argocd_ignore_annotations:
+true` in the VM stack values → converted objects get `IgnoreExtraneous`. See memory
+`vm-operator-converter-argocd-prune`.
 
 ---
 
