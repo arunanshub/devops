@@ -24,7 +24,7 @@ prometheus:
 podDisruptionBudget:
   operator:
     minAvailable: 1
-  metricsServer:
+  metricServer:
     minAvailable: 1
   webhooks:
     minAvailable: 1
