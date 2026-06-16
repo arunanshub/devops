@@ -14,6 +14,13 @@ strategy:
 podDisruptionBudget:
   minAvailable: 1
 
+# Prometheus metrics shipping
+prometheus:
+  servicemonitor:
+    enabled: true
+  podmonitor:
+    enabled: true
+
 # Enable Gateway API support via file-based ControllerConfiguration.
 # Required since cert-manager 1.15 — without this, cert-manager.io/cluster-issuer
 # annotations on Gateway resources are silently ignored.
