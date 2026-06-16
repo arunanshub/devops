@@ -18,6 +18,24 @@ prometheus:
     prometheusRules:
       enabled: true
 
+# availability and disruption config: make sure keda is always up.
+# Counterpoint: most of the scaledobjects in my cluster anyway rely on
+# prom/vmetrics, so does HA add anything of value?
+podDisruptionBudget:
+  operator:
+    minAvailable: 1
+  metricsServer:
+    minAvailable: 1
+  webhooks:
+    minAvailable: 1
+
+operator:
+  replicaCount: 2
+metricsServer:
+  replicaCount: 2
+webhooks:
+  replicaCount: 2
+
 # Right-size KEDA control-plane pods. Chart defaults set a 1000Mi memory limit
 # on each (operator, metrics apiserver, webhooks) — ~3Gi of phantom limits for
 # pods that idle at tens of MiB, which inflates node limit-commit and defeats
