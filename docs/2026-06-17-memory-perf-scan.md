@@ -20,6 +20,22 @@ cilium/vmagent/grafana **stable sawtooth, not leaking**; the elevated baselines 
 
 ---
 
+## APPLIED (2026-06-18) — Tier A confident core, in phases
+
+| Phase | Change | Commit | Verified result |
+|------:|--------|--------|-----------------|
+| 1 | ArgoCD dex/applicationset/notifications off | `040b277` | 3 idle pods gone, app Synced/Healthy. **~203Mi** |
+| 2 | vmsingle `allowedBytes` 768→512MB | `b1978e4` | flag live; **RSS 1096→601Mi**; `count(up)`=58 targets, 174k series ingesting (visibility intact) |
+| 3 | Grafana `unified_alerting` off + analytics off | `aa8dc4c` | live grafana.ini confirms; Healthy; **RSS ~480→312Mi** |
+| 4 | Tempo `memBallastSizeMbs` 128→0 | `0a31040` | flag live; Ready; metrics-generator still emitting (`traces_service_graph_request_total` present); RSS 186Mi re-warming |
+
+All 47 apps Synced/Healthy after each phase; visibility verified per phase (query/series counts,
+grafana health, tempo service-graph metrics). Node memory stays ~64–72% immediately after because
+the restarted monitoring pods re-warm caches toward their **new lower ceilings** (vmsingle idle
+924→<780, grafana ~480→312); the larger benefit is lower reservations during system-update reboots.
+
+Tier B (#7 tempo `filter_server_spans`, #8 grafana `GOMEMLIMIT`) still pending their checks — see below.
+
 ## RANKED — by confidence (the honest axis)
 
 Estimates are aggregate cluster-wide RSS unless noted. "Both cilium files" = a change must go
