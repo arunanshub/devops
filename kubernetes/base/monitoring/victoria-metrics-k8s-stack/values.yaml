@@ -193,6 +193,15 @@ grafana:
   grafana.ini:
     server:
       enable_gzip: false
+    # Grafana's own unified alerting is unused — there are zero alert rules here and
+    # all alerting runs on vmalert + vmalertmanager. Disabling frees the UA scheduler/
+    # state store (~20-60Mi) with no visibility loss (dashboards read from VM, not UA).
+    unified_alerting:
+      enabled: false
+    # Stop background version-check + anonymous usage reporting (outbound calls, no value here).
+    analytics:
+      check_for_updates: false
+      reporting_enabled: false
 
 kube-state-metrics:
   enabled: true
