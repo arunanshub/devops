@@ -37,7 +37,9 @@ vmsingle:
     extraArgs:
       # Pin cache to a fixed size so RSS doesn't scale with the cgroup limit (vmsingle
       # defaults to 60% of limit). Tune this, not the memory limit, to control RSS.
-      memory.allowedBytes: "768MB"
+      # 512MB: with ~169k active series the TSID cache stays >2x covered (hit rate
+      # >99.99%); query misses fall to NVMe (data intact). Was 768MB — saved ~150-220Mi RSS.
+      memory.allowedBytes: "512MB"
     storage:
       storageClassName: hcloud-volumes-encrypted
       accessModes:
