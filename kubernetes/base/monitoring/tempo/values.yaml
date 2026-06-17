@@ -2,7 +2,11 @@ fullnameOverride: tempo
 
 tempo:
   reportingEnabled: false
-  memBallastSizeMbs: 128
+  # 0 disables the legacy Go memory ballast (obsolete since Go 1.19 GOMEMLIMIT;
+  # removed entirely in Tempo 3.0, #6403). MUST be explicit 0 — the chart default
+  # is 1024, so omitting the key would raise it. Frees the secondary GC-headroom
+  # garbage (~50% of idle RSS per Grafana Cloud), not the ballast itself (it was virtual).
+  memBallastSizeMbs: 0
   retention: 48h
 
   resources:
