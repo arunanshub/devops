@@ -26,9 +26,3 @@ spec:
           name: vmsingle-victoria-metrics-k8s-stack
           port: 8428
           weight: 1
-      filters:
-        - type: ExtensionRef
-          extensionRef:
-            group: traefik.io
-            kind: Middleware
-            name: compress
