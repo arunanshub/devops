@@ -49,6 +49,10 @@ env:
     valueFrom:
       resourceFieldRef:
         resource: limits.memory
+        # Explicit divisor: 1 (bytes). Omitting it makes the k8s API store the zero-value
+        # "0", which the helm-rendered manifest lacks -> permanent ArgoCD OutOfSync. With it
+        # pinned, desired == live (server-dry-run confirmed it persists as "1").
+        divisor: "1"
 
 # Close the rolling-restart 502 window: keep accepting on the web entryPoint for 5s
 # after SIGTERM so in-flight requests drain (KEDA min2/max5 -> restarts happen; pairs
