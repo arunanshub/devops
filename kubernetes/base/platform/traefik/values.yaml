@@ -37,6 +37,40 @@ service:
   spec:
     type: ClusterIP
 
+# GOMEMLIMIT vs VPA: the chart bakes GOMEMLIMIT = limit * goMemLimitPercentage at
+# render time (a fixed byte value). A live VPA (InPlaceOrRecreate) resizes the memory
+# limit, but the baked GOMEMLIMIT stays frozen -> GC over-fires against a stale ceiling.
+# Disable the static calc (set to 0) and inject GOMEMLIMIT from the live cgroup limit so
+# it tracks VPA resizes. (chart PR #1796)
+deployment:
+  goMemLimitPercentage: 0
+env:
+  - name: GOMEMLIMIT
+    valueFrom:
+      resourceFieldRef:
+        resource: limits.memory
+
+# Close the rolling-restart 502 window: keep accepting on the web entryPoint for 5s
+# after SIGTERM so in-flight requests drain (KEDA min2/max5 -> restarts happen; pairs
+# with cloudflared's own drain). requestAcceptGraceTimeout requires traefik v3.7+ (chart
+# 40.3.0 ships v3.7.4). web (:8000) is the live traffic entryPoint behind cloudflared.
+ports:
+  web:
+    transport:
+      lifeCycle:
+        requestAcceptGraceTimeout: "5s"
+
+# We have zero access logs today — 4xx/5xx are invisible beyond a Prometheus counter.
+# Buffered, error-only JSON access logs close that blind spot at near-zero cost and feed
+# straight into Loki. statuscodes/filters keys are lowercase in this chart.
+logs:
+  access:
+    enabled: true
+    format: json
+    bufferingSize: 100
+    filters:
+      statuscodes: "400-599"
+
 topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: kubernetes.io/hostname
@@ -66,6 +100,10 @@ metrics:
     addEntryPointsLabels: true
     addServicesLabels: true # Helps isolate backend-specific middleware drops
     addRoutersLabels: true # per-route metrics, useful for KEDA query
+    # Chart default buckets are "0.1,0.3,1.2,5.0" — our request durations are
+    # single-digit ms, so p50/p95 collapse into the first bucket and latency SLO
+    # dashboards are blind below 100ms. Add sub-100ms resolution.
+    buckets: "0.005,0.01,0.025,0.05,0.1,0.25,0.5,1.0"
     service:
       enabled: true # creates a dedicated metrics Service
     serviceMonitor:
