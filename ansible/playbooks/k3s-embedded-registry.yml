@@ -1,0 +1,120 @@
+# One-shot playbook — do NOT import into site.yml.
+# Phase 3 (see docs/2026-06-19-unused-optimization-levers.md): enable the k3s embedded registry
+# mirror (Spegel) — a stateless distributed OCI registry that lets nodes share container images
+# peer-to-peer before hitting an upstream registry. Faster DaemonSet/upgrade rollouts + insulation
+# from upstream rate limits.
+#
+# Two files, applied together so it's ONE rolling restart per node:
+#   1. config.yaml.d/embedded-registry.yaml — `embedded-registry: true` (server startup flag).
+#   2. registries.yaml — `mirrors: "*"` wildcard, so ALL registries are P2P-mirrored. Bare key (no
+#      endpoint) keeps the implicit default endpoint, so containerd FALLS BACK to upstream when no
+#      peer has the image — we do NOT set --disable-default-registry-endpoint. Worst case = a slower
+#      pull, never a failed pull. Wildcard is safe here: no private/authenticated pulls exist
+#      (nothing to leak P2P), and v1.35.5 is past the v1.35.1 wildcard-mirror fix (k3s #13539).
+# Both are read only at k3s startup → a restart is required (k3s docs: registry changes need a
+# restart on each node). Ports: local registry on :6443 (existing), P2P DHT on :5001 (new), both on
+# the Hetzner private net (10.0.0.x) — no firewall change (cloud FW filters public NICs only) and no
+# MTU interaction (host network, not the Cilium overlay). Auth is automatic (cluster CA + server
+# preshared key) — no secret to manage.
+#
+# Restarts k3s ONE node at a time (serial:1) → etcd quorum (2/3) preserved; a failed restart halts
+# before the next node. Non-disruptive to running pods (containerd keeps them up).
+#
+# Run:  just ansible-check    k3s-embedded-registry   # dry-run (--check --diff), no changes
+#       just ansible-converge k3s-embedded-registry   # apply (rolling, one node at a time)
+- name: Enable k3s embedded registry mirror (Spegel) (Phase 3)
+  hosts: control_planes
+  gather_facts: false
+  become: true
+  serial: 1
+  max_fail_percentage: 0
+  order: sorted
+  handlers:
+    # Both copy tasks notify this; handlers de-dupe by name → exactly one restart even if both files
+    # change. flush_handlers (below) runs it before the verify under serial:1. A failed restart fails
+    # the host → 100% > max_fail_percentage:0 → play aborts before the next node (etcd quorum safe).
+    - name: Restart k3s
+      ansible.builtin.systemd:
+        name: "{{ k3s_service_name }}"
+        state: restarted
+
+  tasks:
+    - name: Set k3s service name
+      ansible.builtin.set_fact:
+        k3s_service_name: k3s
+
+    - name: Create k3s config drop-in directory
+      ansible.builtin.file:
+        path: /etc/rancher/k3s/config.yaml.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy embedded-registry drop-in
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml.d/embedded-registry.yaml
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Enable Spegel, the k3s embedded distributed OCI registry mirror. Server-only flag (all 3
+          # nodes are servers). Local registry rides :6443; P2P DHT on :5001 — both private-net only,
+          # so no firewall change. Requires a k3s restart (config.yaml.d is read at startup only).
+          embedded-registry: true
+      notify: Restart k3s
+
+    - name: Deploy registries.yaml (wildcard mirror)
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/registries.yaml
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Mirror ALL registries via Spegel (the asterisk MUST be quoted). Bare key (no endpoint)
+          # = P2P-mirror but KEEP the implicit upstream default endpoint, so containerd falls back to
+          # upstream when no peer has the image (we do NOT set --disable-default-registry-endpoint).
+          mirrors:
+            "*":
+      notify: Restart k3s
+
+    # Force the Restart k3s handler now (before verify) instead of at play end.
+    - name: Flush handlers (restart k3s before verifying)
+      ansible.builtin.meta: flush_handlers
+
+    - name: Wait for this node to be Ready again
+      kubernetes.core.k8s_info:
+        kind: Node
+        name: "{{ kubernetes_node_name }}"
+      register: node_info
+      delegate_to: localhost
+      become: false
+      # default([]) tolerates the API endpoint (cp-1) being briefly unreachable during its own
+      # restart: a failed query → empty resources → until false → retry (not a templating error).
+      until: >
+        (node_info.resources | default([]) | length > 0) and (node_info.resources[0].status.conditions | selectattr('type', 'equalto', 'Ready')
+         | map(attribute='status') | list | first | default('')) == 'True'
+      retries: 30
+      delay: 10
+      when: not ansible_check_mode
+
+    - name: Verify Spegel P2P listener is up on :5001 (embedded-registry took effect)
+      # :5001 was absent before enabling, so a listener appearing is the precise signal the flag
+      # landed. awk filters LISTEN sockets whose local addr ends in :5001; grep -q . => at least one.
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          ss -ltn | awk '$4 ~ /:5001$/' | grep -q .
+        executable: /bin/bash
+      register: spegel_listen_check
+      changed_when: false
+      until: spegel_listen_check.rc == 0
+      retries: 12
+      delay: 5
+      when: not ansible_check_mode
+
+    - name: Summary (per node)
+      ansible.builtin.debug:
+        msg: >-
+          {{ kubernetes_node_name }}: embedded registry (Spegel) enabled, P2P listener up on :5001. After all nodes: verify peer-serving with a PINNED-tag pull test (latest is excluded).
+      when: not ansible_check_mode
