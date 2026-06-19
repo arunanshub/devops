@@ -10,7 +10,7 @@ spec:
     # always serves br here; the zstd entry only fires for a direct, non-CF client.
     encodings: [zstd, br, gzip]
     defaultEncoding: br
-    minResponseBodyBytes: 1024
+    minResponseBodyBytes: 256
     includedContentTypes:
       - text/html
       - text/css
