@@ -48,9 +48,12 @@ vmsingle:
       # (vm_slow_queries_total / vm_memory_intensive_queries_total). Pure observability.
       search.logSlowQueryDuration: "2s"
       search.logQueryMemoryUsage: "64MB"
-      # Let recent data into the rollup cache sooner. Default 5m is over-conservative for
-      # our 30s scrape — 60s improves cache-hit on "last 15m/1h" dashboards.
-      search.cacheTimestampOffset: "60s"
+      # NOTE: search.cacheTimestampOffset was tried at 60s here and REVERTED. vmalert
+      # writes recording-rule (:increase30d) and ALERTS/ALERTS_FOR_STATE series back with
+      # evaluation timestamps that lag ~90-113s. A 60s offset makes those samples "too old",
+      # so vmsingle resets the whole rollup result cache every ~10-30s (warn+info log pair
+      # each time -> TooManyLogs alert, and net-WORSE cache hit rate). The 5m default tolerates
+      # the lag. Do not lower it.
     storage:
       storageClassName: hcloud-volumes-encrypted
       accessModes:
