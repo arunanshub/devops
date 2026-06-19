@@ -127,16 +127,17 @@ Revised phasing agreed 2026-06-19 — batch the cheap additive flags into ONE ro
 - faster-failover (`node-monitor-grace-period`, `*-toleration-seconds`) — on a 3-node cluster with known MTU/WireGuard datapath sensitivity, shrinking the NotReady grace period risks evicting pods on transient blips; with no autoscaler + fixed pool it adds no capacity. Real downside, marginal upside.
 
 **Tier 3 — datapath, schedule in a maintenance window + `just verify-mtu`:**
-9. Cilium **BandwidthManager + BBR** — the one genuine *latency* win for the India→CF→cluster path; works with our VXLAN+WireGuard. Everything else Cilium (netkit, distributedLRU, bpfClockProbe) is lower-value and folds into a future node replacement.
+9. Cilium **BandwidthManager + BBR** — ✅ **DONE 2026-06-19 (commit 919dde7).** Added `bandwidthManager.enabled+bbr=true` IDENTICALLY to both Cilium values files (ArgoCD `kubernetes/base/infra/cilium/values.yaml` + bootstrap `kubernetes/bootstrap/values/cilium.yaml.gotmpl`); render-verified datapath-identical so adoption stays no-op. Propagation: ConfigMap synced by ArgoCD does NOT auto-roll the DS (no config-checksum annotation; DS `maxUnavailable:2` makes rollout-restart unsafe on 3 nodes) → applied via **per-node `kubectl delete pod -l k8s-app=cilium`**, one at a time, canary-first, gating on `cilium-dbg status` = `EDT with BPF [BBR]`. Verified: all 3 agents BBR, host sysctl `tcp_congestion_control=bbr` + qdisc `fq` (was cubic/fq_codel), `just verify-mtu` PASS, cluster health 3/3, no alerts; then `rollout restart` cloudflared/traefik/arunanshu-dev for new BBR sockets (cloudflared HA=8). Note: `Cluster health 0/0` right after an agent restart is a prober re-init artifact (settles to 3/3 in ~2m). Revert = both keys false + per-node pod delete; qdisc/sysctl persist until node reboot (benign). Everything else Cilium (netkit, distributedLRU, bpfClockProbe) stays deferred to a future node replacement.
 
 **Explicitly blocked / rejected (so they're not re-proposed):** Cilium BIG TCP & XDP (incompatible with our tunnel+encryption / virtual NICs); Traefik HTTP/3, fastProxy, TLS-edge features (behind cloudflared); k3s disable-metrics-server (VPA needs it); cloudflared `--protocol` pin (not a real flag); downsampling (Enterprise + 14d retention).
 
 ## Suggested sequencing (agreed 2026-06-19)
 - **Tier 1 — ✅ DONE + pushed** (free, reversible, observability-first — the prerequisite for judging everything else).
 - **Phase 2 — etcd metrics** ✅ **DONE.** 2a (ansible `k3s-etcd-metrics.yml`) exposes :2381; 2b (gitops) scrapes it via a `VMStaticScrape` + ships etcd rules via `kubeEtcd.enabled`. Image-pull parallelism dropped (k3s kubelet rejects `--max-parallel-image-pulls`).
-- **Phase 3 — Spegel embedded registry** ✅ **DONE** (ansible `k3s-embedded-registry.yml`, wildcard mirror, peer cache-hit proven). **Phase 4 (secrets-encryption) ← NEXT.**
+- **Phase 3 — Spegel embedded registry** ✅ **DONE** (ansible `k3s-embedded-registry.yml`, wildcard mirror, peer cache-hit proven).
+- **Phase 5 — Cilium BandwidthManager + BBR** ✅ **DONE** (done out of order, ahead of Phase 4, per operator choice). **Only remaining: Phase 4 — secrets-encryption** (the highest-care stateful one; hard to roll back — take a fresh etcd snapshot first, then the exact `enable→restart→rotate-keys→restart` sequence).
 - **Phase 3 — Spegel** (`embedded-registry` + `registries.yaml` + firewall verify).
 - **Phase 4 — secrets-encryption** (stateful sequence, operator-in-the-loop).
-- **Phase 5 (Tier 3) — Cilium BandwidthManager + BBR** last, alone, in a maintenance window, with `just verify-mtu` + Hubble before/after.
+- **Phase 5 (Tier 3) — Cilium BandwidthManager + BBR** ✅ **DONE** (canary per-node agent restart, verify-mtu PASS, host cc=bbr/qdisc=fq, internet-facing deploys flipped). **All planned phases complete.**
 
 Safety over speed: one rolling pass at a time, verify Ready + etcd quorum (2/3) between nodes, ship the gitops scrape only after the flag is confirmed live. The k3s items move the reboot invariant (parallel pulls) and security posture (at-rest encryption) — the most valuable findings, entirely missed by a CPU-usage lens.
