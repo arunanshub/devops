@@ -40,6 +40,17 @@ vmsingle:
       # 512MB: with ~169k active series the TSID cache stays >2x covered (hit rate
       # >99.99%); query misses fall to NVMe (data intact). Was 768MB — saved ~150-220Mi RSS.
       memory.allowedBytes: "512MB"
+      # Guard the 2Gi memory limit against a single runaway MetricsQL query over 169k
+      # series. maxConcurrentRequests auto-sizes; this caps RAM per query, not count.
+      search.maxMemoryPerQuery: "256MB"
+      # Surface expensive Grafana panels before they bite: log queries slower than 2s
+      # (default 5s) and queries that allocate >64MB. Both increment metrics
+      # (vm_slow_queries_total / vm_memory_intensive_queries_total). Pure observability.
+      search.logSlowQueryDuration: "2s"
+      search.logQueryMemoryUsage: "64MB"
+      # Let recent data into the rollup cache sooner. Default 5m is over-conservative for
+      # our 30s scrape — 60s improves cache-hit on "last 15m/1h" dashboards.
+      search.cacheTimestampOffset: "60s"
     storage:
       storageClassName: hcloud-volumes-encrypted
       accessModes:
@@ -59,6 +70,12 @@ vmagent:
   enabled: true
   spec:
     scrapeInterval: 30s
+    # vmagent buffers remote-write to an on-disk queue on EPHEMERAL pod storage (no PV).
+    # If vmsingle is briefly unavailable the queue is unbounded by default and can fill
+    # the node disk, harming co-located workloads. Cap it; overflow is dropped (metrics
+    # gap) but the node disk is protected.
+    extraArgs:
+      remoteWrite.maxDiskUsagePerURL: "1GB"
     resources:
       requests:
         cpu: 50m
