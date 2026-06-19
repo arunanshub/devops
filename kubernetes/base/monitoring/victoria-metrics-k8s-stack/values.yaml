@@ -384,25 +384,20 @@ kubeControllerManager:
   enabled: false
 kubeScheduler:
   enabled: false
-# k3s embeds etcd; its metrics are exposed on each control-plane node's internal IP at :2381
-# over PLAIN HTTP (etcd-expose-metrics, Phase 2a) — the TLS ports 2379/2380/2382 are NOT used.
-# Providing .endpoints makes the chart emit a selector-less headless Service + Endpoints carrying
-# the node IPs; restating vmScrape.spec.endpoints replaces the chart-default HTTPS+client-cert
-# tlsConfig and SA bearerToken (Helm replaces lists wholesale), leaving a plain-http scrape.
+# k3s embeds etcd; its server metrics are on each control-plane node's internal IP at :2381 over
+# PLAIN HTTP (etcd-expose-metrics, Phase 2a). We keep kubeEtcd.enabled=true ONLY to ship the etcd
+# alert/recording RULES — the chart gates that rule group on kubeEtcd.enabled. The chart's own scrape
+# path needs a manual Endpoints object, which ArgoCD's resource.exclusions drops (Endpoints/
+# EndpointSlice are control-plane-managed) → 0 targets. So we suppress the chart's Service + Endpoints
+# + VMServiceScrape (endpoints=[], service.enabled=false, vmScrape.enabled=false) and scrape the node
+# IPs directly via the VMStaticScrape in extraObjects below (static targets need no Endpoints object).
 kubeEtcd:
   enabled: true
-  endpoints:
-    - 10.0.0.2
-    - 10.0.0.3
-    - 10.0.0.4
+  endpoints: []
   service:
-    port: 2381
-    targetPort: 2381
+    enabled: false
   vmScrape:
-    spec:
-      endpoints:
-        - port: http-metrics
-          scheme: http
+    enabled: false
 
 # Re-ships the kube-prometheus dashboards + recording/alerting rules. Disable rule
 # groups for components k3s does not expose, to avoid no-data panels and false alerts.
@@ -436,3 +431,23 @@ extraObjects:
           app.kubernetes.io/instance: tempo
       endpoints:
         - port: tempo-prom-metrics
+
+  # etcd server health metrics (etcd_server_*, etcd_disk_*, etc.) live on each control-plane node
+  # at :2381 (plain HTTP, etcd-expose-metrics from Phase 2a). Scraped as STATIC targets because the
+  # node IPs are a host process (no Service/pod) and ArgoCD excludes Endpoints objects (see the
+  # kubeEtcd note above). job=kube-etcd matches the etcd defaultRules' job=~".*etcd.*" selector.
+  # These are the etcd-SERVER metrics; the apiserver job already carries the disjoint etcd-CLIENT
+  # metrics (etcd_request_*, etcd_requests_total, …) — no overlap, no duplicate series.
+  - apiVersion: operator.victoriametrics.com/v1beta1
+    kind: VMStaticScrape
+    metadata:
+      name: kube-etcd
+      namespace: monitoring
+    spec:
+      jobName: kube-etcd
+      targetEndpoints:
+        - targets:
+            - "10.0.0.2:2381"
+            - "10.0.0.3:2381"
+            - "10.0.0.4:2381"
+          scheme: http
