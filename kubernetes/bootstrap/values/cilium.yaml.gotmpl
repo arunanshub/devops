@@ -34,6 +34,16 @@ encryption:
 bpf:
   masquerade: true
 
+# BandwidthManager (MQ/FQ qdiscs + EDT pacing) + BBR congestion control for pods.
+# BBR helps the high-RTT internet egress path (cloudflared/traefik/webapp); requires
+# eBPF host-routing (on) + kernel >=5.18 (6.8). Applies to NEW sockets only — existing
+# pods flip on their next restart. Orthogonal to VXLAN+WireGuard. Revert = both keys
+# false + rolling per-node `kubectl -n kube-system delete pod -l k8s-app=cilium`
+# (qdisc/sysctl persist until node reboot, benign). Verify: `just verify-mtu` + cilium status.
+bandwidthManager:
+  enabled: true
+  bbr: true
+
 pmtuDiscovery:
   enabled: true
   packetizationLayerPMTUDMode: "always"
