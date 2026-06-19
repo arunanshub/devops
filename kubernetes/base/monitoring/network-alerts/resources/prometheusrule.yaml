@@ -58,3 +58,22 @@ spec:
           annotations:
             summary: "Cilium health endpoints unreachable from {{ $labels.instance }}"
             description: "{{ $value }} health endpoint(s) unreachable on {{ $labels.instance }}. Run: cilium-health status --probe (exec into the cilium pod on that node)"
+
+    # cloudflared is the SOLE external ingress path into the cluster. Each replica
+    # holds 4 HA connections to the Cloudflare edge; healthy steady state is 8
+    # (2 replicas x 4). This group watches that the tunnel stays connected.
+    - name: cloudflared-tunnel
+      interval: 1m
+      rules:
+        # Below one full replica's worth of edge connections sustained for 5m means
+        # redundancy is lost and ingress is at risk (a rolling restart dips to 4, not
+        # below, and the 5m window rides that out). The /ready probe + KEDA min 2
+        # normally self-heal; this fires when they don't.
+        - alert: CloudflaredTunnelRedundancyLost
+          expr: sum(cloudflared_tunnel_ha_connections) < 4
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Cloudflare tunnel edge connections degraded"
+            description: "Total cloudflared edge HA connections is {{ $value }} (healthy = 8 = 2 replicas x 4). Below 4 means less than one fully-connected replica — external ingress is at risk. Check: kubectl -n cloudflared get pods; kubectl -n cloudflared logs -l app=cloudflared (now JSON-formatted)"

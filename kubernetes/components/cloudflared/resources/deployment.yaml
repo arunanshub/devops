@@ -30,6 +30,11 @@ spec:
             - --no-autoupdate
             - --metrics
             - 0.0.0.0:2000
+            # Structured logs so connection churn / edge-location changes / retry storms
+            # are queryable in Loki without regex (metrics are already scraped). Verified
+            # flag exists on this version (--output, env TUNNEL_LOG_OUTPUT).
+            - --output
+            - json
             - run
           ports:
             - name: metrics
