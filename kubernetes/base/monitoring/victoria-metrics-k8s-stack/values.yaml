@@ -384,8 +384,25 @@ kubeControllerManager:
   enabled: false
 kubeScheduler:
   enabled: false
+# k3s embeds etcd; its metrics are exposed on each control-plane node's internal IP at :2381
+# over PLAIN HTTP (etcd-expose-metrics, Phase 2a) — the TLS ports 2379/2380/2382 are NOT used.
+# Providing .endpoints makes the chart emit a selector-less headless Service + Endpoints carrying
+# the node IPs; restating vmScrape.spec.endpoints replaces the chart-default HTTPS+client-cert
+# tlsConfig and SA bearerToken (Helm replaces lists wholesale), leaving a plain-http scrape.
 kubeEtcd:
-  enabled: false
+  enabled: true
+  endpoints:
+    - 10.0.0.2
+    - 10.0.0.3
+    - 10.0.0.4
+  service:
+    port: 2381
+    targetPort: 2381
+  vmScrape:
+    spec:
+      endpoints:
+        - port: http-metrics
+          scheme: http
 
 # Re-ships the kube-prometheus dashboards + recording/alerting rules. Disable rule
 # groups for components k3s does not expose, to avoid no-data panels and false alerts.
@@ -396,7 +413,7 @@ defaultRules:
   enabled: true
   groups:
     etcd:
-      enabled: false
+      enabled: true
     kubeScheduler:
       enabled: false
     kubernetesSystemScheduler:

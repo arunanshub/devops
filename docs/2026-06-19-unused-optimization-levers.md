@@ -62,7 +62,7 @@ after, schedule in a window).
 
 | Lever (extraArgs) | What it does | Benefit | Verdict |
 |---|---|---|---|
-| **`-search.maxMemoryPerQuery=256MB`** | Per-query RAM cap | Guards the 2Gi ceiling against a runaway Grafana MetricsQL over 169k series | **YES** — gitops, 1 line |
+| **`-search.maxMemoryPerQuery=256MB`** | Per-query RAM cap | Guards the vmsingle pod memory limit (verified 2026-06-19: **~5.18 GiB** limit / ~1.29 GiB request — NOT 2Gi) against a runaway Grafana MetricsQL over ~170k series | **YES** — gitops, 1 line |
 | **`-search.logSlowQueryDuration=2s`** | Logs slow queries (+`vm_slow_queries_total`) | Zero-cost early warning on expensive dashboards | **YES** |
 | **`-search.logQueryMemoryUsage=64MB`** | Logs memory-heavy queries | Same, for memory | **YES** |
 | ~~`-search.cacheTimestampOffset=60s`~~ | **TRIED & REVERTED (b749fb4)** | vmalert writes recording-rule (`:increase30d`) + ALERTS series back with timestamps lagging ~90-113s; a 60s offset makes them "too old" → vmsingle resets the rollup cache every ~10-30s (TooManyLogs + worse hit rate). 5m default tolerates it. **Do not lower.** | **NO** |
