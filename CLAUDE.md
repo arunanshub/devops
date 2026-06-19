@@ -85,6 +85,28 @@ When creating SealedSecret-bound or SOPS-bound Secret manifests, **strip runtime
 - `kubernetes/bootstrap/helmfile.yaml` — bootstrap order and `needs:` graph
 - `Justfile` — operator UX entrypoints; `just verify-mtu` is the post-bootstrap networking health check
 
+## Doc-backed changes only (hard rule — learned the hard way)
+
+Do **not** apply an infra config change on the strength of assumption or training-data memory.
+**Verify the specific flag / field / value / behavior against current upstream docs *before* you
+ship it** — Context7 or exa pinned to the running version, the tool's own `--help`, or the live API
+(`kubectl explain`, the live CRD). This is mandatory for anything touching k3s, the kubelet, Cilium,
+chart values, or ArgoCD behavior. If you cannot cite a doc URL or live-command output for a claim,
+do not act on it.
+
+- A `kubelet-arg` is valid only if the kubelet exposes it as a **CLI flag**. Many
+  KubeletConfiguration *fields* (e.g. `maxParallelImagePulls`) are **not** CLI flags and make k3s
+  crash-loop with `unknown flag`. `--check` / `ansible-lint` / `helm template` **cannot** catch a
+  runtime flag rejection — only the actual restart does. The render passing is not proof.
+- Touch k3s / node config only via ansible one-shots with `serial: 1` + `max_fail_percentage: 0` +
+  a node-Ready gate, so a bad change halts on the first node with etcd quorum (2/3) intact; revert =
+  remove the drop-in + restart. Confirm `:6443`/API recovery does not depend on the node being
+  restarted (the operator kubeconfig points at cp-1; readiness waits must tolerate that — use
+  `default([])` in the `until`).
+- This rule exists because on 2026-06-19 an unverified `--max-parallel-image-pulls` kubelet-arg
+  crash-looped k3s on cp-1 (26 restarts). The safety net held (quorum preserved, clean revert), but
+  it was avoidable by reading the docs first. See memory `k3s-max-parallel-image-pulls-not-a-flag`.
+
 ## Things not to do
 
 - Do not re-run `just argocd-bootstrap` after the root Application is applied (helmfile vs ArgoCD ownership conflict).
