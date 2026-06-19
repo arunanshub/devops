@@ -105,28 +105,36 @@ after, schedule in a window).
 
 ## Top picks — what to actually adopt, tiered by effort/risk
 
-**Tier 1 — gitops-only, do now (revert = one line):**
-1. VictoriaMetrics guard-rails: `maxMemoryPerQuery`, `logSlowQueryDuration`, `logQueryMemoryUsage`, vmagent `maxDiskUsagePerURL`. (`cacheTimestampOffset` was tried and reverted — see table.)
-2. Traefik: VPA-aware GOMEMLIMIT fix, `requestAcceptGraceTimeout: 5s`, error-only buffered access logs, histogram buckets, kill version-check/usage calls.
-3. cloudflared: `--output json` logs + a tunnel-HA-connections VMRule alert.
+**Tier 1 — gitops-only ✅ DONE + pushed (2026-06-19):**
+1. ✅ VictoriaMetrics guard-rails: `maxMemoryPerQuery`, `logSlowQueryDuration`, `logQueryMemoryUsage`, vmagent `maxDiskUsagePerURL` (`3561d7e`). NOTE: `cacheTimestampOffset=60s` was tried and **reverted** (`b749fb4`) — it reset the rollup cache every ~10–30s against vmalert's ~90–113s recording-rule/ALERTS lag → TooManyLogs. Keep the 5m default; do not lower.
+2. ✅ Traefik: VPA-aware GOMEMLIMIT fix, `requestAcceptGraceTimeout: 5s`, error-only buffered access logs, fine histogram buckets (`7c1317e`). Follow-up: pinned the GOMEMLIMIT `resourceFieldRef` divisor to `"1"` to stop permanent ArgoCD OutOfSync drift (`bf205fb`).
+3. ✅ cloudflared: `--output json` logs + `CloudflaredTunnelRedundancyLost` VMRule alert (`sum(cloudflared_tunnel_ha_connections) < 4`; healthy = 8) (`c537fa1`).
 
-**Tier 2 — node-config drop-in + rolling restart (ansible, NO reprovision):**
-4. k3s `--secrets-encryption` (encrypts S3 etcd snapshots — highest-value security item).
-5. k3s `--embedded-registry` (Spegel — faster rollouts, Docker-Hub-rate-limit insulation).
-6. k3s `--etcd-expose-metrics` + ServiceMonitor (etcd health visibility).
-7. k3s `serialize-image-pulls=false` + `max-parallel-image-pulls=3` (faster node recovery → helps reboot invariant).
-8. (Optional) k3s faster-failover args + `kube/system-reserved` (measure first).
+**Tier 2 — node-config via ansible (`ansible/playbooks/`, drop-in + `serial:1` rolling restart, NO reprovision).**
+Revised phasing agreed 2026-06-19 — batch the cheap additive flags into ONE rolling pass; isolate the two that earn their own pass; park what needs measurement. All 3 nodes are control-plane w/ embedded-etcd HA (`cp-1/2/3` = `10.0.0.2/3/4`, k3s v1.35.5+k3s1), so every server flag lands on all 3.
+
+- **Phase 2 (one rolling pass + paired gitops) — etcd metrics + image-pull parallelism.** ← NEXT
+  - `etcd-expose-metrics: true` (server) → flips etcd `--listen-metrics-urls` from `127.0.0.1:2381` to `0.0.0.0:2381` (plain HTTP `/metrics`). Currently we are BLIND to etcd: `kubeEtcd.enabled=false`, `defaultRules.groups.etcd.enabled=false`, and the kubelet/embedded-binary job drops `(apiserver|etcd)_.*`. Pairs with gitops: enable `kubeEtcd` (static endpoints `10.0.0.2/3/4:2381`, scheme http) + re-enable etcd default rules; KEEP the kubelet-job drop (it now dedups the embedded-binary leak vs the canonical `job=kubeEtcd`). ORDER: ansible flag must land + be verified listening on :2381 BEFORE the gitops scrape ships, else a down-target alert. Firewall: :2381 binds 0.0.0.0, but Hetzner Cloud FW filters only public NICs and node↔node scrape is intra-cluster — confirm 2381 not publicly reachable + scrape works.
+  - `serialize-image-pulls=false` + `max-parallel-image-pulls=3` via `kubelet-arg+` (faster node recovery → helps the reboot invariant). Pure-additive, same drop-in, same pass.
+- **Phase 3 — k3s `embedded-registry: true` (Spegel P2P image mirror).** VERIFIED (k3s docs 2026-06): the flag alone does NOTHING — must ALSO add `mirrors:` entries to `registries.yaml` on every node (docker.io, registry.k8s.io, ghcr.io, quay.io). Ports: local registry on 6443 (= our API port, already open), P2P DHT on 5001 (new); nodes reach each other on INTERNAL IPs on 5001+6443. Our inter-node path is the Hetzner private net (10.0.0.x), which the cloud FW does not filter — likely NO firewall change, but verify 5001 node↔node first. Benefit: faster rollouts + Docker-Hub-rate-limit insulation.
+- **Phase 4 — k3s `secrets-encryption: true` (highest-value security item; highest care).** VERIFIED: NOT a simple flag on HA — ordered stateful sequence: `k3s secrets-encrypt enable` on one server → restart ALL servers with `secrets-encryption: true` → `k3s secrets-encrypt rotate-keys` → restart all again → verify `Enabled`. Only protects FUTURE etcd writes + FUTURE S3 snapshots (already-taken snapshots stay plaintext). Operator-in-the-loop with playbook assist, not fully autonomous.
+
+**Parked (do NOT do without the stated prerequisite):**
+- `kube/system-reserved` / `kube-reserved` — measure live node headroom on the 8GB CX33s first; mis-sizing on small nodes causes evictions.
+
+**Dropped (agreed 2026-06-19):**
+- faster-failover (`node-monitor-grace-period`, `*-toleration-seconds`) — on a 3-node cluster with known MTU/WireGuard datapath sensitivity, shrinking the NotReady grace period risks evicting pods on transient blips; with no autoscaler + fixed pool it adds no capacity. Real downside, marginal upside.
 
 **Tier 3 — datapath, schedule in a maintenance window + `just verify-mtu`:**
 9. Cilium **BandwidthManager + BBR** — the one genuine *latency* win for the India→CF→cluster path; works with our VXLAN+WireGuard. Everything else Cilium (netkit, distributedLRU, bpfClockProbe) is lower-value and folds into a future node replacement.
 
 **Explicitly blocked / rejected (so they're not re-proposed):** Cilium BIG TCP & XDP (incompatible with our tunnel+encryption / virtual NICs); Traefik HTTP/3, fastProxy, TLS-edge features (behind cloudflared); k3s disable-metrics-server (VPA needs it); cloudflared `--protocol` pin (not a real flag); downsampling (Enterprise + 14d retention).
 
-## Suggested sequencing
-Tier 1 first (free, reversible, mostly observability — and observability is the prerequisite for
-judging everything else). Then Tier 2 secrets-encryption + embedded-registry as a single ansible
-rolling pass. Tier 3 Cilium BandwidthManager+BBR last, alone, in a window, with `just verify-mtu`
-and Hubble before/after. The k3s items genuinely move the reboot invariant (parallel pulls, faster
-failover) and the security posture (at-rest encryption) — they're the most valuable findings here
-and were entirely missed by a CPU-usage lens.
-</content>
+## Suggested sequencing (agreed 2026-06-19)
+- **Tier 1 — ✅ DONE + pushed** (free, reversible, observability-first — the prerequisite for judging everything else).
+- **Phase 2 — etcd metrics + image-pull parallelism** (one ansible rolling pass + paired gitops etcd scrape). Lowest-risk node-config: observability + faster recovery. ← NEXT
+- **Phase 3 — Spegel** (`embedded-registry` + `registries.yaml` + firewall verify).
+- **Phase 4 — secrets-encryption** (stateful sequence, operator-in-the-loop).
+- **Phase 5 (Tier 3) — Cilium BandwidthManager + BBR** last, alone, in a maintenance window, with `just verify-mtu` + Hubble before/after.
+
+Safety over speed: one rolling pass at a time, verify Ready + etcd quorum (2/3) between nodes, ship the gitops scrape only after the flag is confirmed live. The k3s items move the reboot invariant (parallel pulls) and security posture (at-rest encryption) — the most valuable findings, entirely missed by a CPU-usage lens.
