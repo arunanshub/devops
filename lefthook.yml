@@ -1,6 +1,26 @@
 pre-commit:
   parallel: true
   commands:
+    Format go files:
+      run: golangci-lint fmt {staged_files}
+      glob: ["*.go", "go.mod", "go.sum"]
+      stage_fixed: true
+
+    Lint go files:
+      run: golangci-lint run --fix ./...
+      glob: ["*.go", go.mod, "go.sum"]
+      stage_fixed: true
+
+    Tidy go.mod and go.sum:
+      run: go mod tidy
+      glob: ["go.mod", "go.sum", "*.go"]
+      stage_fixed: true
+
+    # Tidy go.work:
+    #   run: go work sync
+    #   glob: [go.mod, go.sum, "*.go"]
+    #   stage_fixed: true
+
     tofu-fmt:
       run: tofu fmt -recursive
       root: infra/

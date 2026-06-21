@@ -32,7 +32,11 @@ func TestBuildInventoryGroupsNodesByRoleAndSetsHostvars(t *testing.T) {
 	inventory, err := buildInventory(outputs, inventoryOptions{})
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"hetzner-k3s-cp-1", "hetzner-k3s-cp-2", "hetzner-k3s-worker-1"}, inventory.K3sNodes.Hosts)
+	assert.Equal(
+		t,
+		[]string{"hetzner-k3s-cp-1", "hetzner-k3s-cp-2", "hetzner-k3s-worker-1"},
+		inventory.K3sNodes.Hosts,
+	)
 	assert.Equal(t, []string{"hetzner-k3s-cp-1", "hetzner-k3s-cp-2"}, inventory.ControlPlanes.Hosts)
 	assert.Equal(t, []string{"hetzner-k3s-worker-1"}, inventory.Workers.Hosts)
 

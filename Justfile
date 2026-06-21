@@ -1,3 +1,5 @@
+import 'cmd/cmd.just'
+
 infra := justfile_dir() / "infra"
 k8s := justfile_dir() / "kubernetes"
 export KUBECONFIG := infra / "kubeconfig.yaml"

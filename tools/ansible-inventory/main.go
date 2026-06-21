@@ -2,6 +2,7 @@ package main
 
 import (
 	"cmp"
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -25,10 +26,12 @@ type output[T any] struct {
 	Value T `json:"value"`
 }
 
-type nodeKey string
-type ipv6Address string
-type privateIP string
-type nodeRole string
+type (
+	nodeKey     string
+	ipv6Address string
+	privateIP   string
+	nodeRole    string
+)
 
 const (
 	roleControlPlaneOnly   nodeRole = "cp_only"
@@ -37,9 +40,11 @@ const (
 	roleUnknown            nodeRole = "unknown"
 )
 
-type nodeIPv6Addresses map[nodeKey]ipv6Address
-type nodePrivateIPs map[nodeKey]privateIP
-type nodeRoles map[nodeKey]nodeRole
+type (
+	nodeIPv6Addresses map[nodeKey]ipv6Address
+	nodePrivateIPs    map[nodeKey]privateIP
+	nodeRoles         map[nodeKey]nodeRole
+)
 
 type tofuOutputs struct {
 	ClusterName       output[string]            `json:"cluster_name"`
@@ -84,9 +89,9 @@ type inventoryOptions struct {
 
 type config struct {
 	TofuOutputsPath   string `env:"ANSIBLE_TOFU_OUTPUTS"`
-	TofuChdir         string `env:"TOFU_CHDIR" envDefault:"infra"`
+	TofuChdir         string `env:"TOFU_CHDIR"                   envDefault:"infra"`
 	SSHPrivateKeyPath string `env:"ANSIBLE_SSH_PRIVATE_KEY_FILE"`
-	KnownHostsPath    string `env:"ANSIBLE_KNOWN_HOSTS_FILE" envDefault:"infra/.ssh_known_hosts"`
+	KnownHostsPath    string `env:"ANSIBLE_KNOWN_HOSTS_FILE"     envDefault:"infra/.ssh_known_hosts"`
 }
 
 func main() {
@@ -157,7 +162,8 @@ func loadOutputs(cfg config) (tofuOutputs, error) {
 		return outputs, nil
 	}
 
-	cmd := exec.Command("tofu", "-chdir="+cfg.TofuChdir, "output", "-json")
+	args := []string{"-chdir=" + cfg.TofuChdir, "output", "-json"}
+	cmd := exec.CommandContext(context.Background(), "tofu", args...)
 	cmd.Stderr = os.Stderr
 	data, err := cmd.Output()
 	if err != nil {
@@ -175,7 +181,11 @@ func buildInventory(outputs tofuOutputs, opts inventoryOptions) (*inventory, err
 		return nil, errors.New("node_ipv6_addresses output is empty")
 	}
 
-	sshPrivateKeyPath := cmp.Or(opts.SSHPrivateKeyPath, outputs.SSHPrivateKeyPath.Value, "~/.ssh/id_ed25519")
+	sshPrivateKeyPath := cmp.Or(
+		opts.SSHPrivateKeyPath,
+		outputs.SSHPrivateKeyPath.Value,
+		"~/.ssh/id_ed25519",
+	)
 	knownHostsPath, err := filepath.Abs(cmp.Or(opts.KnownHostsPath, defaultKnownHosts))
 	if err != nil {
 		return nil, fmt.Errorf("resolve known hosts path: %w", err)
@@ -210,6 +220,8 @@ func buildInventory(outputs tofuOutputs, opts inventoryOptions) (*inventory, err
 			inv.ControlPlanes.Hosts = append(inv.ControlPlanes.Hosts, hostname)
 		case roleWorker:
 			inv.Workers.Hosts = append(inv.Workers.Hosts, hostname)
+		case roleUnknown:
+			return nil, fmt.Errorf("how did we hit role unknown! This should be impossible")
 		}
 
 		inv.Meta.Hostvars[hostname] = hostvars{
@@ -243,6 +255,8 @@ func (role nodeRole) valid() bool {
 	switch role {
 	case roleControlPlaneOnly, roleControlPlaneWorker, roleWorker:
 		return true
+	case roleUnknown:
+		return false
 	default:
 		return false
 	}
