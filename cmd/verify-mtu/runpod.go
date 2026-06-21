@@ -11,7 +11,7 @@ import (
 )
 
 type PodSpec struct {
-	Name      *string
+	Name      string
 	Namespace string
 	Image     string
 	Command   []string
@@ -46,17 +46,21 @@ func (p *defaultPodRunner) createPod(ctx context.Context) (*corev1.Pod, error) {
 		Pods(p.podSpec.Namespace).Create(ctx,
 		&corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      *p.podSpec.Name,
+				Name:      p.podSpec.Name,
 				Namespace: p.podSpec.Namespace,
 			},
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{{
-					Name:  *p.podSpec.Name,
+					Name:  p.podSpec.Name,
 					Image: p.podSpec.Image,
 					Args:  p.podSpec.Command,
 				}},
 			},
 		}, metav1.CreateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pod: %w", err)
+	}
+
 	slog.InfoContext(
 		ctx,
 		"created pod",
@@ -67,10 +71,10 @@ func (p *defaultPodRunner) createPod(ctx context.Context) (*corev1.Pod, error) {
 }
 
 func (p *defaultPodRunner) deletePod(ctx context.Context) {
-	slog.InfoContext(ctx, "cleaning up pod", slog.String("name", *p.podSpec.Name))
+	slog.InfoContext(ctx, "cleaning up pod", slog.String("name", p.podSpec.Name))
 	err := p.client.CoreV1().
 		Pods(p.podSpec.Namespace).
-		Delete(ctx, *p.podSpec.Name, metav1.DeleteOptions{
+		Delete(ctx, p.podSpec.Name, metav1.DeleteOptions{
 			PropagationPolicy: new(metav1.DeletePropagationBackground),
 		})
 	if err != nil {

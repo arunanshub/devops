@@ -2,12 +2,12 @@ pre-commit:
   parallel: true
   commands:
     Format go files:
-      run: golangci-lint fmt {staged_files}
+      run: ./custom-gcl fmt {staged_files}
       glob: ["*.go", "go.mod", "go.sum"]
       stage_fixed: true
 
     Lint go files:
-      run: golangci-lint run --fix ./...
+      run: ./custom-gcl run --fix ./...
       glob: ["*.go", go.mod, "go.sum"]
       stage_fixed: true
 

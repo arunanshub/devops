@@ -37,16 +37,16 @@ linters:
     - nilnil
     - forcetypeassert
     - exhaustive
-    # - nilaway
+    - nilaway
 
   settings:
-    # custom:
-    #   nilaway:
-    #     type: module
-    #     description: Static analysis tool to detect potential nil panics in Go code.
-    #     settings:
-    #       include-pkgs: github.com/arunanshub/devops
-    #       experimental-struct-init: "true"
+    custom:
+      nilaway:
+        type: module
+        description: Static analysis tool to detect potential nil panics in Go code.
+        settings:
+          include-pkgs: github.com/arunanshub/devops
+          experimental-struct-init: "true"
 
     errcheck:
       check-type-assertions: true # catches unchecked x := i.(T)

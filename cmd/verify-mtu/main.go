@@ -47,7 +47,7 @@ func run(flags *cli) error {
 
 	runner := NewPodRunner(
 		clientset,
-		PodSpec{Name: new("mtu-verify-a"), Namespace: "default", Image: "busybox:1.36"},
+		PodSpec{Name: "mtu-verify-a", Namespace: "default", Image: "busybox:1.36"},
 	)
 	if err := runner.Run(ctx); err != nil {
 		return fmt.Errorf("failed to run pod: %w", err)
