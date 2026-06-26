@@ -1,6 +1,6 @@
 locals {
   cluster_name = "hetzner-k3s"
-  k3s_version  = "v1.35.5+k3s1"
+  k3s_version  = "v1.36.2+k3s1"
   network_cidr = "10.0.0.0/16"
   subnet_cidr  = cidrsubnet(local.network_cidr, 8, 0)
 
