@@ -20,6 +20,27 @@ spec:
             summary: "Node {{ $labels.node }} has been cordoned for >15 minutes"
             description: "{{ $labels.node }} is unschedulable. Likely causes: k3s upgrade drain stalled (SUC), manual cordon forgotten, or eviction blocked by PDB. Check: kubectl describe node {{ $labels.node }}"
 
+    - name: cluster.upgrades
+      interval: 1m
+      rules:
+        # The system-upgrade-controller (SUC) cordons a node BEFORE running its
+        # k3s upgrade Job and only uncordons on SUCCESS, retrying a failed Job
+        # forever — so a perpetually-failing Job strands the node cordoned and
+        # re-cordons on every retry (cp-3, 2026-06-26: the stable channel
+        # resolved below the running version → the k3s-upgrade downgrade-guard
+        # failed every Job). This fires on the Job's Failed condition — the root
+        # cause — ~10m ahead of the 15m NodeCordonedTooLong symptom alert, and
+        # distinguishes "SUC upgrade broke" from a forgotten manual cordon.
+        # kube_job_failed is emitted only when a Job's Failed condition is true.
+        - alert: K3sUpgradeJobFailing
+          expr: kube_job_failed{namespace="system-upgrade"} > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "SUC k3s upgrade Job {{ $labels.job_name }} is failing"
+            description: "An SUC upgrade Job in system-upgrade has had a Failed condition for >5m. SUC retries forever and cordons the target node on each attempt, so the node will be stranded unschedulable. Common cause: the Plan target is below the running k3s version (downgrade guard) — k3s cannot be downgraded. Check: kubectl -n system-upgrade get jobs,pods; kubectl -n system-upgrade logs job/{{ $labels.job_name }}; kubectl -n system-upgrade get plan k3s-server -o yaml"
+
     - name: cluster.tunnel
       interval: 1m
       rules:
