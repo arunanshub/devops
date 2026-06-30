@@ -9,7 +9,7 @@ spec:
     # (never zstd — not supported end-to-end as of 2025). So on the CF path Traefik
     # always serves br here; the zstd entry only fires for a direct, non-CF client.
     encodings: [zstd, br, gzip]
-    defaultEncoding: br
+    defaultEncoding: zstd
     minResponseBodyBytes: 256
     includedContentTypes:
       - text/html
