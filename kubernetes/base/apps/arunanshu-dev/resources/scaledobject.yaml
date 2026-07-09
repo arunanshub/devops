@@ -8,22 +8,38 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: arunanshu-dev
-  minReplicaCount: 1
+  minReplicaCount: 2
   # Scale horizontally (Next.js is single-threaded); 8 replicas fits the node budget.
   maxReplicaCount: 8
   pollingInterval: 15
   cooldownPeriod: 60
   fallback:
     failureThreshold: 3
-    replicas: 1
+    replicas: 2
+  # advanced:
+  #   horizontalPodAutoscalerConfig:
+  #     behavior:
+  #       scaleUp:              # aggressive: react instantly, add fast
+  #         stabilizationWindowSeconds: 0
+  #         selectPolicy: Max
+  #         policies:
+  #           - type: Percent
+  #             value: 100      # double the pods...
+  #             periodSeconds: 15
+  #           - type: Pods
+  #             value: 4        # ...or +4, whichever is more
+  #             periodSeconds: 15
+  #       scaleDown:            # lazy: don't drop pods mid-hug
+  #         stabilizationWindowSeconds: 300
+  #         policies:
+  #           - type: Pods
+  #             value: 1
+  #             periodSeconds: 60
   triggers:
     - type: prometheus
       metadata:
         serverAddress: http://vmsingle-victoria-metrics-k8s-stack.monitoring.svc.cluster.local:8428
-        metricName: arunanshu_dev_rps
-        # KEDA's HPA is AverageValue (divides by replica count), so query must be the
-        # raw total RPS — pre-dividing double-counts and under-scales. threshold is
-        # the per-replica RPS target.
+        metricName: arunanshu_dev_concurrency
         query: |
-          sum(rate(traefik_router_requests_total{router=~"httproute-arunanshu-dev.*"}[1m]))
-        threshold: "50"
+          sum(rate(traefik_router_request_duration_seconds_sum{router=~"httproute-arunanshu-dev.*"}[1m]))
+        threshold: "10"

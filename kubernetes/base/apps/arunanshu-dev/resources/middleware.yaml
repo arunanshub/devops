@@ -5,12 +5,11 @@ metadata:
   namespace: arunanshu-dev
 spec:
   compress:
-    # NOTE: Cloudflare requests content from the origin with `Accept-Encoding: br, gzip`
-    # (never zstd — not supported end-to-end as of 2025). So on the CF path Traefik
-    # always serves br here; the zstd entry only fires for a direct, non-CF client.
-    encodings: [zstd, br, gzip]
-    defaultEncoding: br
-    minResponseBodyBytes: 512
+    # Cloudflare normalizes origin requests to `Accept-Encoding: br, gzip`.
+    # Compress that hop with the best mutually supported encoding; Cloudflare may
+    # preserve it or transcode it for the external client.
+    encodings: [br, gzip]
+    minResponseBodyBytes: 1024
     includedContentTypes:
       - text/html
       - text/css

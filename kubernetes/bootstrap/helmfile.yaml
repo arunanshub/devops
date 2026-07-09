@@ -15,7 +15,7 @@ releases:
   - name: cilium
     namespace: kube-system
     chart: cilium/cilium
-    version: "1.20.0-pre.3"
+    version: "1.20.0-pre.4"
     wait: true
     needs:
       - kube-system/gateway-api-crds
@@ -26,7 +26,7 @@ releases:
   - name: hccm
     namespace: kube-system
     chart: hcloud/hcloud-cloud-controller-manager
-    version: "1.31.1"
+    version: "1.33.0"
     wait: true
     values:
       - values/ccm.yaml
@@ -35,7 +35,7 @@ releases:
     chart: argo/argo-cd
     needs:
       - kube-system/hccm
-    version: 9.5.21
+    version: 9.7.1
     namespace: argocd
     cleanupOnFail: true
     createNamespace: true

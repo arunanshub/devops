@@ -60,9 +60,12 @@ spec:
                     exit 1
                   }
 
-                  # Find latest completed daily-full backup (name sorting = time sorting for velero schedule names)
+                  # Find latest completed daily-full backup (name sorting = time sorting for velero schedule names).
+                  # The label value is the Schedule CR name, which the velero Helm chart derives as
+                  # <releaseName>-<scheduleKey> = velero-daily-full (NOT the bare "daily-full" key from
+                  # values.yaml). If the release name or schedule key changes, update this selector too.
                   LATEST=$(kubectl get backup -n velero \
-                    -l velero.io/schedule-name=daily-full \
+                    -l velero.io/schedule-name=velero-daily-full \
                     -o jsonpath='{range .items[*]}{.status.phase}{"|"}{.metadata.name}{"\n"}{end}' | \
                     awk -F'|' '$1 == "Completed" {print $2}' | sort | tail -1 || true)
 
@@ -86,7 +89,26 @@ spec:
                     i=$((i + 1))
                   done
 
-                  # Create Restore CR
+                  # Create Restore CR.
+                  #
+                  # Operator-managed CRs MUST be excluded (see excludedResources
+                  # below). The VictoriaMetrics operator watches ALL namespaces
+                  # (WATCH_NAMESPACE unset), so restoring the monitoring stack's
+                  # CRs into velero-restore-test makes the operator ACTUATE them:
+                  # it spawns a parallel vmagent that re-scrapes the whole cluster
+                  # under a second prometheus identity (velero-restore-test/...),
+                  # plus parallel vmalert/vmsingle. That doubles active series
+                  # during the drill and leaves ~176k stale series in the TSDB
+                  # index (persist until the 14d retention), and fires the
+                  # churn-rate alert. The prometheus-operator CRs are converted by
+                  # the VM operator into the same, so exclude both groups. velero
+                  # excludedResources takes exact resource.group (no group wildcard
+                  # on restore). This drill validates that a backup RESTORES, not
+                  # that the stack comes alive -- nothing here needs to run.
+                  #
+                  # NOTE: keep prose OUT of the heredoc below -- it is unquoted (to
+                  # expand \$RESTORE_NAME/\$LATEST), so backticks/\$ in comments get
+                  # shell-evaluated (a stray backtick once ran 'prometheus' as a cmd).
                   cat <<EOF | kubectl apply -f -
                   apiVersion: velero.io/v1
                   kind: Restore
@@ -109,6 +131,26 @@ spec:
                       - pods
                       - replicasets.apps
                       - verticalpodautoscalercheckpoints.autoscaling.k8s.io
+                      # Operator-actuated CRs -- see the comment above the heredoc.
+                      - vmagents.operator.victoriametrics.com
+                      - vmsingles.operator.victoriametrics.com
+                      - vmalerts.operator.victoriametrics.com
+                      - vmalertmanagers.operator.victoriametrics.com
+                      - vmclusters.operator.victoriametrics.com
+                      - vmauths.operator.victoriametrics.com
+                      - vmanomalies.operator.victoriametrics.com
+                      - vmservicescrapes.operator.victoriametrics.com
+                      - vmpodscrapes.operator.victoriametrics.com
+                      - vmnodescrapes.operator.victoriametrics.com
+                      - vmstaticscrapes.operator.victoriametrics.com
+                      - vmscrapeconfigs.operator.victoriametrics.com
+                      - vmprobes.operator.victoriametrics.com
+                      - vmrules.operator.victoriametrics.com
+                      - servicemonitors.monitoring.coreos.com
+                      - podmonitors.monitoring.coreos.com
+                      - probes.monitoring.coreos.com
+                      - scrapeconfigs.monitoring.coreos.com
+                      - prometheusrules.monitoring.coreos.com
                     namespaceMapping:
                       monitoring: velero-restore-test
                   EOF
@@ -137,8 +179,17 @@ spec:
                     -o jsonpath='{.status.errors}' 2>/dev/null || true)
                   WARNINGS=${WARNINGS:-0}
                   ERRORS=${ERRORS:-0}
-                  if [ "$WARNINGS" != "0" ] || [ "$ERRORS" != "0" ]; then
-                    fail "restore completed with warnings=$WARNINGS errors=$ERRORS"
+                  # Warnings are advisory, not failures. velero 1.18 emits one
+                  # unavoidable warning on EVERY restore here: a stub list of
+                  # VolumeGroupSnapshotContent (groupsnapshot.storage.k8s.io),
+                  # whose CRD is absent (no CSI volume-group-snapshot support).
+                  # Gate only on the hard integrity signals — terminal phase
+                  # (checked above), errors, and item count. A genuinely broken
+                  # restore surfaces as PartiallyFailed/errors/item mismatch, all
+                  # of which still fail the drill. Log warnings for visibility.
+                  echo "restore warnings=$WARNINGS errors=$ERRORS (warnings are informational; see 'velero restore describe --details')"
+                  if [ "$ERRORS" != "0" ]; then
+                    fail "restore completed with errors=$ERRORS"
                   fi
 
                   TOTAL_ITEMS=$(kubectl get restore "$RESTORE_NAME" -n velero \

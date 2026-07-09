@@ -1,6 +1,8 @@
 configs:
   params:
     server.insecure: "true"
+    # Traefik owns HTTP response compression on the steady-state external route.
+    server.enable.gzip: "false"
 
 controller:
   resources:
