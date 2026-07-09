@@ -1,0 +1,40 @@
+// Folder-specific settings
+//
+// For a full list of overridable settings, and general information on folder-specific settings,
+// see the documentation: https://zed.dev/docs/configuring-zed#settings-files
+{
+    // formatter for golang
+    "languages": {
+        "Go": {
+            "formatter": {
+                "external": {
+                    "command": "golangci-lint",
+                    "arguments": ["fmt", "--stdin"]
+                }
+            }
+        },
+        "YAML": {
+          "formatter": {
+            "external": {
+              "command": "yamlfmt",
+              "arguments": ["-"],
+            }
+          }
+        }
+    },
+    "lsp": {
+        "yaml-language-server": {
+            "settings": {
+                "yaml": {
+                    "schemaStore": {
+                        "enable": true
+                    },
+                    "completion": true,
+                    "schemas": {
+                        "kubernetes": "kubernetes/**.yaml"
+                    }
+                }
+            }
+        }
+    }
+}
