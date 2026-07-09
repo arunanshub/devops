@@ -1,10 +1,11 @@
 module github.com/arunanshub/devops
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/alecthomas/kong v1.15.0
 	github.com/caarlos0/env/v11 v11.4.1
+	github.com/goccy/go-yaml v1.19.2
 	k8s.io/api v0.36.2
 	k8s.io/apimachinery v0.36.2
 	k8s.io/client-go v0.36.2
