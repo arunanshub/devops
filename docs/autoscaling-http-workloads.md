@@ -190,7 +190,25 @@ Choosing a provisional trigger 27% below that observation gives:
 0.547 × 0.73 ≈ 0.4 concurrent requests per pod
 ```
 
-The repository now uses `0.4` as the provisional target. This margin is not proven capacity headroom because the test did not cross the knee. The configuration also allows immediate scale-up and delays scale-down for five minutes. A fixed-replica, real-GET test over a private path must find the knee and confirm the value because HEAD does not measure compression, response transfer, or slow-client backpressure.
+The repository now uses `0.4` as the provisional target. This margin is not proven capacity headroom because the test did not cross the knee. The configuration also allows immediate scale-up and delays scale-down for five minutes.
+
+### In-cluster GET autoscaling validation
+
+After replacing the port-forward with an ephemeral in-cluster k6 Job, the same six-minute arrival-rate profile downloaded full response bodies through Traefik. It produced:
+
+- 46,274 successful GET requests and 15 GB transferred.
+- Zero errors and zero dropped iterations.
+- Overall mean latency of 10.5 ms.
+- p95 latency of 15.6 ms and p99 latency of 25.9 ms.
+- Peak one-minute throughput of about 266 RPS.
+- Peak Traefik concurrency of `2.40`.
+- Peak observed application CPU of about 0.47 core per pod.
+- Peak observed application memory of about 173 MiB per pod.
+- No pod restarts or readiness failures.
+
+KEDA scaled from two to seven replicas as the per-pod metric crossed `0.4`, matching the approximate calculation `ceil(2.40 / 0.4)`. After traffic stopped, it held spare capacity for five minutes, then removed one pod per minute until it returned to two replicas. Argo CD remained synced throughout because Git does not own `spec.replicas`.
+
+The GET result confirms that `0.4` is safe and that the complete autoscaling path works. It still does not establish maximum per-pod capacity because autoscaling remained enabled and the test did not reach a latency, error, CPU, or memory knee. Keep `0.4` as a conservative target until a fixed-replica test deliberately searches for that knee.
 
 ### VPA decision
 
