@@ -92,6 +92,9 @@ resources:
     memory: 256Mi # matches VPA maxAllowed so a fresh/scaled-out pod can't OOM before VPA resizes; no CPU limit intentionally
 
 tracing:
+  # Keep coherent end-to-end traces without allowing traffic tests to flood
+  # the single-binary Tempo ingester and metrics generator.
+  sampleRate: 0.05
   otlp:
     enabled: true
     http:

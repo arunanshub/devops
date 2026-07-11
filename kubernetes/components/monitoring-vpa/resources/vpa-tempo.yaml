@@ -10,12 +10,20 @@ spec:
     name: tempo
   updatePolicy:
     updateMode: InPlaceOrRecreate
+    # Tempo is a single-replica StatefulSet. Override the updater's global
+    # two-replica floor so safe in-place resizing is not blocked.
+    minReplicas: 1
   resourcePolicy:
     containerPolicies:
       - containerName: tempo
+        # Preserve the chart's 640Mi:1Gi ratio. GOMEMLIMIT remains a conservative
+        # 800MiB if VPA raises both values above their safe baseline.
+        controlledValues: RequestsAndLimits
         minAllowed:
           cpu: 10m
-          memory: 192Mi
+          memory: 640Mi
         maxAllowed:
           cpu: 1
+          # This caps the VPA memory request. With the 640Mi:1Gi baseline ratio,
+          # the proportional container limit may reach about 1.6Gi.
           memory: 1Gi

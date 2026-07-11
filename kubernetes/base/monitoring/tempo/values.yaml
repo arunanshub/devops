@@ -12,9 +12,17 @@ tempo:
   resources:
     requests:
       cpu: 50m
-      memory: 192Mi
+      # Safe WAL-replay floor. VPA may raise this request and the proportional
+      # limit, but must never shrink Tempo back into the 512Mi OOM loop.
+      memory: 640Mi
     limits:
-      memory: 512Mi
+      memory: 1Gi
+
+  # Keep Go heap below the minimum 1Gi cgroup limit, leaving headroom for WAL
+  # replay, mmap, stacks, and metrics-generator buffers.
+  extraEnv:
+    - name: GOMEMLIMIT
+      value: 800MiB
 
   # Only accept OTLP — drop jaeger/opencensus to reduce attack surface
   receivers:

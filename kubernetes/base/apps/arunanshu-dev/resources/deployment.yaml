@@ -59,11 +59,12 @@ spec:
               value: "http://tempo.monitoring.svc.cluster.local:4318"
             - name: OTEL_EXPORTER_OTLP_PROTOCOL
               value: "http/protobuf"
-            # Bound overhead/ingest on small nodes — head sampling at 25%.
+            # Follow sampled upstream parents; independently sample 5% only
+            # when no parent exists. This bounds Tempo ingestion during bursts.
             - name: OTEL_TRACES_SAMPLER
               value: "parentbased_traceidratio"
             - name: OTEL_TRACES_SAMPLER_ARG
-              value: "0.25"
+              value: "0.05"
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
