@@ -98,7 +98,9 @@ spec:
               cpu: 50m
               memory: 128Mi
             limits:
-              memory: 256Mi
+              # VPA recommended ~335Mi after the 2026-07-11 load test. Keep a
+              # safe declarative floor if VPA admission or updates lag.
+              memory: 384Mi
       volumes:
         - name: tmp
           emptyDir: {}

@@ -16,25 +16,25 @@ spec:
   fallback:
     failureThreshold: 3
     replicas: 2
-  # advanced:
-  #   horizontalPodAutoscalerConfig:
-  #     behavior:
-  #       scaleUp:              # aggressive: react instantly, add fast
-  #         stabilizationWindowSeconds: 0
-  #         selectPolicy: Max
-  #         policies:
-  #           - type: Percent
-  #             value: 100      # double the pods...
-  #             periodSeconds: 15
-  #           - type: Pods
-  #             value: 4        # ...or +4, whichever is more
-  #             periodSeconds: 15
-  #       scaleDown:            # lazy: don't drop pods mid-hug
-  #         stabilizationWindowSeconds: 300
-  #         policies:
-  #           - type: Pods
-  #             value: 1
-  #             periodSeconds: 60
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp: # React on the first metric update and add capacity quickly.
+          stabilizationWindowSeconds: 0
+          selectPolicy: Max
+          policies:
+            - type: Percent
+              value: 100 # Double the replica count...
+              periodSeconds: 15
+            - type: Pods
+              value: 4 # ...or add four pods, whichever is larger.
+              periodSeconds: 15
+        scaleDown: # Hold spare capacity after a burst and remove one pod at a time.
+          stabilizationWindowSeconds: 300
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 60
   triggers:
     - type: prometheus
       metadata:
@@ -42,4 +42,6 @@ spec:
         metricName: arunanshu_dev_concurrency
         query: |
           sum(rate(traefik_router_request_duration_seconds_sum{router=~"httproute-arunanshu-dev.*"}[1m]))
-        threshold: "10"
+        # Provisional value: 27% below the highest healthy HEAD concurrency
+        # observed on 2026-07-11 (0.547 per pod). The test did not find a knee.
+        threshold: "0.4"
