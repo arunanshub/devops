@@ -4,11 +4,20 @@ import { check } from 'k6';
 const target = __ENV.TARGET_URL ||
   'http://127.0.0.1:18080/blog/next-server-actions-client-side-data-fetching';
 const method = (__ENV.METHOD || 'HEAD').toUpperCase();
+const smoke = __ENV.PROFILE === 'smoke';
 
 export const options = {
   discardResponseBodies: true,
   scenarios: {
-    capacity: {
+    capacity: smoke ? {
+      executor: 'constant-arrival-rate',
+      rate: 10,
+      timeUnit: '1s',
+      duration: '30s',
+      preAllocatedVUs: 20,
+      maxVUs: 50,
+      gracefulStop: '10s',
+    } : {
       executor: 'ramping-arrival-rate',
       startRate: 10,
       timeUnit: '1s',
@@ -27,6 +36,7 @@ export const options = {
     },
   },
   thresholds: {
+    dropped_iterations: ['count==0'],
     http_req_failed: [
       { threshold: 'rate<0.05', abortOnFail: true, delayAbortEval: '30s' },
     ],

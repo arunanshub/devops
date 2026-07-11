@@ -7,12 +7,10 @@ spec:
   selector:
     matchLabels:
       app: arunanshu-dev
-  # maxUnavailable: 0 ensures the old pod stays alive until the new pod is
-  # fully ready. Combined with minReadySeconds below, this gives the CF edge
-  # cache time to warm new /_next/static/ chunk hashes (content-addressed)
-  # before the old pod is terminated, closing the skew window where a browser
-  # gets new HTML (new chunk hashes) but CF round-robins a cold miss to the
-  # old pod (which doesn't have those hashes).
+  # At the two-replica baseline, maxUnavailable: 25% rounds down to zero, so the
+  # old pods remain until replacements are ready. At higher KEDA replica counts,
+  # the rollout may remove up to 25% at once. minReadySeconds gives the CF edge
+  # cache time to warm new /_next/static/ chunk hashes (content-addressed).
   # deploymentId + NEXT_DEPLOYMENT_ID (baked at build time) handles the RSC /
   # server-action layer independently — this only covers static bundle loading.
   strategy:

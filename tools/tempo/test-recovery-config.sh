@@ -41,3 +41,6 @@ traefik_render="$(
     --values kubernetes/base/platform/traefik/values.yaml
 )"
 grep -q -- '--tracing.sampleRate=0.05' <<<"${traefik_render}"
+
+traefik_scrape_interval="$(yq -r '.metrics.prometheus.serviceMonitor.interval' kubernetes/base/platform/traefik/values.yaml)"
+[[ "${traefik_scrape_interval}" == "15s" ]]

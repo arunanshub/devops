@@ -17,11 +17,11 @@ For `arunanshu-dev`, the first useful concurrency target is `0.4` per replica.
 
 Use the same methods, routes, bodies, authentication, cache behavior, and response sizes that users generate. A route mix is better than one convenient endpoint when routes have different costs.
 
-Run the generator outside the target workload's resource pool. Good locations include a separate machine on the private network or a dedicated load-generator node. An in-cluster pod also works when node affinity and resource limits prevent it from competing with the application.
+Run the generator outside the target workload's resource pool when possible. Good locations include a separate machine on the private network or a dedicated load-generator node. A resource-limited in-cluster Job is a practical alternative for a small cluster; record its resource use and prefer a node without existing target pods.
 
 Send traffic through the component that exports the scaling metric. For this cluster, use Traefik and the real `HTTPRoute`, while bypassing Cloudflare.
 
-Avoid `kubectl port-forward` for a full-body capacity result. The API-server tunnel can become the measured bottleneck.
+Avoid `kubectl port-forward` for a full-body capacity result. The API-server tunnel can become the measured bottleneck. This repository's `tools/loadtest/run-in-cluster.sh` creates an ephemeral k6 Job that sends GET traffic through Traefik without that tunnel.
 
 ### 2. Fix capacity during the measurement
 
@@ -146,7 +146,7 @@ total concurrency 2.0  -> about 5 replicas
 total concurrency 3.2  -> about 8 replicas
 ```
 
-Metric timing matters. Traefik is scraped every 30 seconds in this cluster, while KEDA polls every 15 seconds. The one-minute PromQL range provides enough samples but smooths bursts. Fast scale-up behavior and spare minimum replicas cover part of that delay. Shortening the range below two scrape intervals produces unreliable rates.
+Metric timing matters. Traefik is scraped every 15 seconds in this cluster. The one-minute PromQL range provides four samples but still smooths bursts. Fast scale-up behavior and spare minimum replicas cover part of that delay. Shortening the range below two scrape intervals produces unreliable rates.
 
 ## Case study: arunanshu-dev on 2026-07-11
 

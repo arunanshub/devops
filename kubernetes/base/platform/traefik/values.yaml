@@ -115,4 +115,6 @@ metrics:
       enabled: true # creates a dedicated metrics Service
     serviceMonitor:
       enabled: true
-      interval: "30s"
+      # KEDA scales from these router metrics. Fifteen seconds cuts the dominant
+      # observation delay while retaining four samples in its 1m rate window.
+      interval: "15s"
