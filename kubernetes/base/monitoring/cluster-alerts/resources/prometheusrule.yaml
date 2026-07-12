@@ -54,3 +54,25 @@ spec:
           annotations:
             summary: "All Cloudflare tunnel streams are closed"
             description: "No active streams on any cloudflared replica for 5m. External traffic is failing. Check: kubectl logs -n cloudflared -l app=cloudflared"
+
+    - name: cluster.resources
+      interval: 1m
+      rules:
+        # Limit over-commit is benign in itself (limits are ceilings; actual usage is the
+        # real OOM guard, covered by node-usage alerts). This is a CREEP/REGRESSION signal:
+        # it usually means a new or changed workload carries a large limit:request ratio
+        # that VPA is inflating. Threshold 200% sits above post-fix steady state (max node
+        # was 155% before, drops after the traefik/vmsingle fix). Node-level, not per-container
+        # ratio, because RequestsOnly workloads show a high ratio at idle by design.
+        - alert: NodeMemoryLimitCommitmentHigh
+          expr: |
+            sum by (node) (kube_pod_container_resource_limits{resource="memory"})
+            / on(node)
+            sum by (node) (kube_node_status_allocatable{resource="memory"})
+            > 2
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.node }} memory-limit commitment above 200%"
+            description: "Sum of container memory limits on {{ $labels.node }} exceeds 2x allocatable for >30m. This is a config-drift/regression signal, not a stability alert. Likely a new or changed workload with a large limit:request ratio that VPA is inflating. Check: kubectl get pods -A -o json | jq -r '.items[]|.spec.containers[]|select(.resources.limits.memory)|\"\\(.resources.limits.memory) \\(.name)\"' | sort -h | tail. See docs/specs/2026-07-12-memory-limit-rightsizing-design.md."
