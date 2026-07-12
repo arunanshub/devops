@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - vpa-cainjector.yaml
   - vpa-cloudflared.yaml
+  - vpa-velero.yaml
