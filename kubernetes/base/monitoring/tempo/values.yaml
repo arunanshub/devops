@@ -18,8 +18,15 @@ tempo:
     limits:
       memory: 1Gi
 
-  # Keep Go heap below the minimum 1Gi cgroup limit, leaving headroom for WAL
-  # replay, mmap, stacks, and metrics-generator buffers.
+  # Keep Go heap below the minimum 1Gi cgroup limit, leaving headroom for WAL replay, mmap,
+  # stacks, and metrics-generator buffers. STATIC BY DESIGN: the tempo VPA runs
+  # RequestsAndLimits (InPlaceOrRecreate) to give WAL-replay OOM headroom, so it can raise the
+  # cgroup limit past 1Gi — but we intentionally do NOT track it (unlike traefik/vmsingle which
+  # use RequestsOnly + resourceFieldRef). Switching tempo to RequestsOnly would surrender that
+  # OOM headroom; wiring GOMEMLIMIT from limits.memory yields raw bytes = 100% of limit, unsafe
+  # given the non-heap headroom tempo needs. GOMEMLIMIT is a SOFT target (Go throttles GC, no
+  # hard OOM), so a stale-high limit only wastes GC CPU during rare trace-burst limit-raises —
+  # acceptable on this CPU-idle, near-idle-trace cluster.
   extraEnv:
     - name: GOMEMLIMIT
       value: 800MiB
