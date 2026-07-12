@@ -71,9 +71,17 @@ vmsingle:
         # stays fixed; 4Gi sits above the measured 2922Mi peak.
         memory: 4Gi
 
+# useStrictSecurity (below) makes the VM operator stamp runAsNonRoot + uid/gid 65534 +
+# seccompProfile RuntimeDefault + drop-ALL-caps + no-priv-esc + readOnlyRootFilesystem onto
+# the generated pods/containers. Applied to the three STATELESS components only — vmagent
+# (emptyDir remote-write queue), vmalert (stateless), vmalertmanager (emptyDir …-db, no PVC,
+# verified). vmsingle is intentionally EXCLUDED: it owns a root-owned 10Gi PVC, so switching
+# to uid 65534 would fail on the existing root-owned TSDB files (operator issue #749) — that
+# needs a staged chown/re-provision migration, not a flag flip. Doc: docs.victoriametrics.com/operator/security/
 vmagent:
   enabled: true
   spec:
+    useStrictSecurity: true
     scrapeInterval: 30s
     # vmagent buffers remote-write to an on-disk queue on EPHEMERAL pod storage (no PV).
     # If vmsingle is briefly unavailable the queue is unbounded by default and can fill
@@ -89,6 +97,7 @@ vmagent:
 vmalert:
   enabled: true
   spec:
+    useStrictSecurity: true # stateless; see vmagent note above
     # Without this block the VM operator applies its DEFAULT resources, which
     # include a tiny CPU limit (~92m) — and vmalert is bursty (rule-group eval),
     # so it gets CFS-throttled ~1% of periods. No CPU limit here (matches vmsingle/
@@ -107,6 +116,7 @@ vmalert:
 alertmanager:
   enabled: true
   spec:
+    useStrictSecurity: true # emptyDir …-db, no PVC (verified); see vmagent note above
     secrets:
       - alertmanager-smtp
     # Same rationale as vmalert above: drop the operator-default CPU limit (~36m)
