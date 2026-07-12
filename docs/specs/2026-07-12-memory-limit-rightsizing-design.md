@@ -205,6 +205,18 @@ deleting the `cluster.resources` group.
 
 ## Follow-ups (out of scope)
 
+- **Cross-app deploy race.** The one-commit rule is necessary but not sufficient: each
+  workload's VPA and values live in *separate* ArgoCD Applications (traefik VPA →
+  `traefik-scaling`, values → `traefik`; vmsingle VPA → `monitoring-vpa`, values →
+  `victoria-metrics-k8s-stack`), which reconcile independently. The change was safe only
+  because the VPA CR applies faster than the pod rollout and any transient inflation
+  self-corrects once RequestsOnly is live; rollback has the same race reversed (low
+  severity, self-correcting). To make it race-proof: co-locate each VPA with its workload's
+  Application, or set a modest request floor in values so a mis-ordered sync cannot inflate
+  the limit past ~2×.
+- The now-fixed limits no longer auto-grow. The "workload outgrows its ceiling → OOM"
+  direction (which `NodeMemoryLimitCommitmentHigh` does not watch) is covered by the stack's
+  `KubePodCrashLooping` / `TooManyRestarts` / `KubeContainerWaiting` alerts.
 - Watch kubernetes/autoscaler#8516; adopt the VPA-object ratio field when released.
 - The `vpa-vmsingle.yaml` comment describes reasoning for `updateMode: Initial` while the
   value is `InPlaceOrRecreate`; reconcile the comment with the actual mode in a separate
