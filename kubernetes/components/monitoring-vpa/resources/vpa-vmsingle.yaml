@@ -17,9 +17,13 @@ spec:
   resourcePolicy:
     containerPolicies:
       - containerName: vmsingle
+        # RequestsOnly: VPA manages the request only, leaving the limit fixed at the
+        # chart-declared value so ratio preservation can't inflate it. maxAllowed raised
+        # to 3Gi because the previous 2560Mi cap was below the measured 2922Mi peak.
+        controlledValues: RequestsOnly
         minAllowed:
           cpu: 100m
           memory: 512Mi
         maxAllowed:
           cpu: 2000m
-          memory: 2560Mi
+          memory: 3Gi

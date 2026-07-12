@@ -40,7 +40,7 @@ vmsingle:
       # 512MB: with ~169k active series the TSID cache stays >2x covered (hit rate
       # >99.99%); query misses fall to NVMe (data intact). Was 768MB — saved ~150-220Mi RSS.
       memory.allowedBytes: "512MB"
-      # Guard the 2Gi memory limit against a single runaway MetricsQL query over 169k
+      # Guard the 4Gi memory limit against a single runaway MetricsQL query over 169k
       # series. maxConcurrentRequests auto-sizes; this caps RAM per query, not count.
       search.maxMemoryPerQuery: "256MB"
       # Surface expensive Grafana panels before they bite: log queries slower than 2s
@@ -67,7 +67,9 @@ vmsingle:
         memory: 512Mi
       limits:
         # Safety ceiling only — RSS is governed by memory.allowedBytes above, not this.
-        memory: 2Gi
+        # VPA is RequestsOnly (components/monitoring-vpa/resources/vpa-vmsingle.yaml), so this
+        # stays fixed; 4Gi sits above the measured 2922Mi peak.
+        memory: 4Gi
 
 vmagent:
   enabled: true
