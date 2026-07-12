@@ -9,6 +9,19 @@ tempo:
   memBallastSizeMbs: 0
   retention: 48h
 
+  # Container-level hardening (the chart's pod-level securityContext already runs tempo as
+  # non-root uid 10001). Drop-ALL-caps + no-priv-esc + seccomp RuntimeDefault — pure-additive,
+  # zero-risk. readOnlyRootFilesystem is deliberately NOT set: the chart's own values comment
+  # warns it breaks the single-binary tempo, and tempo writes WAL/traces/metrics under the PVC
+  # mount anyway. Keeps tempo consistent with the now-hardened VM stateless components.
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
+
   resources:
     requests:
       cpu: 50m
