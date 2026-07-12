@@ -8,6 +8,7 @@ resources:
   - httproute.yaml
   - scaledobject.yaml
   - vpa.yaml
+  - pdb.yaml
   - vmservicescrape.yaml
   - middleware.yaml
 
