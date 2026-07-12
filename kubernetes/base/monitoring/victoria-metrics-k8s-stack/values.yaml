@@ -32,7 +32,7 @@ victoria-metrics-operator:
 vmsingle:
   enabled: true
   spec:
-    retentionPeriod: "14d"
+    retentionPeriod: "28d"
     replicaCount: 1
     extraArgs:
       # Pin cache to a fixed size so RSS doesn't scale with the cgroup limit (vmsingle
