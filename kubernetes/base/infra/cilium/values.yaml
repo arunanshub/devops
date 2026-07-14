@@ -64,9 +64,12 @@ resources:
     cpu: 100m
     memory: 320Mi
 
-# Policies evaluate but violations are logged as AUDIT instead of being
-# dropped. Disable once all namespace policies have been validated via Hubble.
-policyAuditMode: true
+# NetworkPolicies are ENFORCED — violations are dropped, not just logged. Only endpoints
+# selected by a CiliumNetworkPolicy become default-deny for the covered direction (today just
+# the cloudflared policy); every other endpoint stays default-allow. Before merging, validate
+# via Hubble that cloudflared's allow-list covers all its real flows (no unexpected
+# hubble_drop_total) — enforcing an incomplete policy would blackhole the tunnel's ingress path.
+policyAuditMode: false
 
 operator:
   replicas: 2

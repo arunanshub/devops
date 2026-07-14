@@ -35,14 +35,22 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    # Cloudflare edge — observed: cloudflared:* -> world:7844 UDP (QUIC primary);
-    # TCP 443 is the HTTP/2 fallback used when QUIC is unavailable.
+    # Cloudflare edge — port 7844 carries BOTH the QUIC (UDP) primary and the
+    # http2 (TCP) fallback; cloudflared runs default auto-protocol (no --protocol
+    # flag), so it falls back to http2/TCP:7844 when QUIC is unavailable — and QUIC
+    # over UDP is MTU-sensitive on this WireGuard+VXLAN overlay (path MTU 1305).
+    # Omitting TCP:7844 would blackhole that fallback under enforcement.
+    # 443/TCP is OPTIONAL per Cloudflare's tunnel firewall doc (update checks,
+    # Access-JWT validation, PQ error reporting); kept though --no-autoupdate is set.
+    # https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/configure-tunnels/tunnel-with-firewall/
     - toEntities:
         - world
       toPorts:
         - ports:
             - port: "7844"
               protocol: UDP
+            - port: "7844"
+              protocol: TCP
             - port: "443"
               protocol: TCP
     # Traefik reverse proxy — observed: cloudflared:* -> traefik pod:8000 TCP
