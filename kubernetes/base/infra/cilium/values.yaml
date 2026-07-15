@@ -29,6 +29,33 @@ encryption:
     # Sends a keepalive every 25s so WireGuard sessions survive idle periods
     # on Hetzner's private network without re-handshaking under load.
     persistentKeepalive: 25s
+  # WireGuard strict mode — fail CLOSED. Beyond "encrypt eligible traffic", this
+  # DROPS any cross-node pod-to-pod packet (src AND dst both in the pod CIDR) that
+  # appears in plaintext, instead of letting it through. Guards against transient
+  # key-distribution gaps, broken WireGuard state, and plaintext injection/spoofing.
+  # Pods here are IPv4-only (cluster-cidr = k3s default 10.42.0.0/16, no dual-stack —
+  # all IPv6 in this cluster is node-transport/SAN only), so IPv4 strict egress is a
+  # COMPLETE no-plaintext guarantee, not the partial dual-stack case. Same-node pod
+  # traffic stays plaintext by design (never crosses the WireGuard boundary).
+  # allowRemoteNodeIdentities: REQUIRED under VXLAN tunnel mode — exempts traffic
+  # classified with Cilium's remote-node identity inside the strict CIDR.
+  # Directional keys verified against chart v1.20.0-pre.4 values.yaml (flat
+  # strictMode.enabled/.cidr are deprecated). Doc:
+  # https://docs.cilium.io/en/stable/security/network/encryption-wireguard/
+  #
+  # OPERATOR PRE-MERGE GATES (both require cluster access):
+  #   1. `cilium encryption status` healthy on all 3 nodes BEFORE merge — if a node's
+  #      WireGuard is down, strict mode drops its cross-node pod traffic (partial outage).
+  #   2. Enabling INGRESS strict mode briefly disrupts inter-node pod delivery during
+  #      the agent rollout. Reconcile during low traffic; then confirm no unexpected
+  #      plaintext with `hubble observe --unencrypted` (should be empty).
+  strictMode:
+    egress:
+      enabled: true
+      cidr: "10.42.0.0/16"
+      allowRemoteNodeIdentities: true
+    ingress:
+      enabled: true
 
 # Use eBPF instead of iptables for masquerading egress traffic.
 # Safe with kubeProxyReplacement: true; removes the iptables NAT fallback.
