@@ -117,7 +117,7 @@ Relevant Grafana/Prometheus queries include:
 ```promql
 min_over_time(cloudflared_tunnel_ha_connections[5m])
 increase(cloudflared_tunnel_request_errors[5m])
-increase(cloudflared_proxy_connect_stream_errors[5m])
+increase(cloudflared_proxy_connect_streams_errors[5m])
 ```
 
 ## Interpreting the result
