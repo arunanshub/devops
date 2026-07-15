@@ -81,6 +81,14 @@ Both replicas must be Ready. Each new registration must report
 `"protocol":"http2"`; any QUIC registration means the override is not active
 on that connector.
 
+On cloudflared 2026.5.2, the asynchronous connectivity precheck can later log
+`cloudflared will use 'quic' as primary protocol` and
+`"suggested_protocol":"quic"` even while the explicit HTTP/2 override is active.
+That message reports the protocol the network precheck would recommend because
+UDP connectivity succeeded; it is not the connector's selected transport. Use
+`Initial protocol http2` and the per-connection
+`"protocol":"http2"` registration fields as the authoritative checks.
+
 ## Observation window
 
 Observe for at least 60 minutes while reproducing the original authenticated
