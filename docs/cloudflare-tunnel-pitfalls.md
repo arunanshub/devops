@@ -2,6 +2,10 @@
 
 Lessons from deploying cloudflared as the cluster's ingress path via Cloudflare Zero Trust.
 
+The temporary HTTP/2 connector-transport experiment, its incident evidence, and
+its rollback procedure are documented in
+[`cloudflare-tunnel-transport.md`](cloudflare-tunnel-transport.md).
+
 ---
 
 ## DNS records must be proxied

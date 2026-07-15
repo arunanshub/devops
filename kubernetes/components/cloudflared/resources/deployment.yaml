@@ -36,6 +36,15 @@ spec:
             # flag exists on this version (--output, env TUNNEL_LOG_OUTPUT).
             - --output
             - json
+            # TEMPORARY EXPERIMENT (2026-07-16): isolate the Cloudflare
+            # edge-to-connector leg after synchronized QUIC "no recent network
+            # activity" timeouts, long asset stalls, and a 520 before origin.
+            # Browser-facing HTTP/3 is unchanged. Evidence, attribution, and
+            # rollback: docs/cloudflare-tunnel-transport.md
+            # Cloudflare: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/run-parameters/#protocol
+            # Related upstream report: https://github.com/cloudflare/cloudflared/issues/895
+            - --protocol
+            - http2
             - run
           ports:
             - name: metrics
