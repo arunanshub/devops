@@ -51,13 +51,13 @@ func run() error {
 
 	var initials []Item
 	for _, item := range parsed.Items {
-		if item.Spec.UpdatePolicy.UpdateMode == "Initial" {
+		if item.Spec.UpdatePolicy.UpdateMode != "InPlaceOrRecreate" {
 			initials = append(initials, item)
 		}
 	}
 
 	for _, item := range initials {
-		fmt.Printf("%+v\n", item.Metadata)
+		fmt.Printf("%+v\n", item)
 	}
 	return nil
 }
