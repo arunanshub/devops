@@ -15,6 +15,17 @@ containerSecurityContext:
     drop:
       - ALL
 
+# Honest request floor so velero is Burstable (not BestEffort → first-evicted under node
+# pressure) and carries a scheduling floor — the one workload that was outside the cluster-wide
+# VPA/request pattern. A velero VPA (RequestsOnly, components/platform-misc-vpa) right-sizes the
+# request over time. Deliberately NO memory limit: velero is a daily backup job whose memory
+# scales with backup size, so a steady-state-sized cap would risk OOM mid-backup — leaving it
+# uncapped preserves the can't-OOM property BestEffort had, now without the eviction downside.
+resources:
+  requests:
+    cpu: 15m
+    memory: 128Mi
+
 initContainers:
   - name: velero-plugin-for-aws
     image: velero/velero-plugin-for-aws:v1.12.0

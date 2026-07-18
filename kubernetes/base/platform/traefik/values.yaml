@@ -89,9 +89,15 @@ resources:
     cpu: 10m
     memory: 32Mi # conservative floor, slightly above idle 23Mi
   limits:
-    memory: 256Mi # matches VPA maxAllowed so a fresh/scaled-out pod can't OOM before VPA resizes; no CPU limit intentionally
+    # Honest fixed ceiling. VPA is RequestsOnly (traefik-scaling/resources/vpa.yaml), so it
+    # no longer inflates this via ratio preservation. 1Gi sits above the measured 674Mi
+    # load peak. GOMEMLIMIT tracks this limit via resourceFieldRef. No CPU limit intentionally.
+    memory: 1Gi
 
 tracing:
+  # Keep coherent end-to-end traces without allowing traffic tests to flood
+  # the single-binary Tempo ingester and metrics generator.
+  sampleRate: 0.05
   otlp:
     enabled: true
     http:
@@ -112,4 +118,6 @@ metrics:
       enabled: true # creates a dedicated metrics Service
     serviceMonitor:
       enabled: true
-      interval: "30s"
+      # KEDA scales from these router metrics. Fifteen seconds cuts the dominant
+      # observation delay while retaining four samples in its 1m rate window.
+      interval: "15s"

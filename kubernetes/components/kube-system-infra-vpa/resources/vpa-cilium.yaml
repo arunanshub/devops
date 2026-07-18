@@ -9,7 +9,7 @@ spec:
     kind: DaemonSet
     name: cilium
   updatePolicy:
-    updateMode: Off
+    updateMode: InPlaceOrRecreate
   resourcePolicy:
     containerPolicies:
       - containerName: cilium-agent

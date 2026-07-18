@@ -9,7 +9,7 @@ spec:
     kind: Deployment
     name: cilium-operator
   updatePolicy:
-    updateMode: Off
+    updateMode: InPlaceOrRecreate
   resourcePolicy:
     containerPolicies:
       - containerName: cilium-operator
@@ -18,4 +18,4 @@ spec:
           memory: 32Mi
         maxAllowed:
           cpu: 1
-          memory: 512Mi
+          memory: 256Mi

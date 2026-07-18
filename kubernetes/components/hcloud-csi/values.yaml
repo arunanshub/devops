@@ -1,4 +1,27 @@
 controller:
+  # 2 replicas so a node drain/reboot (kured) or node failure doesn't pause volume
+  # attach/detach/provision/resize. >1 replica auto-enables --leader-election on the
+  # csi-attacher/-resizer/-provisioner sidecars (leader-election-namespace=kube-system,
+  # verified via `helm template`), so exactly one replica is active — no double-provisioning.
+  # It also makes the chart's default controller PDB (create:true, minAvailable:1) correct:
+  # at 1 replica that PDB permits zero voluntary disruptions and blocks a kured drain of the
+  # controller's node.
+  replicaCount: 2
+  # Keep the two controller replicas on separate nodes so one node reboot can't take both.
+  # Deep-merges with the chart's default affinity.nodeAffinity (prefer cloud nodes).
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: hcloud-csi
+              app.kubernetes.io/instance: hcloud-csi
+              app.kubernetes.io/component: controller
+  # The CSI controller is on the critical path for every volume operation. NOTE: the chart
+  # exposes priorityClassName ONLY under controller.*/node.* — a document-root-level key is
+  # silently ignored by Helm (schema has no top-level priorityClassName), so this lives here.
+  priorityClassName: system-cluster-critical
   hcloudToken:
     existingSecret:
       name: hcloud
@@ -36,6 +59,11 @@ controller:
         memory: 128Mi
 
 node:
+  # system-node-critical: the CSI node plugin (DaemonSet) must not be an eviction candidate
+  # under node memory pressure (this cluster runs custom eviction thresholds + kured reboots)
+  # — evicting it breaks volume mount/unmount on that node. Same silently-ignored root-level
+  # key as controller.priorityClassName above; the chart only reads it under node.*.
+  priorityClassName: system-node-critical
   resources:
     csiNodeDriverRegistrar:
       requests:
@@ -80,5 +108,6 @@ metrics:
     # the chart render labels: null and churns the ArgoCD diff. Not worth it.
     labels:
       release: kube-prometheus-stack
-
-priorityClassName: system-cluster-critical
+# priorityClassName moved into controller.* and node.* above — this chart has no top-level
+# priorityClassName in its values schema, so a root-level key was silently ignored (both the
+# controller Deployment and node DaemonSet ran at priority 0 despite this being set).

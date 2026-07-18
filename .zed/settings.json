@@ -12,6 +12,29 @@
                     "arguments": ["fmt", "--stdin"]
                 }
             }
+        },
+        "YAML": {
+          "formatter": {
+            "external": {
+              "command": "yamlfmt",
+              "arguments": ["-"],
+            }
+          }
+        }
+    },
+    "lsp": {
+        "yaml-language-server": {
+            "settings": {
+                "yaml": {
+                    "schemaStore": {
+                        "enable": true
+                    },
+                    "completion": true,
+                    "schemas": {
+                        "kubernetes": "kubernetes/**.yaml"
+                    }
+                }
+            }
         }
     }
 }

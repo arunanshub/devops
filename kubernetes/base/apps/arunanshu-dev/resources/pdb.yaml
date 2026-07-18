@@ -1,0 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: arunanshu-dev
+  namespace: arunanshu-dev
+spec:
+  maxUnavailable: 1
+  # AlwaysAllow so a crash-looping replica at the 2-replica floor can't make the budget
+  # block eviction of the healthy one and wedge a kured/SUC drain.
+  unhealthyPodEvictionPolicy: AlwaysAllow
+  selector:
+    matchLabels:
+      app: arunanshu-dev

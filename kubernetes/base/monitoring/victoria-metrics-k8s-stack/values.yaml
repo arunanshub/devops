@@ -32,7 +32,7 @@ victoria-metrics-operator:
 vmsingle:
   enabled: true
   spec:
-    retentionPeriod: "14d"
+    retentionPeriod: "28d"
     replicaCount: 1
     extraArgs:
       # Pin cache to a fixed size so RSS doesn't scale with the cgroup limit (vmsingle
@@ -40,7 +40,7 @@ vmsingle:
       # 512MB: with ~169k active series the TSID cache stays >2x covered (hit rate
       # >99.99%); query misses fall to NVMe (data intact). Was 768MB — saved ~150-220Mi RSS.
       memory.allowedBytes: "512MB"
-      # Guard the 2Gi memory limit against a single runaway MetricsQL query over 169k
+      # Guard the 4Gi memory limit against a single runaway MetricsQL query over 169k
       # series. maxConcurrentRequests auto-sizes; this caps RAM per query, not count.
       search.maxMemoryPerQuery: "256MB"
       # Surface expensive Grafana panels before they bite: log queries slower than 2s
@@ -67,11 +67,21 @@ vmsingle:
         memory: 512Mi
       limits:
         # Safety ceiling only — RSS is governed by memory.allowedBytes above, not this.
-        memory: 2Gi
+        # VPA is RequestsOnly (components/monitoring-vpa/resources/vpa-vmsingle.yaml), so this
+        # stays fixed; 4Gi sits above the measured 2922Mi peak.
+        memory: 4Gi
 
+# useStrictSecurity (below) makes the VM operator stamp runAsNonRoot + uid/gid 65534 +
+# seccompProfile RuntimeDefault + drop-ALL-caps + no-priv-esc + readOnlyRootFilesystem onto
+# the generated pods/containers. Applied to the three STATELESS components only — vmagent
+# (emptyDir remote-write queue), vmalert (stateless), vmalertmanager (emptyDir …-db, no PVC,
+# verified). vmsingle is intentionally EXCLUDED: it owns a root-owned 10Gi PVC, so switching
+# to uid 65534 would fail on the existing root-owned TSDB files (operator issue #749) — that
+# needs a staged chown/re-provision migration, not a flag flip. Doc: docs.victoriametrics.com/operator/security/
 vmagent:
   enabled: true
   spec:
+    useStrictSecurity: true
     scrapeInterval: 30s
     # vmagent buffers remote-write to an on-disk queue on EPHEMERAL pod storage (no PV).
     # If vmsingle is briefly unavailable the queue is unbounded by default and can fill
@@ -87,6 +97,7 @@ vmagent:
 vmalert:
   enabled: true
   spec:
+    useStrictSecurity: true # stateless; see vmagent note above
     # Without this block the VM operator applies its DEFAULT resources, which
     # include a tiny CPU limit (~92m) — and vmalert is bursty (rule-group eval),
     # so it gets CFS-throttled ~1% of periods. No CPU limit here (matches vmsingle/
@@ -105,6 +116,7 @@ vmalert:
 alertmanager:
   enabled: true
   spec:
+    useStrictSecurity: true # emptyDir …-db, no PVC (verified); see vmagent note above
     secrets:
       - alertmanager-smtp
     # Same rationale as vmalert above: drop the operator-default CPU limit (~36m)

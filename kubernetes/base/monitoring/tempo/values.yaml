@@ -9,12 +9,40 @@ tempo:
   memBallastSizeMbs: 0
   retention: 48h
 
+  # Container-level hardening (the chart's pod-level securityContext already runs tempo as
+  # non-root uid 10001). Drop-ALL-caps + no-priv-esc + seccomp RuntimeDefault — pure-additive,
+  # zero-risk. readOnlyRootFilesystem is deliberately NOT set: the chart's own values comment
+  # warns it breaks the single-binary tempo, and tempo writes WAL/traces/metrics under the PVC
+  # mount anyway. Keeps tempo consistent with the now-hardened VM stateless components.
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
+
   resources:
     requests:
       cpu: 50m
-      memory: 192Mi
+      # Safe WAL-replay floor. VPA may raise this request and the proportional
+      # limit, but must never shrink Tempo back into the 512Mi OOM loop.
+      memory: 640Mi
     limits:
-      memory: 512Mi
+      memory: 1Gi
+
+  # Keep Go heap below the minimum 1Gi cgroup limit, leaving headroom for WAL replay, mmap,
+  # stacks, and metrics-generator buffers. STATIC BY DESIGN: the tempo VPA runs
+  # RequestsAndLimits (InPlaceOrRecreate) to give WAL-replay OOM headroom, so it can raise the
+  # cgroup limit past 1Gi — but we intentionally do NOT track it (unlike traefik/vmsingle which
+  # use RequestsOnly + resourceFieldRef). Switching tempo to RequestsOnly would surrender that
+  # OOM headroom; wiring GOMEMLIMIT from limits.memory yields raw bytes = 100% of limit, unsafe
+  # given the non-heap headroom tempo needs. GOMEMLIMIT is a SOFT target (Go throttles GC, no
+  # hard OOM), so a stale-high limit only wastes GC CPU during rare trace-burst limit-raises —
+  # acceptable on this CPU-idle, near-idle-trace cluster.
+  extraEnv:
+    - name: GOMEMLIMIT
+      value: 800MiB
 
   # Only accept OTLP — drop jaeger/opencensus to reduce attack surface
   receivers:

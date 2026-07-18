@@ -13,9 +13,12 @@ spec:
   resourcePolicy:
     containerPolicies:
       - containerName: traefik
+        # RequestsOnly: VPA manages the request only and leaves the limit at the
+        # chart-declared value, so ratio preservation can no longer inflate the limit.
+        controlledValues: RequestsOnly
         minAllowed:
           cpu: 10m
           memory: 32Mi
         maxAllowed:
           cpu: 1
-          memory: 256Mi
+          memory: 512Mi
