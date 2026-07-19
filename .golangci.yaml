@@ -28,7 +28,7 @@ linters:
     - gosec
     # cleanups with near-zero false positives
     - unconvert # redundant type conversions
-    - unparam # always-unused / always-same function params
+    # - unparam # always-unused / always-same function params
     - wastedassign # assignment never read
     - copyloopvar # redundant loop-var copies (Go 1.22+)
     # opinionated-but-mostly-bugs

@@ -5,13 +5,23 @@ import (
 	"github.com/arunanshub/devops/internal/logging"
 )
 
-type cli struct{}
+var cli struct {
+	VerifyMTU verifyMtuCmd `cmd:"" help:"verifies your mtu"`
+}
 
 func main() {
-	var cli cli
-	kong.Parse(&cli)
-
 	log := logging.NewLogger()
-	log.Debug("hello world!")
-	log.Error("NO!!!!")
+
+	ctx := kong.Parse(&cli,
+		kong.Description("The operations toolkit :)"),
+		kong.ShortUsageOnError(),
+		kong.ConfigureHelp(kong.HelpOptions{
+			Compact: true,
+		}),
+	)
+
+	err := ctx.Run(&context{Logger: log})
+	if err != nil {
+		log.Fatalf("failed to execute command: %v", err)
+	}
 }
