@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/charmbracelet/log"
+	"log/slog"
 )
 
 type verifyMtuCmd struct {
@@ -9,11 +9,13 @@ type verifyMtuCmd struct {
 }
 
 type context struct {
-	Logger *log.Logger
+	Logger *slog.Logger
 }
 
 func (m *verifyMtuCmd) Run(ctx *context) error {
-	log := ctx.Logger
-	log.Debug("this works!")
+	log := ctx.Logger.WithGroup("mtu")
+
+	log.Debug("foo")
+
 	return nil
 }
