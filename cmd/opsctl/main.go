@@ -1,11 +1,17 @@
 package main
 
 import (
+	"log/slog"
+
 	"github.com/alecthomas/kong"
 	"github.com/arunanshub/devops/internal/logging"
 )
 
-var cli struct {
+type context struct {
+	Logger *slog.Logger
+}
+
+type cli struct {
 	VerifyMTU verifyMtuCmd `cmd:"" help:"verifies your mtu"`
 	GetVPA    getVPACmd    `cmd:"" help:"Get all the VPA in the cluster"`
 }
@@ -13,6 +19,7 @@ var cli struct {
 func main() {
 	log := logging.NewLogger()
 
+	var cli cli
 	ctx := kong.Parse(&cli,
 		kong.Description("The operations toolkit :)"),
 		kong.UsageOnError(),
