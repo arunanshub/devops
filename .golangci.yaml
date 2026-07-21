@@ -45,8 +45,12 @@ linters:
         type: module
         description: Static analysis tool to detect potential nil panics in Go code.
         settings:
-          include-pkgs: github.com/arunanshub/devops
-          experimental-struct-init: "true"
+          # Literal comma-separated package prefixes.
+          include-pkgs: "github.com/arunanshub/devops"
+
+          # Add only packages that should genuinely not participate in inference.
+          # Prefer reporting exclusions below for generated code.
+          exclude-pkgs: ""
 
     errcheck:
       check-type-assertions: true # catches unchecked x := i.(T)
