@@ -1,5 +1,9 @@
 custom-gcl
 
+# Go build artifacts (`just build` outputs to bin/)
+/bin/
+/opsctl
+
 .serena/
 .headroom/
 

@@ -1,37 +1,50 @@
+// opsctl is the operations toolkit for this repo's cluster: health checks and
+// operator utilities that used to live as shell recipes and standalone tools.
 package main
 
 import (
+	"context"
 	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/alecthomas/kong"
 	"github.com/arunanshub/devops/internal/logging"
 )
 
-type context struct {
-	Logger *slog.Logger
-}
-
 type cli struct {
-	VerifyMTU verifyMtuCmd `cmd:"" help:"verifies your mtu"`
-	GetVPA    getVPACmd    `cmd:"" help:"Get all the VPA in the cluster"`
+	LogLevel string `help:"Log level." enum:"debug,info,warn,error" default:"info"`
+
+	VerifyMTU        verifyMTUCmd        `cmd:"" name:"verify-mtu"        help:"Verify the VXLAN+WireGuard MTU stack is correctly configured."`
+	GetVPA           getVPACmd           `cmd:"" name:"get-vpa"           help:"List VPAs whose updateMode differs from the expected one."`
+	AnsibleInventory ansibleInventoryCmd `cmd:"" name:"ansible-inventory" help:"Ansible dynamic inventory built from tofu outputs."`
 }
 
 func main() {
-	log := logging.NewLogger()
+	if err := run(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
 
 	var cli cli
-	ctx := kong.Parse(&cli,
+	kctx := kong.Parse(&cli,
 		kong.Description("The operations toolkit :)"),
 		kong.UsageOnError(),
 		kong.ConfigureHelp(kong.HelpOptions{
 			Compact: true,
 		}),
+		kong.BindTo(ctx, (*context.Context)(nil)),
 	)
 
-	err := ctx.Run(&context{Logger: log})
-	if err != nil {
-		log.Error("failed to execute command", "error", err)
+	logging.Setup(cli.LogLevel)
+	if err := kctx.Run(); err != nil {
+		slog.Error("command failed", slog.Any("error", err))
+		return err
 	}
-
-	ctx.FatalIfErrorf(err)
+	return nil
 }

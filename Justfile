@@ -1,5 +1,3 @@
-import 'cmd/cmd.just'
-
 infra := justfile_dir() / "infra"
 k8s := justfile_dir() / "kubernetes"
 export KUBECONFIG := infra / "kubeconfig.yaml"
@@ -238,160 +236,20 @@ ops-migrate-prometheus:
     just _ansible-playbook "ops/migrate-prometheus-encrypted"
 
 # Verify the VXLAN+WireGuard MTU stack is correctly configured.
-#
-# Cilium's MTU param is the physical device MTU (auto-detect = enp7s0 = 1450).
-# Expected stack: enp7s0=1450 → cilium_wg0=1355 (-95 WireGuard overhead).
-# NOTE: the 95-byte overhead (and thus 1355) assumes Cilium >= 1.20.0-pre.3,
-# which corrected WireguardOverhead to reserve the 15-byte framing padding.
-# On <= 1.20.0-pre.2 the overhead was 80 and cilium_wg0 was 1370.
-# Pod interface MTU stays at 1450; path MTU enforcement is done via PMTUD
-# (packetization-layer-pmtud-mode=always) for UDP/ICMP and eBPF MSS clamping
-# for TCP. Packets at the VXLAN ceiling (payload ≤ 1276b = 1304b IP) must pass.
-#
+# Implemented in Go: cmd/opsctl (verify-mtu subcommand). Expected values and
+# their derivation are documented on the flags (`just opsctl verify-mtu --help`)
+# and in docs/cilium-mtu-overlay-networking.md.
 # Run after bootstrap or any Cilium config change. Exits non-zero on failure.
-verify-mtu:
-    #!/usr/bin/env bash
-    set -euo pipefail
+verify-mtu *flags:
+    go run ./cmd/opsctl verify-mtu {{ flags }}
 
-    # enp7s0 (Hetzner private NIC 1450) - WireGuard IPv6 overhead (95 bytes).
-    # 95 = 40 IPv6 + 8 UDP + 16 WG fields + 16 Poly1305 + 15 framing padding.
-    # Assumes Cilium >= 1.20.0-pre.3; on <= pre.2 this was 80 → wg0 1370.
-    EXPECTED_WG_MTU=1355
-    # Cilium sets pod interfaces to the native device MTU (enp7s0 = 1450)
-    EXPECTED_POD_MTU=1450
-    # Overlay route clamp = wg0 1355 - 50 (VXLAN) = 1305 = max IP packet cross-node.
-    # 1276 + 28 (IP+ICMP headers) = 1304 bytes; sits just under the 1305 clamp
-    # (one byte of slack avoids an off-by-one flap right at the boundary).
-    CEILING_PAYLOAD=1276
-    # Comfortable margin below ceiling
-    PASS_PAYLOAD=1200
+# Run the operations toolkit from source (see `just opsctl --help`).
+opsctl *args:
+    go run ./cmd/opsctl {{ args }}
 
-    kubectl delete pod mtu-verify-a mtu-verify-b \
-      --ignore-not-found=true --wait=true >/dev/null 2>&1 || true
-
-    NODES=($(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'))
-    if [[ ${#NODES[@]} -lt 2 ]]; then
-      echo "ERROR: need at least 2 nodes for a cross-node test" >&2; exit 1
-    fi
-    NODE_A="${NODES[0]}"
-    NODE_B="${NODES[1]}"
-
-    cleanup() {
-      kubectl delete pod mtu-verify-a mtu-verify-b \
-        --ignore-not-found=true --wait=false >/dev/null 2>&1 || true
-      kill "$PF_PID" 2>/dev/null || true
-      wait "$PF_PID" 2>/dev/null || true
-    }
-    trap cleanup EXIT
-    PF_PID=""
-
-    echo "▸ Deploying test pods — $NODE_A and $NODE_B"
-    kubectl run mtu-verify-a --image=busybox:1.36 --restart=Never \
-      --overrides="{\"spec\":{\"nodeName\":\"$NODE_A\"}}" -- sleep 300 >/dev/null
-    kubectl run mtu-verify-b --image=busybox:1.36 --restart=Never \
-      --overrides="{\"spec\":{\"nodeName\":\"$NODE_B\"}}" -- sleep 300 >/dev/null
-    kubectl wait pod mtu-verify-a mtu-verify-b --for=condition=Ready --timeout=90s >/dev/null
-
-    POD_B_IP=$(kubectl get pod mtu-verify-b -o jsonpath='{.status.podIP}')
-    PASS=true
-
-    # ── Check 1: pod interface MTU (should equal native device MTU) ────────────
-    echo "▸ Checking pod interface MTU"
-    ACTUAL_MTU=$(kubectl exec mtu-verify-a -- ip link show eth0 2>/dev/null | grep -oP 'mtu \K\d+')
-    if [[ "$ACTUAL_MTU" -eq "$EXPECTED_POD_MTU" ]]; then
-      echo "  pod eth0 MTU = $ACTUAL_MTU ✓"
-    else
-      echo "  FAIL: pod eth0 MTU = $ACTUAL_MTU, expected $EXPECTED_POD_MTU ✗"
-      PASS=false
-    fi
-
-    # ── Check 2: cross-node connectivity at comfortable margin ─────────────────
-    echo "▸ Cross-node ping: payload=${PASS_PAYLOAD}b (packet=$((PASS_PAYLOAD+28))b)"
-    OUT=$(kubectl exec mtu-verify-a -- ping -s "$PASS_PAYLOAD" -c 3 -W 2 "$POD_B_IP" 2>&1 || true)
-    LOSS=$(echo "$OUT" | grep -oP '\d+(?=% packet loss)' | head -1)
-    LOSS=${LOSS:-100}
-    if [[ "$LOSS" -eq 0 ]]; then
-      echo "  ${PASS_PAYLOAD}b payload → ${LOSS}% loss ✓"
-    else
-      echo "  FAIL: ${PASS_PAYLOAD}b payload → ${LOSS}% loss — cross-node path broken ✗"
-      PASS=false
-    fi
-
-    # ── Check 3: cross-node at VXLAN/WireGuard path ceiling ───────────────────
-    echo "▸ Cross-node ping: payload=${CEILING_PAYLOAD}b (packet=$((CEILING_PAYLOAD+28))b, path ceiling)"
-    OUT=$(kubectl exec mtu-verify-a -- ping -s "$CEILING_PAYLOAD" -c 3 -W 2 "$POD_B_IP" 2>&1 || true)
-    LOSS=$(echo "$OUT" | grep -oP '\d+(?=% packet loss)' | head -1)
-    LOSS=${LOSS:-100}
-    if [[ "$LOSS" -eq 0 ]]; then
-      echo "  ${CEILING_PAYLOAD}b payload → ${LOSS}% loss ✓"
-    else
-      echo "  FAIL: ${CEILING_PAYLOAD}b payload → ${LOSS}% loss — effective path MTU below 1305 ✗"
-      PASS=false
-    fi
-
-    # ── Check 4: WireGuard interface MTU on each node ──────────────────────────
-    echo "▸ Checking cilium_wg0 MTU on each node (expected: enp7s0 1450 - WG 95 = ${EXPECTED_WG_MTU})"
-    for POD in $(kubectl get pod -n kube-system -l k8s-app=cilium -o name | cut -d/ -f2); do
-      NODE=$(kubectl get pod -n kube-system "$POD" -o jsonpath='{.spec.nodeName}')
-      WG_MTU=$(kubectl exec -n kube-system "$POD" -c cilium-agent -- \
-               ip link show cilium_wg0 2>/dev/null | grep -oP 'mtu \K\d+' || echo "unknown")
-      if [[ "$WG_MTU" -eq "$EXPECTED_WG_MTU" ]]; then
-        echo "  $NODE cilium_wg0 = $WG_MTU ✓"
-      else
-        echo "  FAIL: $NODE cilium_wg0 = $WG_MTU, expected $EXPECTED_WG_MTU ✗"
-        PASS=false
-      fi
-    done
-
-    # ── Check 5: PMTUD enabled (safety net for oversized UDP/ICMP) ─────────────
-    echo "▸ Checking PMTUD is enabled in Cilium configmap"
-    PMTUD=$(kubectl get configmap -n kube-system cilium-config \
-            -o jsonpath='{.data.enable-pmtu-discovery}' 2>/dev/null || echo "false")
-    PMTUD_MODE=$(kubectl get configmap -n kube-system cilium-config \
-                 -o jsonpath='{.data.packetization-layer-pmtud-mode}' 2>/dev/null || echo "blackhole")
-    if [[ "$PMTUD" == "true" && "$PMTUD_MODE" == "always" ]]; then
-      echo "  enable-pmtu-discovery=true, mode=always ✓"
-    else
-      echo "  FAIL: PMTUD not active (enabled=$PMTUD, mode=$PMTUD_MODE) ✗"
-      PASS=false
-    fi
-
-    # ── Check 6: cloudflared QUIC MTU (egress path sanity check) ──────────────
-    # quic_client_mtu reflects the pod egress path MTU minus QUIC/tunnel overhead.
-    # Expected: ~1344 when pod MTU=1450. Dropping below 1300 means pod MTU
-    # is being clamped too aggressively somewhere in the stack.
-    MIN_QUIC_MTU=1300
-    CF_POD=$(kubectl get pod -n cloudflared -l app=cloudflared -o name 2>/dev/null \
-             | head -1 | cut -d/ -f2)
-    if [[ -n "$CF_POD" ]]; then
-      echo "▸ Checking cloudflared quic_client_mtu (pod: $CF_POD)"
-      kubectl port-forward -n cloudflared "$CF_POD" 12001:2000 >/dev/null 2>&1 &
-      PF_PID=$!
-      sleep 2
-      QUIC_MTUS=$(curl -s --max-time 3 http://localhost:12001/metrics 2>/dev/null \
-                  | grep 'quic_client_mtu{' | awk '{print $2}' || true)
-      if [[ -z "$QUIC_MTUS" ]]; then
-        echo "  WARN: could not read quic_client_mtu from cloudflared metrics"
-      else
-        QUIC_MIN=$(echo "$QUIC_MTUS" | sort -n | head -1 | cut -d. -f1)
-        if [[ "$QUIC_MIN" -ge "$MIN_QUIC_MTU" ]]; then
-          echo "  quic_client_mtu min=$QUIC_MIN (threshold >=${MIN_QUIC_MTU}) ✓"
-        else
-          echo "  FAIL: quic_client_mtu min=$QUIC_MIN < ${MIN_QUIC_MTU} — pod egress MTU clamped too low ✗"
-          PASS=false
-        fi
-      fi
-    else
-      echo "▸ cloudflared not found — skipping QUIC MTU check"
-    fi
-
-    echo ""
-    if [[ "$PASS" == "true" ]]; then
-      echo "✓ MTU verification passed"
-    else
-      echo "✗ MTU verification FAILED — see above" >&2
-      exit 1
-    fi
+# Build the operations toolkit to bin/opsctl.
+build:
+    go build -ldflags="-s -w" -trimpath -o bin/opsctl ./cmd/opsctl
 
 @_sops-apply file:
     sops --decrypt "{{ file }}" | kubectl apply -f -
