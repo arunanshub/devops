@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/arunanshub/devops/internal/k8s"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -45,9 +46,10 @@ func run(flags *cli) error {
 		return fmt.Errorf("not sufficient amounts of nodes available")
 	}
 
-	runner := NewPodRunner(
+	runner := k8s.NewPodRunner(
 		clientset,
-		PodSpec{Name: "mtu-verify-a", Namespace: "default", Image: "busybox:1.36"},
+		k8s.PodSpec{Name: "mtu-verify-a", Namespace: "default", Image: "busybox:1.36"},
+		nil,
 	)
 	if err := runner.Run(ctx); err != nil {
 		return fmt.Errorf("failed to run pod: %w", err)
