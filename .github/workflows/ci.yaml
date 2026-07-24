@@ -114,7 +114,17 @@ jobs:
           go install github.com/google/yamlfmt/cmd/yamlfmt@v0.21.0
           yamlfmt -lint
 
-      # shellcheck is preinstalled on ubuntu runners.
+      # Pinned to the devbox version — the runner's preinstalled shellcheck is
+      # older and emits SC2317 false-positives on trap-invoked cleanup code.
+      - name: Install shellcheck
+        env:
+          SHELLCHECK_VERSION: v0.11.0
+        run: |
+          curl -sSL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
+            | tar -xJ --strip-components=1 -C /tmp "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+          sudo mv /tmp/shellcheck /usr/local/bin/shellcheck
+          shellcheck --version
+
       - name: shellcheck
         run: >
           git ls-files '*.sh' '*.bash' '*.sh.tpl' '*.bash.tpl' | xargs -r shellcheck --enable=all --severity=style
