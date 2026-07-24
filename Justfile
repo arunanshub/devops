@@ -247,6 +247,12 @@ verify-mtu *flags:
 opsctl *args:
     go run ./cmd/opsctl {{ args }}
 
+# Verify the helmfile→ArgoCD adoption invariant (also runs in CI).
+# The password hash is rendered but excluded from comparison, so any
+# non-empty value satisfies requiredEnv here.
+verify-adoption:
+    ARGOCD_ADMIN_PASSWORD_HASH=placeholder go run ./cmd/opsctl verify-adoption
+
 # Build the operations toolkit to bin/opsctl.
 build:
     go build -ldflags="-s -w" -trimpath -o bin/opsctl ./cmd/opsctl

@@ -1,0 +1,16 @@
+# Gitleaks config — extends the default ruleset.
+#
+# SealedSecret manifests contain asymmetric ciphertext that only the
+# in-cluster sealed-secrets controller can decrypt; committing them is the
+# whole point of the pattern. Their high-entropy blobs trip generic-api-key
+# on full-history scans (the lefthook hook only scans staged diffs, so this
+# never fired locally).
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "SealedSecret ciphertexts are encrypted by design"
+paths = [
+  '''(^|/)[^/]*sealed[^/]*\.ya?ml$''',
+]

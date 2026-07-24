@@ -15,13 +15,36 @@ networking:
 monitoring:
   enabled: true
   podMonitor:
-    # kube-prometheus-stack is deployed, so PodMonitor CRD exists.
+    # Bootstrap-safe even though the CRD doesn't exist yet: the chart gates
+    # this on Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PodMonitor",
+    # so it renders nothing until the monitoring stack lands.
     enabled: true
     labels:
       release: kube-prometheus-stack
 
-# Single node, single replica is correct. Leader election only kicks in at >1.
-replicaCount: 1
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
+
+replicaCount: 3
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 100Mi
+  limits:
+    memory: 256Mi
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: hcloud-cloud-controller-manager
+            app.kubernetes.io/instance: hccm
+        topologyKey: kubernetes.io/hostname
 
 # Already default, but explicit is better than implicit.
 priorityClassName: system-cluster-critical

@@ -17,6 +17,7 @@ type cli struct {
 	LogLevel string `help:"Log level." enum:"debug,info,warn,error" default:"info"`
 
 	VerifyMTU        verifyMTUCmd        `cmd:"" name:"verify-mtu"        help:"Verify the VXLAN+WireGuard MTU stack is correctly configured."`
+	VerifyAdoption   verifyAdoptionCmd   `cmd:"" name:"verify-adoption"   help:"Verify helmfile-installed releases match their adopting ArgoCD Applications."`
 	GetVPA           getVPACmd           `cmd:"" name:"get-vpa"           help:"List VPAs whose updateMode differs from the expected one."`
 	AnsibleInventory ansibleInventoryCmd `cmd:"" name:"ansible-inventory" help:"Ansible dynamic inventory built from tofu outputs."`
 }
