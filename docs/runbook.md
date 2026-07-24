@@ -169,9 +169,69 @@ Use this rule of thumb:
 
 The current baseline role manages unattended upgrades only.
 
+## Node Lifecycle
+
+Adding and replacing nodes is declarative — edit the tofu topology, apply,
+then converge host config with the existing one-shot playbooks. No wrapper
+tooling; the value below is the ORDER and the gates.
+
+### Add a node
+
+1. Add the node to `var.nodes` (key like `worker-2`; key becomes the k8s Node
+   name suffix).
+2. `just plan`, review, `just apply`. Cloud-init installs k3s on first boot.
+3. Wait for the node to join:
+   `kubectl wait node/hetzner-k3s-<key> --for=condition=Ready --timeout=15m`
+4. Converge host config. The k3s playbooks are deliberate one-shots (each may
+   restart k3s, serial:1) — run them explicitly, in this order; unchanged
+   nodes no-op:
+
+   ```bash
+   just ansible-converge                          # baseline (site.yml)
+   just ansible-converge k3s-eviction             # all nodes
+   just ansible-converge k3s-resolver             # all nodes
+   just ansible-converge k3s-embedded-registry    # control planes only
+   just ansible-converge k3s-etcd-metrics         # control planes only
+   just ansible-converge k3s-etcd-snapshots       # control planes only
+   ```
+
+5. `just opsctl cluster verify`
+
+Do NOT generate/refresh the ansible inventory mid `tofu apply` (a node with
+no IPv6 yet is emitted with an empty `ansible_host`).
+
+### Replace a node
+
+Same as add, with the guard dance around the destroy (the guards are
+intentional — do not script around them):
+
+1. Preflight: every node Ready (`kubectl get nodes`), and note that replacing
+   the node your kubeconfig points at (cp-1 public IPv6 under Option B admin
+   access) cuts your own API access mid-operation.
+2. Relax the guards for the target node in `infra/servers.tf`
+   (`lifecycle.prevent_destroy`, `delete_protection`, `rebuild_protection`)
+   and `just apply` that change first.
+3. `sops exec-env infra/secrets.yaml 'tofu apply -replace=hcloud_server.nodes["<key>"]'`
+   from `infra/` (use `-replace`, never a hand-edited plan).
+4. Continue from step 3 of "Add a node" (wait Ready → converge → verify).
+5. Revert the guard relaxation and `just apply` again.
+
 ## Fresh Cluster Bootstrap
 
-Run in this order:
+The sequence is encoded (with ordering guards) in:
+
+```bash
+just opsctl cluster bootstrap --list-steps   # see the steps
+just opsctl cluster bootstrap --dry-run      # print every command
+just opsctl cluster bootstrap                # run it
+just opsctl cluster bootstrap --from-step X  # resume after a failure
+```
+
+It refuses to run the helmfile steps when the ArgoCD root Application already
+exists — after that point ArgoCD owns the cluster and re-running helmfile
+fights it for ownership.
+
+The equivalent manual recipes, in order:
 
 ```bash
 just apply

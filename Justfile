@@ -253,6 +253,10 @@ opsctl *args:
 verify-adoption:
     ARGOCD_ADMIN_PASSWORD_HASH=placeholder go run ./cmd/opsctl verify-adoption
 
+# Full cluster health check: nodes Ready + adoption invariant + MTU stack.
+cluster-verify *flags:
+    ARGOCD_ADMIN_PASSWORD_HASH=placeholder go run ./cmd/opsctl cluster verify {{ flags }}
+
 # Build the operations toolkit to bin/opsctl.
 build:
     go build -ldflags="-s -w" -trimpath -o bin/opsctl ./cmd/opsctl

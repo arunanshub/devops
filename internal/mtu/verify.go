@@ -95,6 +95,22 @@ type Config struct {
 	ReadyTimeout time.Duration
 }
 
+// DefaultConfig returns the expected values for this cluster's stack. The
+// opsctl verify-mtu flags carry the same defaults and are the place to
+// override them; keep the two in sync.
+func DefaultConfig() Config {
+	return Config{
+		Namespace:      "default",
+		Image:          "busybox:1.36",
+		ExpectedWgMTU:  1355,
+		ExpectedPodMTU: 1450,
+		CeilingPayload: 1276,
+		PassPayload:    1200,
+		MinQuicMTU:     1300,
+		ReadyTimeout:   90 * time.Second,
+	}
+}
+
 // CheckResult is the outcome of a single named check.
 type CheckResult struct {
 	Name  string
