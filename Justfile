@@ -257,6 +257,10 @@ verify-adoption:
 cluster-verify *flags:
     ARGOCD_ADMIN_PASSWORD_HASH=placeholder go run ./cmd/opsctl cluster verify {{ flags }}
 
+# Validate nodes/ config against the pinned k3s/kubelet flag schemas (also in CI).
+verify-node-config:
+    go run ./cmd/opsctl verify-node-config
+
 # Build the operations toolkit to bin/opsctl.
 build:
     go build -ldflags="-s -w" -trimpath -o bin/opsctl ./cmd/opsctl

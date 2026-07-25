@@ -1,0 +1,5 @@
+# Bind embedded-etcd metrics to a non-loopback :2381 (k3s default is 127.0.0.1 only) so
+# the in-cluster vmagent can reach them. :2381 is unauthenticated plain HTTP — acceptable
+# because it is reachable only on the Hetzner private network (10.0.0.x); the Hetzner
+# Cloud Firewall filters public NICs only and does not expose it to the internet.
+etcd-expose-metrics: true

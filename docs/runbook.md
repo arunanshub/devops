@@ -182,20 +182,20 @@ tooling; the value below is the ORDER and the gates.
 2. `just plan`, review, `just apply`. Cloud-init installs k3s on first boot.
 3. Wait for the node to join:
    `kubectl wait node/hetzner-k3s-<key> --for=condition=Ready --timeout=15m`
-4. Converge host config. The k3s playbooks are deliberate one-shots (each may
-   restart k3s, serial:1) — run them explicitly, in this order; unchanged
-   nodes no-op:
+4. Converge host config. Unchanged nodes no-op (checksum-based); only nodes
+   whose files change get a (serial, gated, auto-rolled-back) k3s restart:
 
    ```bash
-   just ansible-converge                          # baseline (site.yml)
-   just ansible-converge k3s-eviction             # all nodes
-   just ansible-converge k3s-resolver             # all nodes
-   just ansible-converge k3s-embedded-registry    # control planes only
-   just ansible-converge k3s-etcd-metrics         # control planes only
-   just ansible-converge k3s-etcd-snapshots       # control planes only
+   just ansible-converge                  # baseline OS config (site.yml)
+   just ansible-converge k3s-config       # declarative k3s config from nodes/
    ```
 
 5. `just opsctl cluster verify`
+
+To CHANGE k3s/kubelet config: edit the data files under `nodes/{all,control-plane}/`,
+let CI validate them against the pinned binaries (`just verify-node-config`
+locally), review the plan with `just ansible-check k3s-config`, then converge.
+Never author a new playbook for a config change.
 
 Do NOT generate/refresh the ansible inventory mid `tofu apply` (a node with
 no IPv6 yet is emitted with an empty `ansible_host`).

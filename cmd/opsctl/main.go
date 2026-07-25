@@ -19,6 +19,7 @@ type cli struct {
 	Cluster          clusterCmd          `cmd:"" help:"Whole-cluster operations: bootstrap, verify."`
 	VerifyMTU        verifyMTUCmd        `cmd:"" name:"verify-mtu"        help:"Verify the VXLAN+WireGuard MTU stack is correctly configured."`
 	VerifyAdoption   verifyAdoptionCmd   `cmd:"" name:"verify-adoption"   help:"Verify helmfile-installed releases match their adopting ArgoCD Applications."`
+	VerifyNodeConfig verifyNodeConfigCmd `cmd:"" name:"verify-node-config" help:"Validate nodes/ config against the pinned k3s and kubelet flag schemas."`
 	GetVPA           getVPACmd           `cmd:"" name:"get-vpa"           help:"List VPAs whose updateMode differs from the expected one."`
 	AnsibleInventory ansibleInventoryCmd `cmd:"" name:"ansible-inventory" help:"Ansible dynamic inventory built from tofu outputs."`
 }

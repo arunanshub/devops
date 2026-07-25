@@ -1,0 +1,4 @@
+kubelet-arg+:
+  - "eviction-hard=memory.available<500Mi,imagefs.available<5%,nodefs.available<5%"
+  - "eviction-soft=memory.available<1Gi"
+  - "eviction-soft-grace-period=memory.available=2m0s"
