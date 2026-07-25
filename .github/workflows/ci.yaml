@@ -61,6 +61,18 @@ jobs:
           ARGOCD_ADMIN_PASSWORD_HASH: "ci-placeholder"
         run: go run ./cmd/opsctl verify-adoption
 
+      # Validates nodes/ config keys against the REAL flag schemas of the
+      # pinned k3s and kubelet binaries — an invalid key crash-loops k3s at
+      # runtime and is invisible to YAML-level checks.
+      - name: Cache schema binaries (pinned k3s + kubelet)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/opsctl
+          key: schema-binaries-${{ runner.os }}-${{ hashFiles('infra/locals.tf') }}
+
+      - name: Verify node config against k3s/kubelet schemas
+        run: go run ./cmd/opsctl verify-node-config
+
   kubernetes:
     name: Kustomize render + kubeconform
     runs-on: ubuntu-latest
