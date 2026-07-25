@@ -226,6 +226,18 @@ quarterly. One node, quorum-safe by construction, ~15 minutes.
 8. If step 6 did NOT play out as described, that's a real finding — fix the
    playbook before trusting it with a fleet-wide change.
 
+Drill log:
+
+- 2026-07-25 (first run): PASSED — rescue restored cp-3 autonomously, quorum
+  held. Two findings, both fixed same day: (1) the Ready gate false-passes on
+  the stale node condition during the ~40s node-monitor grace period, so the
+  direct-to-kubelet configz verify is load-bearing; (2) the verify's declared
+  values must travel via environment variables — shell interpolation of
+  threshold strings (`<`, quotes) breaks bash quoting and would have
+  false-rolled-back legitimate changes. Round 2 (real fleet-wide change)
+  passed: changed=2 per node, verify green on healthy kubelets, re-run
+  changed=0.
+
 Do NOT generate/refresh the ansible inventory mid `tofu apply` (a node with
 no IPv6 yet is emitted with an empty `ansible_host`).
 

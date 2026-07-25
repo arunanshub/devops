@@ -105,30 +105,38 @@
         # The expected values are DERIVED from the declared data file — never
         # hardcode them here, or a legitimate threshold change would apply,
         # "fail" verification against the stale expectation, and roll back.
+        # The declared JSON travels via the environment, NOT string
+        # interpolation: embedded quotes/'<' in threshold values are shell
+        # hazards (2026-07-25 game day finding). This check is load-bearing:
+        # the Ready gate above can false-pass on a stale node condition
+        # during the ~40s node-monitor grace period; this call talks to the
+        # kubelet directly.
         - name: Verify kubelet picked up declared eviction thresholds and resolver
           vars:
             declared_eviction: "{{ (lookup('file', nodes_dir ~ '/all/etc/rancher/k3s/config.yaml.d/eviction.yaml') | from_yaml)['kubelet-arg+'] }}"
+          environment:
+            DECLARED_KUBELET_ARGS: "{{ declared_eviction | to_json }}"
           ansible.builtin.shell:
             cmd: |
               set -o pipefail
-              kubectl get --raw /api/v1/nodes/{{ kubernetes_node_name }}/proxy/configz | python3 -c "
-              import json, sys
-              declared = json.loads('{{ declared_eviction | to_json }}')
-              cfg = json.load(sys.stdin)['kubeletconfig']
+              kubectl get --raw /api/v1/nodes/{{ kubernetes_node_name }}/proxy/configz | python3 -c '
+              import json, os, sys
+              declared = json.loads(os.environ["DECLARED_KUBELET_ARGS"])
+              cfg = json.load(sys.stdin)["kubeletconfig"]
               def parse(prefix):
                   for arg in declared:
-                      if arg.startswith(prefix + '='):
-                          return dict(pair.split('<', 1) for pair in arg.split('=', 1)[1].split(','))
+                      if arg.startswith(prefix + "="):
+                          return dict(pair.split("<", 1) for pair in arg.split("=", 1)[1].split(","))
                   return {}
-              for key, want in parse('eviction-hard').items():
-                  got = cfg['evictionHard'].get(key)
-                  assert got == want, f'evictionHard.{key}: declared {want}, kubelet has {got}'
-              for key, want in parse('eviction-soft').items():
-                  got = cfg.get('evictionSoft', {}).get(key)
-                  assert got == want, f'evictionSoft.{key}: declared {want}, kubelet has {got}'
-              assert cfg.get('resolvConf') == '/etc/rancher/k3s/resolv.conf', cfg.get('resolvConf')
-              print('kubelet config matches declared state')
-              "
+              for key, want in parse("eviction-hard").items():
+                  got = cfg["evictionHard"].get(key)
+                  assert got == want, f"evictionHard.{key}: declared {want}, kubelet has {got}"
+              for key, want in parse("eviction-soft").items():
+                  got = cfg.get("evictionSoft", {}).get(key)
+                  assert got == want, f"evictionSoft.{key}: declared {want}, kubelet has {got}"
+              assert cfg.get("resolvConf") == "/etc/rancher/k3s/resolv.conf", cfg.get("resolvConf")
+              print("kubelet config matches declared state")
+              '
             executable: /bin/bash
           delegate_to: localhost
           register: kubelet_verify
