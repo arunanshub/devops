@@ -197,6 +197,35 @@ let CI validate them against the pinned binaries (`just verify-node-config`
 locally), review the plan with `just ansible-check k3s-config`, then converge.
 Never author a new playbook for a config change.
 
+### Game day: prove the k3s-config rollback path
+
+An untested recovery path doesn't exist (same philosophy as the velero
+restore drill). Run this after meaningful changes to `k3s-config.yml`, or
+quarterly. One node, quorum-safe by construction, ~15 minutes.
+
+1. Preconditions: `just cluster-verify` green; working tree clean.
+2. Idempotency evidence: `just ansible-converge k3s-config` → expect
+   `changed=0`, no restarts anywhere.
+3. Inject a failure that the CI validator CANNOT catch (a real flag with a
+   value the kubelet rejects at startup) — edit
+   `nodes/all/etc/rancher/k3s/config.yaml.d/eviction.yaml`:
+
+   ```yaml
+   - "eviction-hard=memory.available<NOTASIZE,imagefs.available<5%,nodefs.available<5%"
+   ```
+
+4. `just verify-node-config` still passes (flag names are valid — this is
+   deliberately the class of mistake only the runtime gate can catch).
+5. Converge ONE node: `just _ansible-playbook k3s-config "--limit hetzner-k3s-cp-3"`.
+6. Expected sequence: file syncs → k3s restarts → kubelet rejects the value →
+   node fails the Ready/verify gate (allow up to ~5 min of retries) → rescue
+   restores the tar snapshot → k3s restarts with the old config → node
+   recovers → the play ABORTS with the rollback message.
+7. Confirm: `kubectl get nodes` all Ready; `git checkout nodes/` to discard
+   the injection; re-run step 2 → `changed=0`.
+8. If step 6 did NOT play out as described, that's a real finding — fix the
+   playbook before trusting it with a fleet-wide change.
+
 Do NOT generate/refresh the ansible inventory mid `tofu apply` (a node with
 no IPv6 yet is emitted with an empty `ansible_host`).
 
