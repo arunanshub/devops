@@ -11,16 +11,32 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// DeclaredKubeletArgs collects every kubelet-arg entry declared in the
-// config drop-ins under dir, in file order.
-func DeclaredKubeletArgs(dir string) ([]string, error) {
+// DeclaredKubeletArgs collects kubelet-arg entries from the config layers
+// applicable to role, in file order.
+func DeclaredKubeletArgs(dir, role string) ([]string, error) {
 	var args []string
+	layers := map[string]bool{"all": true}
+	switch role {
+	case "cp_only", "cp_worker":
+		layers["control-plane"] = true
+	case "worker":
+	default:
+		return nil, fmt.Errorf("unsupported node role %q", role)
+	}
 
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d.IsDir() || filepath.Base(filepath.Dir(path)) != "config.yaml.d" {
+			return nil
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		layer := strings.SplitN(rel, string(filepath.Separator), 2)[0]
+		if !layers[layer] {
 			return nil
 		}
 

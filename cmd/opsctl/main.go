@@ -22,7 +22,6 @@ type cli struct {
 	VerifyNodeConfig verifyNodeConfigCmd    `cmd:"" name:"verify-node-config" help:"Validate nodes/ config against the pinned k3s and kubelet flag schemas."`
 	VerifyKubelet    verifyKubeletConfigCmd `cmd:"" name:"verify-kubelet-config" help:"Assert a node's live kubelet config matches the declared kubelet-args."`
 	GetVPA           getVPACmd              `cmd:"" name:"get-vpa"           help:"List VPAs whose updateMode differs from the expected one."`
-	AnsibleInventory ansibleInventoryCmd    `cmd:"" name:"ansible-inventory" help:"Ansible dynamic inventory built from tofu outputs."`
 }
 
 func main() {

@@ -106,18 +106,18 @@ Ansible over SSH for convergence: normal.
 
 ### Inventory
 
-Inventory is generated dynamically from OpenTofu outputs:
+Inventory comes directly from the pinned `hetzner.hcloud` collection:
 
 ```bash
 just ansible-inventory
 ```
 
-The Go inventory tool reads:
+It selects existing servers with `cluster=hetzner-k3s` and uses their
+`node_role` labels. The Hetzner token stays in `infra/secrets.yaml`; no
+generated inventory or custom parser is involved.
 
-- `tofu output -json`
-- `ANSIBLE_TOFU_OUTPUTS`, when set, for tests/offline runs
-- `ANSIBLE_SSH_PRIVATE_KEY_FILE`, when overriding the key
-- `ANSIBLE_KNOWN_HOSTS_FILE`, when overriding known-hosts storage
+`ANSIBLE_SSH_PRIVATE_KEY_FILE` and `KUBECONFIG` can override their normal local
+paths.
 
 Hosts are grouped as:
 
@@ -133,6 +133,12 @@ Always check first:
 just ansible-check
 ```
 
+Optionally run the read-only cluster gate on its own:
+
+```bash
+just node-preflight
+```
+
 Then converge:
 
 ```bash
@@ -145,6 +151,11 @@ Both default to `ansible/playbooks/site.yml`. To run one playbook:
 just ansible-check baseline
 just ansible-converge baseline
 ```
+
+Convergence launches a separate Ansible Runner job for each sorted node and
+stops on the first nonzero result, including SSH failure. Each job records
+`status`, `rc`, `stdout`, and structured events under
+`.artifacts/ansible/<run-id>/`.
 
 Compatibility aliases also exist:
 
@@ -163,7 +174,7 @@ Wire ordering in `ansible/playbooks/site.yml`, not in `Justfile`.
 
 Use this rule of thumb:
 
-- Safe fleet-wide config: can run in parallel.
+- All node convergence is one node at a time.
 - Restarting or disruptive config: use explicit serial/gated playbooks.
 - k3s control-plane changes: one control-plane node at a time, with health checks.
 
@@ -171,9 +182,10 @@ The current baseline role manages unattended upgrades only.
 
 ## Node Lifecycle
 
-Adding and replacing nodes is declarative — edit the tofu topology, apply,
-then converge host config with the existing one-shot playbooks. No wrapper
-tooling; the value below is the ORDER and the gates.
+Adding nodes is declarative. Existing-node replacement is a separate,
+deliberate membership workflow and is not automated here. Normal node
+configuration never invokes OpenTofu and cannot rebuild, resize, or delete a
+server.
 
 ### Add a node
 
@@ -197,34 +209,12 @@ let CI validate them against the pinned binaries (`just verify-node-config`
 locally), review the plan with `just ansible-check k3s-config`, then converge.
 Never author a new playbook for a config change.
 
-### Game day: prove the k3s-config rollback path
+### Rollback certification
 
-An untested recovery path doesn't exist (same philosophy as the velero
-restore drill). Run this after meaningful changes to `k3s-config.yml`, or
-quarterly. One node, quorum-safe by construction, ~15 minutes.
-
-1. Preconditions: `just cluster-verify` green; working tree clean.
-2. Idempotency evidence: `just ansible-converge k3s-config` → expect
-   `changed=0`, no restarts anywhere.
-3. Inject a failure that the CI validator CANNOT catch (a real flag with a
-   value the kubelet rejects at startup) — edit
-   `nodes/all/etc/rancher/k3s/config.yaml.d/eviction.yaml`:
-
-   ```yaml
-   - "eviction-hard=memory.available<NOTASIZE,imagefs.available<5%,nodefs.available<5%"
-   ```
-
-4. `just verify-node-config` still passes (flag names are valid — this is
-   deliberately the class of mistake only the runtime gate can catch).
-5. Converge ONE node: `just _ansible-playbook k3s-config "--limit hetzner-k3s-cp-3"`.
-6. Expected sequence: file syncs → k3s restarts → kubelet rejects the value →
-   node fails the Ready/verify gate (allow up to ~5 min of retries) → rescue
-   restores the tar snapshot → k3s restarts with the old config → node
-   recovers → the play ABORTS with the rollback message.
-7. Confirm: `kubectl get nodes` all Ready; `git checkout nodes/` to discard
-   the injection; re-run step 2 → `changed=0`.
-8. If step 6 did NOT play out as described, that's a real finding — fix the
-   playbook before trusting it with a fleet-wide change.
+Do not inject failures into the existing production cluster. Runtime rollback
+testing belongs on an optional disposable local or cloud test cluster. The
+production path uses static validation, check mode, preflight, one Runner job
+per node, postflight, and automatic rollback if a real rollout fails.
 
 Drill log:
 

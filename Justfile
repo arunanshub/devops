@@ -1,10 +1,13 @@
 infra := justfile_dir() / "infra"
 k8s := justfile_dir() / "kubernetes"
-export KUBECONFIG := infra / "kubeconfig.yaml"
+kubeconfig := env_var_or_default("KUBECONFIG", infra / "kubeconfig.yaml")
+export KUBECONFIG := kubeconfig
 ansible_dir := justfile_dir() / "ansible"
-ansible_inventory := ansible_dir / "inventory/tofu_inventory"
+ansible_inventory := ansible_dir / "inventory/hcloud.yml"
 ansible_playbooks := ansible_dir / "playbooks"
-ansible_env := "LC_ALL=C.UTF-8 LANG=C.UTF-8 KUBECONFIG='" + infra / "kubeconfig.yaml" + "'"
+ansible_runner := ansible_dir / "runner"
+ansible_artifacts := justfile_dir() / ".artifacts/ansible"
+ansible_env := "LC_ALL=C.UTF-8 LANG=C.UTF-8 KUBECONFIG='" + kubeconfig + "'"
 
 # Internal API endpoint used by Cilium and other in-cluster components.
 # Points at the API server LB private IP, not a specific node.
@@ -51,18 +54,45 @@ argocd-bootstrap: hcloud-secret-bootstrap
 
 @ansible-inventory:
     cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
-        "{{ ansible_env }} '{{ ansible_inventory }}' --list"
+        "{{ ansible_env }} uv run ansible-inventory -i '{{ ansible_inventory }}' --graph --vars"
+
+@node-preflight:
+    just _ansible-playbook "k3s-preflight"
 
 @ansible-check playbook="site":
     just _ansible-playbook "{{ playbook }}" "--check --diff"
 
 ansible-converge playbook="site":
-    just _ansible-playbook "{{ playbook }}"
+    just _ansible-rolling "{{ playbook }}"
+
+@_ansible-hosts:
+    cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
+        "{{ ansible_env }} uv run ansible-inventory -i '{{ ansible_inventory }}' --list" \
+        | jq -r '.k3s_nodes.hosts[]' | sort
+
+@_ansible-rolling playbook:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mapfile -t hosts < <(just _ansible-hosts)
+    ((${#hosts[@]} > 0)) || { printf 'No k3s_nodes found; refusing to run.\n' >&2; exit 1; }
+    for host in "${hosts[@]}"; do
+        printf '\n=== %s: %s ===\n' "{{ playbook }}" "$host"
+        just _ansible-playbook "{{ playbook }}" "--limit $host,localhost"
+    done
 
 @_ansible-playbook playbook args="":
     test -f "{{ ansible_playbooks }}/{{ playbook }}.yml"
+    mkdir -p "{{ ansible_artifacts }}"
     cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
-        "{{ ansible_env }} uv run ansible-playbook -i '{{ ansible_inventory }}' '{{ ansible_playbooks }}/{{ playbook }}.yml' {{ args }}"
+        "{{ ansible_env }} uv run ansible-runner run '{{ ansible_runner }}' \
+        --project-dir '{{ justfile_dir() }}' \
+        --inventory '{{ ansible_inventory }}' \
+        --artifact-dir '{{ ansible_artifacts }}' \
+        --rotate-artifacts 20 \
+        --omit-env-files \
+        --forks 1 \
+        --playbook 'ansible/playbooks/{{ playbook }}.yml' \
+        --cmdline='{{ args }}'"
 
 # Install Python deps (uv) and Ansible collections. Run once after cloning or
 # after pyproject.toml / ansible/requirements.yml changes.
@@ -185,7 +215,7 @@ velero-restore backup namespace:
     @echo "   --endpoint-url https://<account_id>.r2.cloudflarestorage.com --region auto"
     @echo ""
     @echo "2. Stop k3s on ALL nodes:"
-    @echo "   ansible all -i ansible/inventory/tofu_inventory -m service -a 'name=k3s state=stopped' --become"
+    @echo "   ansible all -i ansible/inventory/hcloud.yml -m service -a 'name=k3s state=stopped' --become"
     @echo ""
     @echo "3. Reset etcd on ONE control-plane node (e.g. cp-0):"
     @echo "   k3s server --cluster-reset --cluster-reset-restore-path=/tmp/snapshot.db"

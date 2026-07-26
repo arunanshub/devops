@@ -1,0 +1,75 @@
+- name: Require a quorum-safe control-plane count
+  ansible.builtin.assert:
+    that:
+      - groups.control_planes | length >= 3
+      - groups.control_planes | length % 2 == 1
+    fail_msg: |
+      Refusing node mutation: expected an odd number of at least three
+      control-plane nodes, found {{ groups.control_planes | length }}.
+- name: Require local API readiness on every control plane
+  ansible.builtin.command: k3s kubectl get --raw=/readyz
+  delegate_to: "{{ item }}"
+  loop: "{{ groups.control_planes | sort }}"
+  loop_control:
+    label: "{{ item }}"
+  register: k3s_health_readyz
+  changed_when: false
+  failed_when: false
+  ignore_unreachable: true
+  check_mode: false
+
+- name: Reset failed local API evidence
+  ansible.builtin.set_fact:
+    k3s_health_failed_readyz: []
+
+- name: Record failed local API probes
+  ansible.builtin.set_fact:
+    k3s_health_failed_readyz: >-
+      {{ k3s_health_failed_readyz + [item.item] }}
+  loop: "{{ k3s_health_readyz.results }}"
+  when: >-
+    item.unreachable | default(false) or item.rc | default(1) != 0
+  no_log: true
+
+- name: Require every local API readiness probe successful
+  ansible.builtin.assert:
+    that:
+      - k3s_health_failed_readyz | length == 0
+    fail_msg: |
+      Refusing node mutation: local API readiness failed:
+      {{ k3s_health_failed_readyz | join(', ') }}.
+- name: Read Kubernetes Nodes
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Node
+  delegate_to: localhost
+  register: k3s_health_nodes
+  check_mode: false
+  no_log: true
+
+- name: Reset Ready Node evidence
+  ansible.builtin.set_fact:
+    k3s_health_ready_nodes: []
+
+- name: Record Ready Nodes
+  ansible.builtin.set_fact:
+    k3s_health_ready_nodes: >-
+      {{ k3s_health_ready_nodes + [item.metadata.name] }}
+  loop: "{{ k3s_health_nodes.resources }}"
+  when: >-
+    item.status.conditions | selectattr('type', 'equalto', 'Ready') | map(attribute='status') | first == 'True'
+  no_log: true
+
+- name: Require every declared control-plane Node Ready
+  ansible.builtin.assert:
+    that:
+      - groups.control_planes | difference(k3s_health_ready_nodes) | length == 0
+    fail_msg: |
+      Refusing node mutation: absent or not Ready:
+      {{ groups.control_planes | difference(k3s_health_ready_nodes) | join(', ') }}.
+- name: Require Cilium healthy
+  ansible.builtin.command:
+    cmd: cilium status --wait --wait-duration 2m --interactive=false
+  delegate_to: localhost
+  changed_when: false
+  check_mode: false

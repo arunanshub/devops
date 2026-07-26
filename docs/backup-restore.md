@@ -250,8 +250,9 @@ just etcd-restore
 
 3. **Stop k3s on ALL nodes**:
    ```bash
-   ansible all -i ansible/inventory/tofu_inventory \
-     -m service -a 'name=k3s state=stopped' --become
+   sops exec-env infra/secrets.yaml \
+     'uv run ansible all -i ansible/inventory/hcloud.yml \
+     -m service -a "name=k3s state=stopped" --become'
    ```
 
 4. **Reset etcd on ONE CP node** (e.g. cp-0):

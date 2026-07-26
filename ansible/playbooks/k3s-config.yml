@@ -19,6 +19,7 @@
   gather_facts: false
   become: false
   serial: 1
+  any_errors_fatal: true
   max_fail_percentage: 0
   order: sorted
   vars:
@@ -38,6 +39,9 @@
     - name: Set k3s service name
       ansible.builtin.set_fact:
         k3s_service_name: "{{ 'k3s' if is_control_plane else 'k3s-agent' }}"
+
+    - name: Prove cluster health before touching this node
+      ansible.builtin.include_tasks: tasks/k3s-health.yml
 
     # (stale file cleanup section — currently empty)
 
@@ -110,7 +114,8 @@
         # shell — inline interpolation of threshold strings broke quoting.
         - name: Verify kubelet runtime config matches declared state
           ansible.builtin.command:
-            cmd: go run ./cmd/opsctl verify-kubelet-config {{ kubernetes_node_name }}
+            cmd: >-
+              go run ./cmd/opsctl verify-kubelet-config {{ kubernetes_node_name }} {{ node_role }}
             chdir: "{{ playbook_dir }}/../.."
           delegate_to: localhost
           register: kubelet_verify
@@ -146,12 +151,17 @@
           delay: 5
           when: k3s_config_changed and is_control_plane and not ansible_check_mode
 
+        - name: Prove cluster health after changing this node
+          ansible.builtin.include_tasks: tasks/k3s-health.yml
+          when: k3s_config_changed and not ansible_check_mode
+
       rescue:
         # The new config failed to restart k3s or failed verification on THIS
         # node. Restore the pre-change state exactly: verify the archive is
         # readable, replace the config tree with it, restart, and abort the
         # play (later nodes keep the old config — quorum intact).
-        - name: Check rollback archive integrity
+        # unarchive cannot perform a read-only integrity check.
+        - name: Check rollback archive integrity # noqa command-instead-of-module
           ansible.builtin.shell:
             cmd: tar tzf /tmp/k3s-config-rollback.tar.gz > /dev/null
           changed_when: false
@@ -182,7 +192,12 @@
           retries: 30
           delay: 10
 
+        - name: Prove cluster health after rollback
+          ansible.builtin.include_tasks: tasks/k3s-health.yml
+
         - name: Abort — config change failed and was rolled back
           ansible.builtin.fail:
-            msg: >-
-              {{ kubernetes_node_name }}: the new config failed the restart or verification gate; the previous config was restored and the node recovered. Fix nodes/ and re-run.
+            msg: |
+              {{ kubernetes_node_name }}: the new config failed the restart or
+              verification gate. The previous config was restored and the node
+              recovered. Fix nodes/ and re-run.

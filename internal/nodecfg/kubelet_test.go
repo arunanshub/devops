@@ -1,6 +1,8 @@
 package nodecfg
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -70,12 +72,46 @@ kubelet-arg+:
   - "resolv-conf=/etc/rancher/k3s/resolv.conf"
 `)
 
-	args, err := DeclaredKubeletArgs(dir)
+	args, err := DeclaredKubeletArgs(dir, "worker")
 	require.NoError(t, err)
 	assert.Equal(t, []string{
 		"eviction-hard=memory.available<500Mi",
 		"resolv-conf=/etc/rancher/k3s/resolv.conf",
 	}, args)
+}
+
+func TestDeclaredKubeletArgsUsesOnlyRoleApplicableLayers(t *testing.T) {
+	dir := writeConfig(t, "all/etc/rancher/k3s/config.yaml.d/all.yaml", `
+kubelet-arg+:
+  - "resolv-conf=/etc/rancher/k3s/resolv.conf"
+`)
+	cpFile := filepath.Join(
+		dir,
+		"control-plane",
+		"etc",
+		"rancher",
+		"k3s",
+		"config.yaml.d",
+		"control-plane.yaml",
+	)
+	require.NoError(t, os.MkdirAll(filepath.Dir(cpFile), 0o755))
+	require.NoError(t, os.WriteFile(cpFile, []byte(`
+kubelet-arg+:
+  - "serialize-image-pulls=false"
+`), 0o644))
+
+	workerArgs, err := DeclaredKubeletArgs(dir, "worker")
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"resolv-conf=/etc/rancher/k3s/resolv.conf",
+	}, workerArgs)
+
+	cpArgs, err := DeclaredKubeletArgs(dir, "cp_worker")
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"resolv-conf=/etc/rancher/k3s/resolv.conf",
+		"serialize-image-pulls=false",
+	}, cpArgs)
 }
 
 func TestKebabToCamel(t *testing.T) {

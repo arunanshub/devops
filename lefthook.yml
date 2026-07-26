@@ -50,6 +50,15 @@ pre-commit:
       stage_fixed: true
       glob: ["*.yaml", "*.yml"]
 
+    ansible-lint:
+      run: >-
+        uv run ansible-lint ansible/playbooks/site.yml ansible/playbooks/baseline.yml ansible/playbooks/k3s-preflight.yml ansible/playbooks/k3s-config.yml
+      glob: ["ansible/**/*.yml", "ansible.cfg", "pyproject.toml", "uv.lock"]
+
+    node-config-schema:
+      run: go run ./cmd/opsctl verify-node-config
+      glob: ["nodes/**/*.yaml", "internal/nodecfg/*.go", "cmd/opsctl/verify_node_config.go"]
+
     kustomize-validate:
       run: >
         kustomize build kubernetes/overlays/prod | kubeconform --strict --ignore-missing-schemas --summary --schema-location default --schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
