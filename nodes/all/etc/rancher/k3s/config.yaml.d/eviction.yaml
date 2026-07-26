@@ -1,0 +1,6 @@
+# Kubelet memory eviction thresholds. Declared here (nodes/), validated in CI
+# against the pinned kubelet's flag schema, applied by ansible/playbooks/k3s-config.yml.
+kubelet-arg+:
+  - "eviction-hard=memory.available<500Mi,imagefs.available<5%,nodefs.available<5%"
+  - "eviction-soft=memory.available<1Gi"
+  - "eviction-soft-grace-period=memory.available=2m0s"

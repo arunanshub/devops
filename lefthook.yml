@@ -1,6 +1,26 @@
 pre-commit:
   parallel: true
   commands:
+    Format go files:
+      run: ./custom-gcl fmt {staged_files}
+      glob: ["*.go", "go.mod", "go.sum"]
+      stage_fixed: true
+
+    Lint go files:
+      run: ./custom-gcl run --fix ./...
+      glob: ["*.go", go.mod, "go.sum"]
+      stage_fixed: true
+
+    Tidy go.mod and go.sum:
+      run: go mod tidy
+      glob: ["go.mod", "go.sum", "*.go"]
+      stage_fixed: true
+
+    # Tidy go.work:
+    #   run: go work sync
+    #   glob: [go.mod, go.sum, "*.go"]
+    #   stage_fixed: true
+
     tofu-fmt:
       run: tofu fmt -recursive
       root: infra/
@@ -29,6 +49,15 @@ pre-commit:
       run: yamlfmt {staged_files}
       stage_fixed: true
       glob: ["*.yaml", "*.yml"]
+
+    ansible-lint:
+      run: >-
+        uv run ansible-lint ansible/playbooks/site.yml ansible/playbooks/baseline.yml ansible/playbooks/k3s-preflight.yml ansible/playbooks/k3s-config.yml
+      glob: ["ansible/**/*.yml", "ansible.cfg", "pyproject.toml", "uv.lock"]
+
+    node-config-schema:
+      run: go run ./cmd/opsctl verify-node-config
+      glob: ["nodes/**/*.yaml", "internal/nodecfg/*.go", "cmd/opsctl/verify_node_config.go"]
 
     kustomize-validate:
       run: >

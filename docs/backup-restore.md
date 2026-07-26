@@ -44,11 +44,11 @@ The config lives on each CP node at `/etc/rancher/k3s/config.yaml.d/etcd-snapsho
 
 | File | What it does |
 |------|-------------|
-| `ansible/playbooks/k3s-etcd-snapshots.yml` | Deploys the drop-in config to CP nodes, restarts k3s |
+| `nodes/control-plane/etc/rancher/k3s/config.yaml.d/etcd-snapshots.yaml` | The declarative drop-in (applied by `just ansible-converge k3s-config`) |
 | `kubernetes/components/etcd-snapshot-health/resources/sealedsecret-etcd-s3.yaml` | S3 credentials as SealedSecret |
 | `kubernetes/components/etcd-snapshot-health/resources/cronjob.yaml` | Health check CronJob |
 
-The drop-in config deployed by Ansible:
+The drop-in config:
 
 ```yaml
 etcd-s3: true
@@ -61,10 +61,10 @@ etcd-snapshot-compress: true
 
 ### Reconfigure etcd snapshot schedule
 
-1. Edit `ansible/playbooks/k3s-etcd-snapshots.yml` — change `etcd-snapshot-schedule-cron`.
+1. Edit `nodes/control-plane/etc/rancher/k3s/config.yaml.d/etcd-snapshots.yaml` — change `etcd-snapshot-schedule-cron` (CI schema-validates the key against the pinned k3s binary).
 2. If you increased the interval past ~8h, also update `MAX_AGE` in `kubernetes/components/etcd-snapshot-health/resources/cronjob.yaml` and the `> 36000` threshold in `kubernetes/base/monitoring/backup-alerts/resources/prometheusrule.yaml`.
    - Rule: `MAX_AGE = interval_seconds * 1.5`
-3. Run `just ansible-converge k3s-etcd-snapshots` to push the new config and restart k3s.
+3. Review with `just ansible-check k3s-config`, then `just ansible-converge k3s-config` to push the new config and restart k3s (serial, gated, auto-rolled-back on failure).
 
 ### Reconfigure retention
 
@@ -250,8 +250,9 @@ just etcd-restore
 
 3. **Stop k3s on ALL nodes**:
    ```bash
-   ansible all -i ansible/inventory/tofu_inventory \
-     -m service -a 'name=k3s state=stopped' --become
+   sops exec-env infra/secrets.yaml \
+     'uv run ansible all -i ansible/inventory/hcloud.yml \
+     -m service -a "name=k3s state=stopped" --become'
    ```
 
 4. **Reset etcd on ONE CP node** (e.g. cp-0):

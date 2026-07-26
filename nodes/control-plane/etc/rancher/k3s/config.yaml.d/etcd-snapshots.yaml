@@ -1,0 +1,6 @@
+etcd-s3: true
+etcd-s3-config-secret: k3s-etcd-snapshot-s3-config
+etcd-snapshot-schedule-cron: "0 */6 * * *"
+etcd-snapshot-retention: 24
+etcd-s3-retention: 48
+etcd-snapshot-compress: true

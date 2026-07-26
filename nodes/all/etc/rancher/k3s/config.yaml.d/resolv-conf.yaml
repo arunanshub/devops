@@ -1,0 +1,2 @@
+kubelet-arg+:
+  - "resolv-conf=/etc/rancher/k3s/resolv.conf"

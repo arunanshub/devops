@@ -1,0 +1,7 @@
+- name: Prove the cluster is safe for one-node maintenance
+  hosts: localhost
+  gather_facts: false
+  any_errors_fatal: true
+  tasks:
+    - name: Run K3s cluster health gates
+      ansible.builtin.include_tasks: tasks/k3s-health.yml

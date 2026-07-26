@@ -1,3 +1,9 @@
+custom-gcl
+
+# Go build artifacts (`just build` outputs to bin/)
+/bin/
+/opsctl
+
 .serena/
 .headroom/
 
@@ -24,3 +30,6 @@ docs/plans/
 
 # Ansible collections (pinned in ansible/requirements.yml; install with `just ansible-setup`)
 ansible/collections/
+
+# Local Ansible Runner evidence; retained on the operator machine.
+.artifacts/

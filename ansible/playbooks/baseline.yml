@@ -1,8 +1,17 @@
+- name: Require a healthy cluster before baseline convergence
+  ansible.builtin.import_playbook: k3s-preflight.yml
+
 - name: Converge baseline host configuration
   hosts: k3s_nodes
   gather_facts: true
   become: false
-  serial: "{{ baseline_batch_size | default('100%') }}"
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
   order: sorted
   roles:
     - baseline
+  post_tasks:
+    - name: Prove cluster health after changing this node
+      ansible.builtin.include_tasks: tasks/k3s-health.yml
+      when: not ansible_check_mode
