@@ -13,9 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arunanshub/devops/internal/k8s"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/arunanshub/devops/internal/k8s"
 )
 
 type fakeCluster struct {

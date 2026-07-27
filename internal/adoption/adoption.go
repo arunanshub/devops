@@ -16,9 +16,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/arunanshub/devops/internal/logging"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/arunanshub/devops/internal/logging"
 )
 
 // Pair declares one adopted release to verify.
@@ -80,6 +81,30 @@ func verifyPair(
 		return nil, err
 	}
 
+	findings := pinFindings(pair, &release, app)
+
+	drift, err := valuesDrift(ctx, repoRoot, pair, &release, app)
+	if err != nil {
+		return nil, err
+	}
+	findings = append(findings, drift...)
+
+	if len(findings) > 0 {
+		findings = append(findings, Finding{
+			Release: pair.Release,
+			Problem: fmt.Sprintf(
+				"fix by syncing the bootstrap side (%s) to the ArgoCD side (%s) — "+
+					"bootstrap files have no runtime effect until the next cluster build",
+				strings.Join(release.Values, ", "),
+				strings.Join(app.ValueFiles, ", "),
+			),
+		})
+	}
+	return findings, nil
+}
+
+// pinFindings checks the two identity pins: chart version and release name.
+func pinFindings(pair Pair, release *helmfileRelease, app *appSpec) []Finding {
 	var findings []Finding
 	fail := func(format string, args ...any) {
 		findings = append(
@@ -97,7 +122,18 @@ func verifyPair(
 			"the app.kubernetes.io/instance selector label is immutable, adoption will permanently fail",
 			pair.Release, app.ReleaseName)
 	}
+	return findings
+}
 
+// valuesDrift renders both value sets, strips the deliberately-unmanaged
+// paths, and reports any remaining difference.
+func valuesDrift(
+	ctx context.Context,
+	repoRoot string,
+	pair Pair,
+	release *helmfileRelease,
+	app *appSpec,
+) ([]Finding, error) {
 	bootstrapValues, err := release.renderValues()
 	if err != nil {
 		return nil, fmt.Errorf("render bootstrap values: %w", err)
@@ -117,20 +153,11 @@ func verifyPair(
 	diff := cmp.Diff(bootstrapValues, argocdValues, cmpopts.EquateEmpty())
 	logging.FromContext(ctx).DebugContext(ctx, "compared values",
 		"release", pair.Release, "drifted", diff != "")
-	if diff != "" {
-		fail("values drift (-bootstrap +argocd):\n%s", diff)
+	if diff == "" {
+		return nil, nil
 	}
-
-	if len(findings) > 0 {
-		findings = append(findings, Finding{
-			Release: pair.Release,
-			Problem: fmt.Sprintf(
-				"fix by syncing the bootstrap side (%s) to the ArgoCD side (%s) — "+
-					"bootstrap files have no runtime effect until the next cluster build",
-				strings.Join(release.Values, ", "),
-				strings.Join(app.ValueFiles, ", "),
-			),
-		})
-	}
-	return findings, nil
+	return []Finding{{
+		Release: pair.Release,
+		Problem: fmt.Sprintf("values drift (-bootstrap +argocd):\n%s", diff),
+	}}, nil
 }

@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/arunanshub/devops/internal/execx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/arunanshub/devops/internal/execx"
 )
 
 type fakeRunner struct {

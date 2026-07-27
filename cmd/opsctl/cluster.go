@@ -86,59 +86,81 @@ func (c *clusterVerifyCmd) Run(ctx context.Context) error {
 
 	ctx, end := logging.Span(ctx, "cluster-verify")
 	defer end()
-	log := logging.FromContext(ctx)
 
 	client, err := k8s.NewClient(c.Kubeconfig)
 	if err != nil {
 		return err
 	}
 
-	failed := false
-
-	statuses, err := client.NodeStatuses(ctx)
+	nodesOK, nodeCount, err := verifyNodesReady(ctx, client)
 	if err != nil {
 		return err
 	}
+	adoptionOK, err := c.verifyAdoption(ctx)
+	if err != nil {
+		return err
+	}
+	mtuOK, err := c.verifyMTU(ctx, client)
+	if err != nil {
+		return err
+	}
+
+	if !nodesOK || !adoptionOK || !mtuOK {
+		return errors.New("cluster verification failed")
+	}
+	logging.FromContext(ctx).InfoContext(ctx, "cluster verification passed",
+		slog.Int("nodes", nodeCount))
+	return nil
+}
+
+// verifyNodesReady prints per-node readiness and reports whether every node
+// is Ready.
+func verifyNodesReady(ctx context.Context, client *k8s.Client) (ok bool, nodes int, err error) {
+	statuses, err := client.NodeStatuses(ctx)
+	if err != nil {
+		return false, 0, err
+	}
+	ok = true
 	for _, status := range statuses {
 		if status.Ready {
 			fmt.Printf("✓ node %s Ready\n", status.Name)
 			continue
 		}
 		fmt.Printf("✗ node %s NotReady\n", status.Name)
-		failed = true
+		ok = false
 	}
+	return ok, len(statuses), nil
+}
 
+// verifyAdoption checks the helmfile→ArgoCD adoption invariant and prints
+// every finding.
+func (c *clusterVerifyCmd) verifyAdoption(ctx context.Context) (bool, error) {
 	findings, err := adoption.Verify(ctx, c.RepoRoot, c.Helmfile, adoptedReleases)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if len(findings) == 0 {
 		fmt.Println("✓ helmfile→ArgoCD adoption invariant holds")
-	} else {
-		for _, finding := range findings {
-			fmt.Println("✗ " + finding.String())
-		}
-		failed = true
+		return true, nil
 	}
+	for _, finding := range findings {
+		fmt.Println("✗ " + finding.String())
+	}
+	return false, nil
+}
 
+// verifyMTU runs the live MTU verification unless --skip-mtu was given.
+func (c *clusterVerifyCmd) verifyMTU(ctx context.Context, client *k8s.Client) (bool, error) {
 	if c.SkipMTU {
-		log.InfoContext(ctx, "skipping MTU verification (--skip-mtu)")
-	} else {
-		cfg := mtu.DefaultConfig()
-		verifier := mtu.NewVerifier(client, &cfg)
-		report, err := verifier.Run(ctx)
-		if err != nil {
-			return err
-		}
-		report.Render(os.Stdout)
-		if !report.Passed() {
-			failed = true
-		}
+		logging.FromContext(ctx).InfoContext(ctx, "skipping MTU verification (--skip-mtu)")
+		return true, nil
 	}
-
-	if failed {
-		return errors.New("cluster verification failed")
+	cfg := mtu.DefaultConfig()
+	verifier := mtu.NewVerifier(client, &cfg)
+	report, err := verifier.Run(ctx)
+	if err != nil {
+		return false, err
 	}
-	log.InfoContext(ctx, "cluster verification passed", slog.Int("nodes", len(statuses)))
-	return nil
+	report.Render(os.Stdout)
+	return report.Passed(), nil
 }

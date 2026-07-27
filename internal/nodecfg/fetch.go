@@ -71,7 +71,7 @@ func EnsureBinaries(ctx context.Context, cacheDir, k3sVersion string) (Binaries,
 func HelpText(ctx context.Context, bin string, args ...string) (string, error) {
 	// The binary path is our own checksum-verified cache entry and the args
 	// are fixed --help invocations.
-	cmd := exec.CommandContext(ctx, bin, args...) //nolint:gosec // G204: see above
+	cmd := exec.CommandContext(ctx, bin, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("run %s %s: %w", bin, strings.Join(args, " "), err)
