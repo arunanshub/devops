@@ -1,0 +1,4 @@
+# Enable Spegel, the k3s embedded distributed OCI registry mirror. Server-only flag (all 3
+# nodes are servers). Local registry rides :6443; P2P DHT on :5001 — both private-net only,
+# so no firewall change. Requires a k3s restart (config.yaml.d is read at startup only).
+embedded-registry: true

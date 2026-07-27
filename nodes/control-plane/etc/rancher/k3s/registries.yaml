@@ -1,0 +1,5 @@
+# Mirror ALL registries via Spegel (the asterisk MUST be quoted). Bare key (no endpoint)
+# = P2P-mirror but KEEP the implicit upstream default endpoint, so containerd falls back to
+# upstream when no peer has the image (we do NOT set --disable-default-registry-endpoint).
+mirrors:
+  "*":

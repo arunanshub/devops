@@ -98,11 +98,13 @@ do not act on it.
   KubeletConfiguration *fields* (e.g. `maxParallelImagePulls`) are **not** CLI flags and make k3s
   crash-loop with `unknown flag`. `--check` / `ansible-lint` / `helm template` **cannot** catch a
   runtime flag rejection — only the actual restart does. The render passing is not proof.
-- Touch k3s / node config only via ansible one-shots with `serial: 1` + `max_fail_percentage: 0` +
-  a node-Ready gate, so a bad change halts on the first node with etcd quorum (2/3) intact; revert =
-  remove the drop-in + restart. Confirm `:6443`/API recovery does not depend on the node being
-  restarted (the operator kubeconfig points at cp-1; readiness waits must tolerate that — use
-  `default([])` in the `until`).
+- Touch k3s / node config only through `just ansible-check` followed by
+  `just ansible-converge`. Converge starts a separate Runner job per node and
+  stops on any nonzero result; playbooks also require `serial: 1`,
+  `max_fail_percentage: 0`, local API readiness on every control plane, every
+  declared control plane Ready, and Cilium healthy. Runner evidence is under
+  `.artifacts/ansible/`. Confirm `:6443`/API recovery does not depend on the
+  node being restarted (readiness waits must tolerate cp-1 restarting).
 - This rule exists because on 2026-06-19 an unverified `--max-parallel-image-pulls` kubelet-arg
   crash-looped k3s on cp-1 (26 restarts). The safety net held (quorum preserved, clean revert), but
   it was avoidable by reading the docs first. See memory `k3s-max-parallel-image-pulls-not-a-flag`.

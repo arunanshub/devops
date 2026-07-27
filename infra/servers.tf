@@ -11,7 +11,11 @@ resource "hcloud_server" "nodes" {
   server_type = each.value.server_type
   location    = each.value.location
   ssh_keys    = [hcloud_ssh_key.main.id]
-  labels      = { cluster = local.cluster_name }
+  labels = {
+    cluster   = local.cluster_name
+    node_key  = each.key
+    node_role = each.value.role
+  }
 
   # IPv4 required: get.k3s.io (GitHub releases) is IPv4-only.
   # SSH and monitoring use IPv6 where available.

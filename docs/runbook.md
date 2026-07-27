@@ -106,18 +106,18 @@ Ansible over SSH for convergence: normal.
 
 ### Inventory
 
-Inventory is generated dynamically from OpenTofu outputs:
+Inventory comes directly from the pinned `hetzner.hcloud` collection:
 
 ```bash
 just ansible-inventory
 ```
 
-The Go inventory tool reads:
+It selects existing servers with `cluster=hetzner-k3s` and uses their
+`node_role` labels. The Hetzner token stays in `infra/secrets.yaml`; no
+generated inventory or custom parser is involved.
 
-- `tofu output -json`
-- `ANSIBLE_TOFU_OUTPUTS`, when set, for tests/offline runs
-- `ANSIBLE_SSH_PRIVATE_KEY_FILE`, when overriding the key
-- `ANSIBLE_KNOWN_HOSTS_FILE`, when overriding known-hosts storage
+`ANSIBLE_SSH_PRIVATE_KEY_FILE` and `KUBECONFIG` can override their normal local
+paths.
 
 Hosts are grouped as:
 
@@ -133,6 +133,12 @@ Always check first:
 just ansible-check
 ```
 
+Optionally run the read-only cluster gate on its own:
+
+```bash
+just node-preflight
+```
+
 Then converge:
 
 ```bash
@@ -145,6 +151,11 @@ Both default to `ansible/playbooks/site.yml`. To run one playbook:
 just ansible-check baseline
 just ansible-converge baseline
 ```
+
+Convergence launches a separate Ansible Runner job for each sorted node and
+stops on the first nonzero result, including SSH failure. Each job records
+`status`, `rc`, `stdout`, and structured events under
+`.artifacts/ansible/<run-id>/`.
 
 Compatibility aliases also exist:
 
@@ -163,15 +174,95 @@ Wire ordering in `ansible/playbooks/site.yml`, not in `Justfile`.
 
 Use this rule of thumb:
 
-- Safe fleet-wide config: can run in parallel.
+- All node convergence is one node at a time.
 - Restarting or disruptive config: use explicit serial/gated playbooks.
 - k3s control-plane changes: one control-plane node at a time, with health checks.
 
 The current baseline role manages unattended upgrades only.
 
+## Node Lifecycle
+
+Adding nodes is declarative. Existing-node replacement is a separate,
+deliberate membership workflow and is not automated here. Normal node
+configuration never invokes OpenTofu and cannot rebuild, resize, or delete a
+server.
+
+### Add a node
+
+1. Add the node to `var.nodes` (key like `worker-2`; key becomes the k8s Node
+   name suffix).
+2. `just plan`, review, `just apply`. Cloud-init installs k3s on first boot.
+3. Wait for the node to join:
+   `kubectl wait node/hetzner-k3s-<key> --for=condition=Ready --timeout=15m`
+4. Converge host config. Unchanged nodes no-op (checksum-based); only nodes
+   whose files change get a (serial, gated, auto-rolled-back) k3s restart:
+
+   ```bash
+   just ansible-converge                  # baseline OS config (site.yml)
+   just ansible-converge k3s-config       # declarative k3s config from nodes/
+   ```
+
+5. `just opsctl cluster verify`
+
+To CHANGE k3s/kubelet config: edit the data files under `nodes/{all,control-plane}/`,
+let CI validate them against the pinned binaries (`just verify-node-config`
+locally), review the plan with `just ansible-check k3s-config`, then converge.
+Never author a new playbook for a config change.
+
+### Rollback certification
+
+Do not inject failures into the existing production cluster. Runtime rollback
+testing belongs on an optional disposable local or cloud test cluster. The
+production path uses static validation, check mode, preflight, one Runner job
+per node, postflight, and automatic rollback if a real rollout fails.
+
+Drill log:
+
+- 2026-07-25 (first run): PASSED — rescue restored cp-3 autonomously, quorum
+  held. Two findings, both fixed same day: (1) the Ready gate false-passes on
+  the stale node condition during the ~40s node-monitor grace period, so the
+  direct-to-kubelet configz verify is load-bearing; (2) the verify's declared
+  values must travel via environment variables — shell interpolation of
+  threshold strings (`<`, quotes) breaks bash quoting and would have
+  false-rolled-back legitimate changes. Round 2 (real fleet-wide change)
+  passed: changed=2 per node, verify green on healthy kubelets, re-run
+  changed=0.
+
+Do NOT generate/refresh the ansible inventory mid `tofu apply` (a node with
+no IPv6 yet is emitted with an empty `ansible_host`).
+
+### Replace a node
+
+Same as add, with the guard dance around the destroy (the guards are
+intentional — do not script around them):
+
+1. Preflight: every node Ready (`kubectl get nodes`), and note that replacing
+   the node your kubeconfig points at (cp-1 public IPv6 under Option B admin
+   access) cuts your own API access mid-operation.
+2. Relax the guards for the target node in `infra/servers.tf`
+   (`lifecycle.prevent_destroy`, `delete_protection`, `rebuild_protection`)
+   and `just apply` that change first.
+3. `sops exec-env infra/secrets.yaml 'tofu apply -replace=hcloud_server.nodes["<key>"]'`
+   from `infra/` (use `-replace`, never a hand-edited plan).
+4. Continue from step 3 of "Add a node" (wait Ready → converge → verify).
+5. Revert the guard relaxation and `just apply` again.
+
 ## Fresh Cluster Bootstrap
 
-Run in this order:
+The sequence is encoded (with ordering guards) in:
+
+```bash
+just opsctl cluster bootstrap --list-steps   # see the steps
+just opsctl cluster bootstrap --dry-run      # print every command
+just opsctl cluster bootstrap                # run it
+just opsctl cluster bootstrap --from-step X  # resume after a failure
+```
+
+It refuses to run the helmfile steps when the ArgoCD root Application already
+exists — after that point ArgoCD owns the cluster and re-running helmfile
+fights it for ownership.
+
+The equivalent manual recipes, in order:
 
 ```bash
 just apply

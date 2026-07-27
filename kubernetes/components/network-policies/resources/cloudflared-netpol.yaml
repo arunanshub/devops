@@ -35,14 +35,36 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    # Cloudflare edge — observed: cloudflared:* -> world:7844 UDP (QUIC primary);
-    # TCP 443 is the HTTP/2 fallback used when QUIC is unavailable.
-    - toEntities:
-        - world
+    # Cloudflare tunnel DATA PLANE — locked to Cloudflare's published edge ranges
+    # instead of the whole internet. Port 7844 carries BOTH the QUIC (UDP) primary
+    # and the http2 (TCP) fallback (cloudflared runs default auto-protocol, so it
+    # falls back to http2/TCP:7844 when QUIC degrades — and QUIC/UDP is MTU-sensitive
+    # on this WireGuard+VXLAN overlay, path MTU 1305). Cloudflare officially supports
+    # IP-based firewalling of the tunnel, and cloudflared caches/uses edge IPs
+    # directly, so toCIDRSet is more robust here than toFQDNs (no DNS-proxy needed).
+    # These are the GLOBAL regions (region1/region2). If cloudflared ever logs a
+    # us-region/fed edge, add those ranges from the doc below.
+    # https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/configure-tunnels/tunnel-with-firewall/
+    - toCIDRSet:
+        - cidr: 198.41.192.0/24 # region1.v2.argotunnel.com
+        - cidr: 198.41.200.0/24 # region2.v2.argotunnel.com
+        - cidr: "2606:4700:a0::/48" # region1 (IPv6)
+        - cidr: "2606:4700:a8::/48" # region2 (IPv6)
       toPorts:
         - ports:
             - port: "7844"
               protocol: UDP
+            - port: "7844"
+              protocol: TCP
+    # Cloudflare OPTIONAL control-plane — api.cloudflare.com registration + PQ error
+    # reporting on 443/TCP. Optional per the firewall doc ("cloudflared will still run
+    # correctly" without it) and --no-autoupdate disables update checks; these span
+    # Cloudflare's large general anycast ranges rather than the edge /24s, so kept as
+    # world:443. Candidate to drop entirely once Hubble confirms it's unused.
+    - toEntities:
+        - world
+      toPorts:
+        - ports:
             - port: "443"
               protocol: TCP
     # Traefik reverse proxy — observed: cloudflared:* -> traefik pod:8000 TCP

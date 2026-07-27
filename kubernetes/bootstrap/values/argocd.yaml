@@ -1,3 +1,75 @@
+# Bootstrap copy of kubernetes/base/infra/argocd/values.yaml — keep identical
+# (enforced by opsctl verify-adoption). The admin password overlay lives in
+# bootstrap.yaml.gotmpl, which ArgoCD deliberately does not manage.
+
 configs:
   params:
     server.insecure: "true"
+    # Traefik owns HTTP response compression on the steady-state external route.
+    server.enable.gzip: "false"
+
+controller:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 768Mi
+    limits:
+      memory: 2Gi
+
+server:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+repoServer:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      memory: 1Gi
+
+redis:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+# Disabled: dex is unconfigured (no SSO/OIDC/connectors — logs "dex is not
+# configured"). Auth is admin-only local login. Re-enable if SSO is added.
+dex:
+  enabled: false
+  resources:
+    requests:
+      cpu: 5m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+
+# Scaled to 0: no ApplicationSet CRs exist (app-of-apps uses plain Applications).
+# Chart 9.5.21 has no applicationSet.enabled; replicas:0 is the off switch. Set
+# back to 1 if ApplicationSets are ever introduced.
+applicationSet:
+  replicas: 0
+  resources:
+    requests:
+      cpu: 10m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+# Disabled: notifications are unconfigured (no triggers/services/subscriptions).
+# Cluster alerting is VMRule/vmalertmanager-based, not ArgoCD notifications.
+notifications:
+  enabled: false
+  resources:
+    requests:
+      cpu: 5m
+      memory: 64Mi
+    limits:
+      memory: 128Mi

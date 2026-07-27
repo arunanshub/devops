@@ -1,0 +1,17 @@
+plugin: hetzner.hcloud.hcloud
+api_token: "{{ lookup('ansible.builtin.env', 'TF_VAR_hcloud_token') }}"
+label_selector: "cluster=hetzner-k3s"
+connect_with: public_ipv6
+group: k3s_nodes
+strict: true
+
+compose:
+  node_role: hcloud_labels.node_role
+  kubernetes_node_name: hcloud_name
+  ansible_user: "'root'"
+  ansible_private_key_file: >-
+    lookup('ansible.builtin.env', 'ANSIBLE_SSH_PRIVATE_KEY_FILE') | default(lookup('ansible.builtin.env', 'HOME') + '/.ssh/id_ed25519', true)
+  ansible_ssh_common_args: "'-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=infra/.ssh_known_hosts'"
+groups:
+  control_planes: hcloud_labels.node_role in ["cp_only", "cp_worker"]
+  workers: hcloud_labels.node_role == "worker"

@@ -1,0 +1,85 @@
+version: "2"
+
+run:
+  tests: true
+
+linters:
+  default: standard
+  enable:
+    # resource leaks
+    - bodyclose # unclosed http.Response.Body
+    - sqlclosecheck # unclosed sql.Rows/Stmt (no-op if you don't touch database/sql)
+    - rowserrcheck # rows.Err() not checked  (ditto)
+    # error-handling correctness
+    - errorlint # err == X / type switch that breaks errors.Is/As
+    - nilerr # return nil when err != nil
+    - contextcheck # non-inherited / dropped context
+    - noctx # http requests built without a context
+    # silent footguns
+    - asasalint # passing []any into variadic ...any
+    - bidichk # trojan-source / hidden unicode
+    - durationcheck # time.Duration * time.Duration (almost always wrong)
+    - makezero # append to a make([]T, n) slice (silent data bug)
+    - reassign # reassigning stdlib package vars (e.g. io.EOF)
+    - musttag # struct fields missing json/yaml tags for (un)marshal
+    - fatcontext # context.WithValue etc. inside a loop
+    - containedctx # context in a struct
+    # security
+    - gosec
+    # cleanups with near-zero false positives
+    - unconvert # redundant type conversions
+    # - unparam # always-unused / always-same function params
+    - wastedassign # assignment never read
+    - copyloopvar # redundant loop-var copies (Go 1.22+)
+    # opinionated-but-mostly-bugs
+    - gocritic # large diagnostic ruleset; the default tier is sane
+
+    - nilnil
+    - forcetypeassert
+    - exhaustive
+    - nilaway
+
+  settings:
+    custom:
+      nilaway:
+        type: module
+        description: Static analysis tool to detect potential nil panics in Go code.
+        settings:
+          # Literal comma-separated package prefixes.
+          include-pkgs: "github.com/arunanshub/devops"
+
+          # Add only packages that should genuinely not participate in inference.
+          # Prefer reporting exclusions below for generated code.
+          exclude-pkgs: ""
+
+    errcheck:
+      check-type-assertions: true # catches unchecked x := i.(T)
+    gosec:
+      excludes:
+        - G104 # dup of errcheck
+        - G404 # math/rand outside crypto is fine
+    gocritic:
+      enabled-tags: [diagnostic, performance]
+      disabled-checks: [ifElseChain, singleCaseSwitch]
+      settings:
+        rangeValCopy:
+          sizeThreshold: 512
+
+  exclusions:
+    presets:
+      - common-false-positives
+      - std-error-handling
+    rules:
+      - path: _test\.go
+        linters: [gosec, errcheck, noctx, contextcheck]
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+    - gci
+    - gofmt
+    - golines
+  settings:
+    golines:
+      reformat-tags: false

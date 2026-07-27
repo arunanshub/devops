@@ -1,0 +1,203 @@
+# The single transport for the declarative k3s node config under nodes/.
+# Desired state lives in nodes/{all,control-plane}/** as plain files (schema-
+# validated in CI by `opsctl verify-node-config` against the pinned k3s and
+# kubelet binaries); this playbook only syncs, restarts, gates, and rolls back.
+#
+# Deliberate one-shot — do NOT import into site.yml (a config change restarts
+# k3s; that must stay an explicit operator action). Restarts ONE node at a
+# time (serial:1) → etcd quorum (2/3) preserved; a failed node halts the play
+# (max_fail_percentage:0) and the rescue restores that node's previous config.
+#
+# Idempotency contract: file sync is checksum-based; an unchanged node reports
+# ok and is NEVER restarted. Re-running after success = changed=0.
+#
+# File REMOVALS are not automatic: deleting a file from nodes/ leaves it on
+# hosts. Add an explicit `state: absent` task in the "stale file cleanup"
+# section below for one release, then drop it.
+- name: Converge declarative k3s node config (nodes/)
+  hosts: k3s_nodes
+  gather_facts: false
+  become: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  order: sorted
+  vars:
+    nodes_dir: "{{ playbook_dir }}/../../nodes"
+    is_control_plane: "{{ node_role in ['cp_only', 'cp_worker'] }}"
+
+  handlers:
+    # Both sync tasks notify this; handlers de-dupe by name → exactly one
+    # restart per node even when both trees change. flush_handlers (below)
+    # forces it to run BEFORE the wait/verify tasks under serial:1.
+    - name: Restart k3s
+      ansible.builtin.systemd:
+        name: "{{ k3s_service_name }}"
+        state: restarted
+
+  tasks:
+    - name: Set k3s service name
+      ansible.builtin.set_fact:
+        k3s_service_name: "{{ 'k3s' if is_control_plane else 'k3s-agent' }}"
+
+    - name: Prove cluster health before touching this node
+      ansible.builtin.include_tasks: tasks/k3s-health.yml
+
+    # (stale file cleanup section — currently empty)
+
+    - name: Snapshot current k3s config (rollback point)
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          umask 077
+          tar czf /tmp/k3s-config-rollback.tar.gz -C / etc/rancher/k3s
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Apply declared config, gated and rolled back on failure
+      block:
+        - name: Sync node config (all nodes)
+          ansible.builtin.copy:
+            src: "{{ nodes_dir }}/all/etc/rancher/k3s/"
+            dest: /etc/rancher/k3s/
+            owner: root
+            group: root
+            mode: "0644"
+            directory_mode: "0755"
+          register: sync_all
+          notify: Restart k3s
+
+        - name: Sync node config (control planes)
+          ansible.builtin.copy:
+            src: "{{ nodes_dir }}/control-plane/etc/rancher/k3s/"
+            dest: /etc/rancher/k3s/
+            owner: root
+            group: root
+            mode: "0644"
+            directory_mode: "0755"
+          register: sync_cp
+          when: is_control_plane
+          notify: Restart k3s
+
+        - name: Note whether this node's config changed
+          ansible.builtin.set_fact:
+            k3s_config_changed: "{{ sync_all.changed or (sync_cp.changed | default(false)) }}"
+
+        # Force the Restart k3s handler now (before the gates) instead of at
+        # play end. No-op when nothing changed.
+        - name: Flush handlers (restart k3s before verifying)
+          ansible.builtin.meta: flush_handlers
+
+        - name: Wait for this node to be Ready again
+          kubernetes.core.k8s_info:
+            kind: Node
+            name: "{{ kubernetes_node_name }}"
+          register: node_info
+          delegate_to: localhost
+          # default([]) tolerates the API endpoint (cp-1) being briefly
+          # unreachable during its own restart: a failed query → empty
+          # resources → until false → retry (not a templating error).
+          until: >
+            (node_info.resources | default([]) | length > 0) and (node_info.resources[0].status.conditions | selectattr('type', 'equalto', 'Ready')
+             | map(attribute='status') | list | first | default('')) == 'True'
+          retries: 30
+          delay: 10
+          when: k3s_config_changed and not ansible_check_mode
+
+        # ── Post-change verification (folded in from the retired one-shot
+        # playbooks; each asserts its config actually took effect) ──────────
+        # Load-bearing gate: the Ready gate above can false-pass on a stale
+        # node condition during the ~40s node-monitor grace period; this
+        # probes the kubelet directly and compares against the DECLARED
+        # kubelet-args under nodes/ (2026-07-25 game day findings). The
+        # comparison logic lives in tested Go (internal/nodecfg), not in
+        # shell — inline interpolation of threshold strings broke quoting.
+        - name: Verify kubelet runtime config matches declared state
+          ansible.builtin.command:
+            cmd: >-
+              go run ./cmd/opsctl verify-kubelet-config {{ kubernetes_node_name }} {{ node_role }}
+            chdir: "{{ playbook_dir }}/../.."
+          delegate_to: localhost
+          register: kubelet_verify
+          changed_when: false
+          until: kubelet_verify.rc == 0
+          retries: 12
+          delay: 5
+          when: k3s_config_changed and not ansible_check_mode
+
+        - name: Verify etcd metrics listen beyond loopback (etcd-expose-metrics)
+          ansible.builtin.shell:
+            cmd: |
+              set -o pipefail
+              ss -ltn | awk '$4 ~ /:2381$/' | grep -vqE '(127\.0\.0\.1|\[::1\]):2381'
+            executable: /bin/bash
+          register: etcd_listen_check
+          changed_when: false
+          until: etcd_listen_check.rc == 0
+          retries: 12
+          delay: 5
+          when: k3s_config_changed and is_control_plane and not ansible_check_mode
+
+        - name: Verify Spegel P2P listener is up on :5001 (embedded-registry)
+          ansible.builtin.shell:
+            cmd: |
+              set -o pipefail
+              ss -ltn | awk '$4 ~ /:5001$/' | grep -q .
+            executable: /bin/bash
+          register: spegel_listen_check
+          changed_when: false
+          until: spegel_listen_check.rc == 0
+          retries: 12
+          delay: 5
+          when: k3s_config_changed and is_control_plane and not ansible_check_mode
+
+        - name: Prove cluster health after changing this node
+          ansible.builtin.include_tasks: tasks/k3s-health.yml
+          when: k3s_config_changed and not ansible_check_mode
+
+      rescue:
+        # The new config failed to restart k3s or failed verification on THIS
+        # node. Restore the pre-change state exactly: verify the archive is
+        # readable, replace the config tree with it, restart, and abort the
+        # play (later nodes keep the old config — quorum intact).
+        # unarchive cannot perform a read-only integrity check.
+        - name: Check rollback archive integrity # noqa command-instead-of-module
+          ansible.builtin.shell:
+            cmd: tar tzf /tmp/k3s-config-rollback.tar.gz > /dev/null
+          changed_when: false
+
+        - name: Restore previous k3s config
+          ansible.builtin.shell:
+            cmd: |
+              set -euo pipefail
+              rm -rf /etc/rancher/k3s
+              tar xzf /tmp/k3s-config-rollback.tar.gz -C /
+            executable: /bin/bash
+          changed_when: true
+
+        - name: Restart k3s with restored config
+          ansible.builtin.systemd:
+            name: "{{ k3s_service_name }}"
+            state: restarted
+
+        - name: Wait for node recovery after rollback
+          kubernetes.core.k8s_info:
+            kind: Node
+            name: "{{ kubernetes_node_name }}"
+          register: node_info
+          delegate_to: localhost
+          until: >
+            (node_info.resources | default([]) | length > 0) and (node_info.resources[0].status.conditions | selectattr('type', 'equalto', 'Ready')
+             | map(attribute='status') | list | first | default('')) == 'True'
+          retries: 30
+          delay: 10
+
+        - name: Prove cluster health after rollback
+          ansible.builtin.include_tasks: tasks/k3s-health.yml
+
+        - name: Abort — config change failed and was rolled back
+          ansible.builtin.fail:
+            msg: |
+              {{ kubernetes_node_name }}: the new config failed the restart or
+              verification gate. The previous config was restored and the node
+              recovered. Fix nodes/ and re-run.

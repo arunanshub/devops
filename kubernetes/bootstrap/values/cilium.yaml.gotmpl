@@ -30,6 +30,17 @@ encryption:
   nodeEncryption: true
   wireguard:
     persistentKeepalive: 25s
+  # WireGuard strict mode — fail CLOSED: drop plaintext cross-node pod-to-pod
+  # traffic instead of forwarding it. Mirrors the ArgoCD values; see
+  # kubernetes/base/infra/cilium/values.yaml for the full rationale and the
+  # operator gates that applied when this was first enabled on the live cluster.
+  strictMode:
+    egress:
+      enabled: true
+      cidr: "10.42.0.0/16"
+      allowRemoteNodeIdentities: true
+    ingress:
+      enabled: true
 
 bpf:
   masquerade: true
@@ -57,18 +68,30 @@ resources:
     cpu: 100m
     memory: 320Mi
 
+# NetworkPolicies are ENFORCED (cilium default, kept explicit to match the
+# ArgoCD values). See kubernetes/base/infra/cilium/values.yaml.
+policyAuditMode: false
+
 operator:
   replicas: 2
   resources:
     requests:
       cpu: 25m
       memory: 160Mi
+  # Metrics exposure only. The ServiceMonitor stays ArgoCD-side — its CRD does
+  # not exist at bootstrap time (declared as an ignore in opsctl verify-adoption).
+  prometheus:
+    enabled: true
 
 envoy:
   resources:
     requests:
       cpu: 25m
       memory: 100Mi
+
+# Metrics exposure only; ServiceMonitor is ArgoCD-side (CRD absent at bootstrap).
+prometheus:
+  enabled: true
 
 # Traefik owns the GatewayClass; Cilium Gateway API disabled.
 # ref: https://claude.ai/share/589a7ce8-eea1-4043-aaab-69d4d6ee9333
@@ -95,3 +118,14 @@ hubble:
   tls:
     auto:
       method: cronJob
+  # Hubble metrics agent config (drop visibility surfaces MTU/policy issues).
+  # The serviceMonitor and Grafana dashboards stay ArgoCD-side: the CRD and the
+  # monitoring namespace do not exist at bootstrap time (declared ignores in
+  # opsctl verify-adoption).
+  metrics:
+    enabled:
+      - drop
+      - tcp
+      - "flow:sourceContext=namespace;destinationContext=namespace"
+      - icmp
+      - "dns:query;ignoreAAAA"

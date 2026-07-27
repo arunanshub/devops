@@ -4,7 +4,8 @@ Date: 2026-05-10
 
 ## Status
 
-Accepted for design. Implementation is still pending.
+Accepted and implemented for in-place node convergence. Node replacement and
+membership automation remain deferred.
 
 ## Context
 
@@ -270,36 +271,25 @@ reboot execution when a reboot is required.
 
 ## Inventory Source
 
-The initial Ansible inventory should be derived from OpenTofu outputs, not
-hand-maintained.
+Use the pinned upstream `hetzner.hcloud` dynamic inventory plugin. OpenTofu
+applies non-secret `cluster`, `node_key`, and `node_role` labels to the existing
+protected servers; the plugin selects and groups them directly from Hetzner's
+API. The token remains SOPS-managed.
 
-The repo already exposes:
+This replaces the earlier OpenTofu-JSON transformer decision. It removes the
+custom Go inventory package and avoids coupling routine node convergence to a
+local state file.
 
-- `node_ipv6_addresses`
-- `node_private_ips`
-- `api_lb_private_ip`
-- `bootstrap_node_ipv6`
+The rendered Ansible hostname remains the Kubernetes node name:
+`hetzner-k3s-<node-key>`.
 
-The implementation can generate an inventory from `tofu output -json`, or add
-dedicated outputs if the existing shape is insufficient.
+## Execution Evidence
 
-There are Ansible inventory plugins that can read Terraform/OpenTofu state
-directly, such as `cloud.terraform.terraform_state`. Those are deferred for now.
-The JSON-output approach is simpler, easier to inspect, and has fewer moving
-parts. Revisit the plugin only if maintaining a JSON-to-inventory transformer
-becomes a real burden.
-
-The inventory should preserve the same node keys used in `var.nodes`, such as:
-
-- `cp-1`
-- `cp-2`
-- `cp-3`
-
-The rendered Ansible hostname should match the Kubernetes node name:
-
-```text
-hetzner-k3s-<node-key>
-```
+Ansible Runner is the execution substrate. The public converge command starts
+one Runner job per sorted node and stops on any nonzero exit, including an
+unreachable host. Artifacts are retained locally under `.artifacts/ansible/`.
+Playbooks additionally keep `serial: 1`, `forks = 1`, preflight, and postflight
+as defense in depth.
 
 ## Secrets
 
