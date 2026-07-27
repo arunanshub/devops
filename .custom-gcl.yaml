@@ -4,4 +4,7 @@ version: v2.12.2
 plugins:
   - module: "go.uber.org/nilaway"
     import: "go.uber.org/nilaway/cmd/gclplugin"
-    version: latest # Or a fixed version for reproducible builds.
+    # Pinned pseudo-version (nilaway has no semver tags). Keep pinned: the CI
+    # cache key hashes this file, so "latest" would freeze whatever version
+    # the first cached build resolved and silently drift from local builds.
+    version: v0.0.0-20260727202458-14a9f275be27

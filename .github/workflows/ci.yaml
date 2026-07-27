@@ -18,6 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        id: setup-go
         with:
           go-version-file: go.mod
 
@@ -31,19 +32,32 @@ jobs:
         run: go test -race ./...
 
       # The linter is a custom golangci-lint build with the nilaway plugin
-      # (see .custom-gcl.yaml) — same binary lefthook uses locally.
+      # (see .custom-gcl.yaml) — same binary lefthook uses locally. The Go
+      # version is part of the key: golangci-lint analyzes code with the
+      # toolchain it was built with, so a binary from an older Go must not
+      # survive a toolchain bump.
       - name: Cache custom golangci-lint
         id: cache-gcl
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: custom-gcl
-          key: custom-gcl-${{ runner.os }}-${{ hashFiles('.custom-gcl.yaml') }}
+          key: custom-gcl-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ hashFiles('.custom-gcl.yaml') }}
 
       - name: Build custom golangci-lint
         if: steps.cache-gcl.outputs.cache-hit != 'true'
         run: |
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
           golangci-lint custom
+
+      # golangci-lint keeps its analysis results here; without this cache
+      # every run analyzes the repo cold.
+      - name: Cache golangci-lint analysis
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/golangci-lint
+          key: gcl-analysis-${{ runner.os }}-${{ hashFiles('go.sum', '.golangci.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            gcl-analysis-${{ runner.os }}-${{ hashFiles('go.sum', '.golangci.yaml') }}-
 
       - name: Check formatting
         run: ./custom-gcl fmt --diff
