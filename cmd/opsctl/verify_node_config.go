@@ -27,44 +27,15 @@ type verifyNodeConfigCmd struct {
 func (c *verifyNodeConfigCmd) Run(ctx context.Context) error {
 	ctx, end := logging.Span(ctx, "verify-node-config")
 	defer end()
-	log := logging.FromContext(ctx)
 
-	version := c.K3sVersion
-	if version == "" {
-		parsed, err := nodecfg.K3sVersionFromLocals(c.LocalsPath)
-		if err != nil {
-			return err
-		}
-		version = parsed
-	}
-
-	cacheDir := c.CacheDir
-	if cacheDir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("resolve home for cache dir: %w", err)
-		}
-		cacheDir = filepath.Join(home, ".cache", "opsctl")
-	}
-
-	binaries, err := nodecfg.EnsureBinaries(ctx, cacheDir, version)
+	version, err := c.resolveVersion()
 	if err != nil {
 		return err
 	}
 
-	serverHelp, err := nodecfg.HelpText(ctx, binaries.K3s, "server", "--help")
+	k3sFlags, kubeletFlags, err := c.loadFlagSchemas(ctx, version)
 	if err != nil {
 		return err
-	}
-	kubeletHelp, err := nodecfg.HelpText(ctx, binaries.Kubelet, "--help")
-	if err != nil {
-		return err
-	}
-
-	k3sFlags := nodecfg.ParseHelpFlags(serverHelp)
-	kubeletFlags := nodecfg.ParseHelpFlags(kubeletHelp)
-	if len(k3sFlags) == 0 || len(kubeletFlags) == 0 {
-		return errors.New("parsed an empty flag schema — help output format may have changed")
 	}
 
 	findings, err := nodecfg.ValidateConfigDir(c.Dir, k3sFlags, kubeletFlags)
@@ -73,7 +44,7 @@ func (c *verifyNodeConfigCmd) Run(ctx context.Context) error {
 	}
 
 	if len(findings) == 0 {
-		log.InfoContext(ctx, "node config valid against pinned binaries",
+		logging.FromContext(ctx).InfoContext(ctx, "node config valid against pinned binaries",
 			slog.String("k3s", version),
 			slog.Int("k3s_flags", len(k3sFlags)),
 			slog.Int("kubelet_flags", len(kubeletFlags)))
@@ -84,4 +55,60 @@ func (c *verifyNodeConfigCmd) Run(ctx context.Context) error {
 		fmt.Println("✗ " + finding.String())
 	}
 	return errors.New("node config failed schema validation")
+}
+
+// resolveVersion returns the k3s version override or the pin parsed from
+// --locals-path.
+func (c *verifyNodeConfigCmd) resolveVersion() (string, error) {
+	if c.K3sVersion != "" {
+		return c.K3sVersion, nil
+	}
+	return nodecfg.K3sVersionFromLocals(c.LocalsPath)
+}
+
+// resolveCacheDir returns the binary cache directory, defaulting to
+// ~/.cache/opsctl.
+func (c *verifyNodeConfigCmd) resolveCacheDir() (string, error) {
+	if c.CacheDir != "" {
+		return c.CacheDir, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve home for cache dir: %w", err)
+	}
+	return filepath.Join(home, ".cache", "opsctl"), nil
+}
+
+// loadFlagSchemas downloads (or reuses) the pinned binaries and parses their
+// real flag schemas from --help output.
+func (c *verifyNodeConfigCmd) loadFlagSchemas(
+	ctx context.Context,
+	version string,
+) (k3sFlags, kubeletFlags nodecfg.FlagSet, err error) {
+	cacheDir, err := c.resolveCacheDir()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	binaries, err := nodecfg.EnsureBinaries(ctx, cacheDir, version)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	serverHelp, err := nodecfg.HelpText(ctx, binaries.K3s, "server", "--help")
+	if err != nil {
+		return nil, nil, err
+	}
+	kubeletHelp, err := nodecfg.HelpText(ctx, binaries.Kubelet, "--help")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	k3sFlags = nodecfg.ParseHelpFlags(serverHelp)
+	kubeletFlags = nodecfg.ParseHelpFlags(kubeletHelp)
+	if len(k3sFlags) == 0 || len(kubeletFlags) == 0 {
+		return nil, nil, errors.New(
+			"parsed an empty flag schema — help output format may have changed")
+	}
+	return k3sFlags, kubeletFlags, nil
 }

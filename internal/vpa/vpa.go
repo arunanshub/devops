@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/arunanshub/devops/internal/logging"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+
+	"github.com/arunanshub/devops/internal/logging"
 )
 
 // GVR identifies the VerticalPodAutoscaler custom resource.

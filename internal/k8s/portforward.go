@@ -7,9 +7,11 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/arunanshub/devops/internal/logging"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
+	"k8s.io/streaming/pkg/httpstream"
+
+	"github.com/arunanshub/devops/internal/logging"
 )
 
 // PortForward forwards a random local port to remotePort on the pod. It
@@ -20,27 +22,14 @@ func (c *Client) PortForward(
 	namespace, pod string,
 	remotePort uint16,
 ) (uint16, func(), error) {
-	req := c.clientset.CoreV1().RESTClient().
-		Post().
-		Resource("pods").
-		Namespace(namespace).
-		Name(pod).
-		SubResource("portforward")
-
-	transport, upgrader, err := spdy.RoundTripperFor(c.restConfig)
+	dialer, err := c.portForwardDialer(namespace, pod)
 	if err != nil {
-		return 0, nil, fmt.Errorf("create spdy round tripper: %w", err)
+		return 0, nil, err
 	}
-	dialer := spdy.NewDialer(
-		upgrader,
-		&http.Client{Transport: transport},
-		http.MethodPost,
-		req.URL(),
-	)
 
 	stopCh := make(chan struct{})
 	readyCh := make(chan struct{})
-	forwarder, err := portforward.New(
+	forwarder, err := portforward.NewForStreaming(
 		dialer,
 		[]string{fmt.Sprintf("0:%d", remotePort)},
 		stopCh, readyCh,
@@ -55,13 +44,8 @@ func (c *Client) PortForward(
 
 	stop := func() { close(stopCh) }
 
-	select {
-	case <-readyCh:
-	case err := <-errCh:
+	if err := awaitForwardReady(ctx, readyCh, errCh, stop); err != nil {
 		return 0, nil, fmt.Errorf("port forward to pod %s/%s: %w", namespace, pod, err)
-	case <-ctx.Done():
-		stop()
-		return 0, nil, fmt.Errorf("port forward to pod %s/%s: %w", namespace, pod, ctx.Err())
 	}
 
 	ports, err := forwarder.GetPorts()
@@ -73,4 +57,46 @@ func (c *Client) PortForward(
 	logging.FromContext(ctx).DebugContext(ctx, "port forward established",
 		slog.String("pod", pod), slog.Uint64("local_port", uint64(ports[0].Local)))
 	return ports[0].Local, stop, nil
+}
+
+// portForwardDialer builds the SPDY dialer for the pod's portforward
+// subresource.
+func (c *Client) portForwardDialer(namespace, pod string) (httpstream.Dialer, error) {
+	req := c.clientset.CoreV1().RESTClient().
+		Post().
+		Resource("pods").
+		Namespace(namespace).
+		Name(pod).
+		SubResource("portforward")
+
+	transport, upgrader, err := spdy.RoundTripperFor(c.restConfig)
+	if err != nil {
+		return nil, fmt.Errorf("create spdy round tripper: %w", err)
+	}
+	return spdy.NewDialerForStreaming(
+		upgrader,
+		&http.Client{Transport: transport},
+		http.MethodPost,
+		req.URL(),
+	), nil
+}
+
+// awaitForwardReady blocks until the forwarder is ready, it fails, or ctx is
+// cancelled. Only cancellation needs an explicit stop — on a forwarder error
+// the goroutine has already exited.
+func awaitForwardReady(
+	ctx context.Context,
+	readyCh <-chan struct{},
+	errCh <-chan error,
+	stop func(),
+) error {
+	select {
+	case <-readyCh:
+		return nil
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		stop()
+		return ctx.Err()
+	}
 }

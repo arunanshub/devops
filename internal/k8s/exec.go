@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/arunanshub/devops/internal/logging"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
+
+	"github.com/arunanshub/devops/internal/logging"
 )
 
 // Exec runs command inside a pod's container and returns captured stdout and

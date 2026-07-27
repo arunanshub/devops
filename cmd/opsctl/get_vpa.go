@@ -8,10 +8,11 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"k8s.io/client-go/dynamic"
+
 	"github.com/arunanshub/devops/internal/k8s"
 	"github.com/arunanshub/devops/internal/logging"
 	"github.com/arunanshub/devops/internal/vpa"
-	"k8s.io/client-go/dynamic"
 )
 
 // getVPACmd lists VPAs whose updateMode differs from the expected one —

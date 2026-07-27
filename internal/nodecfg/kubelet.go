@@ -11,10 +11,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// DeclaredKubeletArgs collects kubelet-arg entries from the config layers
-// applicable to role, in file order.
-func DeclaredKubeletArgs(dir, role string) ([]string, error) {
-	var args []string
+// layersForRole returns the config layers applicable to a node role.
+func layersForRole(role string) (map[string]bool, error) {
 	layers := map[string]bool{"all": true}
 	switch role {
 	case "cp_only", "cp_worker":
@@ -23,8 +21,19 @@ func DeclaredKubeletArgs(dir, role string) ([]string, error) {
 	default:
 		return nil, fmt.Errorf("unsupported node role %q", role)
 	}
+	return layers, nil
+}
 
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+// DeclaredKubeletArgs collects kubelet-arg entries from the config layers
+// applicable to role, in file order.
+func DeclaredKubeletArgs(dir, role string) ([]string, error) {
+	layers, err := layersForRole(role)
+	if err != nil {
+		return nil, err
+	}
+
+	var args []string
+	err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -35,40 +44,53 @@ func DeclaredKubeletArgs(dir, role string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		layer := strings.SplitN(rel, string(filepath.Separator), 2)[0]
+		layer, _, _ := strings.Cut(rel, string(filepath.Separator))
 		if !layers[layer] {
 			return nil
 		}
 
-		// The walk root is the repo's own nodes/ tree, not untrusted input.
-		data, err := os.ReadFile(path) //nolint:gosec // G122
+		fileArgs, err := kubeletArgsFromFile(path)
 		if err != nil {
 			return err
 		}
-		values := map[string]any{}
-		if err := yaml.Unmarshal(data, &values); err != nil {
-			return fmt.Errorf("parse %s: %w", path, err)
-		}
-		for key, value := range values {
-			if strings.TrimSuffix(key, "+") != "kubelet-arg" {
-				continue
-			}
-			entries, ok := value.([]any)
-			if !ok {
-				return fmt.Errorf("%s: kubelet-arg is not a list", path)
-			}
-			for _, entry := range entries {
-				arg, ok := entry.(string)
-				if !ok {
-					return fmt.Errorf("%s: kubelet-arg entry %v is not a string", path, entry)
-				}
-				args = append(args, arg)
-			}
-		}
+		args = append(args, fileArgs...)
 		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("collect kubelet args from %s: %w", dir, err)
+	}
+	return args, nil
+}
+
+// kubeletArgsFromFile extracts every kubelet-arg (or kubelet-arg+) entry from
+// one config layer file.
+func kubeletArgsFromFile(path string) ([]string, error) {
+	// The walk root is the repo's own nodes/ tree, not untrusted input.
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	values := map[string]any{}
+	if err := yaml.Unmarshal(data, &values); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+
+	var args []string
+	for key, value := range values {
+		if strings.TrimSuffix(key, "+") != "kubelet-arg" {
+			continue
+		}
+		entries, ok := value.([]any)
+		if !ok {
+			return nil, fmt.Errorf("%s: kubelet-arg is not a list", path)
+		}
+		for _, entry := range entries {
+			arg, ok := entry.(string)
+			if !ok {
+				return nil, fmt.Errorf("%s: kubelet-arg entry %v is not a string", path, entry)
+			}
+			args = append(args, arg)
+		}
 	}
 	return args, nil
 }
@@ -109,20 +131,11 @@ func VerifyKubeletConfig(declared []string, configz []byte) ([]Finding, error) {
 		got, present := doc.KubeletConfig[field]
 
 		if sep, isMap := evictionMapFlags[name]; isMap {
-			want, err := parsePairs(value, sep)
+			mapFindings, err := verifyMapFlag(name, field, value, sep, got)
 			if err != nil {
-				return nil, fmt.Errorf("declared %s: %w", name, err)
+				return nil, err
 			}
-			gotMap, ok := got.(map[string]any)
-			if !ok {
-				fail("%s: kubelet %s is %v, expected a map", name, field, got)
-				continue
-			}
-			for key, wantVal := range want {
-				if fmt.Sprintf("%v", gotMap[key]) != wantVal {
-					fail("%s: declared %s=%s, kubelet has %v", name, key, wantVal, gotMap[key])
-				}
-			}
+			findings = append(findings, mapFindings...)
 			continue
 		}
 
@@ -132,6 +145,32 @@ func VerifyKubeletConfig(declared []string, configz []byte) ([]Finding, error) {
 		}
 		if fmt.Sprintf("%v", got) != value {
 			fail("%s: declared %q, kubelet has %v", name, value, got)
+		}
+	}
+	return findings, nil
+}
+
+// verifyMapFlag compares one comma-joined map flag (eviction-hard and
+// friends) against the kubelet's live map field.
+func verifyMapFlag(name, field, value, sep string, got any) ([]Finding, error) {
+	want, err := parsePairs(value, sep)
+	if err != nil {
+		return nil, fmt.Errorf("declared %s: %w", name, err)
+	}
+
+	var findings []Finding
+	fail := func(format string, args ...any) {
+		findings = append(findings, Finding{File: "configz", Problem: fmt.Sprintf(format, args...)})
+	}
+
+	gotMap, ok := got.(map[string]any)
+	if !ok {
+		fail("%s: kubelet %s is %v, expected a map", name, field, got)
+		return findings, nil
+	}
+	for key, wantVal := range want {
+		if fmt.Sprintf("%v", gotMap[key]) != wantVal {
+			fail("%s: declared %s=%s, kubelet has %v", name, key, wantVal, gotMap[key])
 		}
 	}
 	return findings, nil

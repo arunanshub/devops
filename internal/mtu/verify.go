@@ -174,17 +174,41 @@ func NewVerifier(cluster Cluster, cfg *Config) *Verifier {
 func (v *Verifier) Run(ctx context.Context) (Report, error) {
 	pods := []string{podNameA, podNameB}
 
+	cleanup, err := v.provisionPods(ctx, pods)
+	if err != nil {
+		return Report{}, err
+	}
+	defer cleanup()
+
+	if err := v.cluster.WaitPodsReady(ctx, v.cfg.Namespace, pods, v.cfg.ReadyTimeout); err != nil {
+		return Report{}, err
+	}
+	logging.FromContext(ctx).DebugContext(ctx, "test pods ready")
+
+	podBIP, err := v.cluster.PodIP(ctx, v.cfg.Namespace, podNameB)
+	if err != nil {
+		return Report{}, err
+	}
+	logging.FromContext(ctx).DebugContext(ctx, "resolved target pod IP", slog.String("ip", podBIP))
+
+	return Report{Results: v.runChecks(ctx, podBIP)}, nil
+}
+
+// provisionPods removes leftovers from a previous run and creates the two
+// pinned test pods on distinct nodes. The returned cleanup deletes them and
+// works even when ctx is already cancelled.
+func (v *Verifier) provisionPods(ctx context.Context, pods []string) (func(), error) {
 	if err := v.cluster.DeletePods(ctx, v.cfg.Namespace, pods, true); err != nil {
-		return Report{}, fmt.Errorf("clean up leftover verification pods: %w", err)
+		return nil, fmt.Errorf("clean up leftover verification pods: %w", err)
 	}
 	logging.FromContext(ctx).DebugContext(ctx, "cleaned up leftover verification pods")
 
 	nodes, err := v.cluster.NodeNames(ctx)
 	if err != nil {
-		return Report{}, err
+		return nil, err
 	}
 	if len(nodes) < 2 {
-		return Report{}, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"need at least 2 nodes for a cross-node test, have %d",
 			len(nodes),
 		)
@@ -202,11 +226,11 @@ func (v *Verifier) Run(ctx context.Context) (Report, error) {
 			NodeName:  nodes[i],
 		}
 		if err := v.cluster.CreatePod(ctx, spec); err != nil {
-			return Report{}, err
+			return nil, err
 		}
 	}
-	defer func() {
-		// Cleanup must run even when ctx is already cancelled.
+
+	cleanup := func() {
 		cleanupCtx := context.WithoutCancel(ctx)
 		if err := v.cluster.DeletePods(cleanupCtx, v.cfg.Namespace, pods, false); err != nil {
 			logging.FromContext(cleanupCtx).WarnContext(
@@ -215,20 +239,13 @@ func (v *Verifier) Run(ctx context.Context) (Report, error) {
 				slog.Any("error", err),
 			)
 		}
-	}()
-
-	if err := v.cluster.WaitPodsReady(ctx, v.cfg.Namespace, pods, v.cfg.ReadyTimeout); err != nil {
-		return Report{}, err
 	}
-	logging.FromContext(ctx).DebugContext(ctx, "test pods ready")
+	return cleanup, nil
+}
 
-	podBIP, err := v.cluster.PodIP(ctx, v.cfg.Namespace, podNameB)
-	if err != nil {
-		return Report{}, err
-	}
-	logging.FromContext(ctx).DebugContext(ctx, "resolved target pod IP", slog.String("ip", podBIP))
-
-	return Report{Results: []CheckResult{
+// runChecks executes every check in order and collects the results.
+func (v *Verifier) runChecks(ctx context.Context, podBIP string) []CheckResult {
+	return []CheckResult{
 		runCheck(ctx, "pod-mtu", v.checkPodMTU),
 		runCheck(ctx, "ping-pass", func(ctx context.Context) CheckResult {
 			return v.checkCrossNodePing(ctx, podBIP, v.cfg.PassPayload, "comfortable margin")
@@ -239,7 +256,7 @@ func (v *Verifier) Run(ctx context.Context) (Report, error) {
 		runCheck(ctx, "wireguard-mtu", v.checkWireguardMTU),
 		runCheck(ctx, "pmtud", v.checkPMTUD),
 		runCheck(ctx, "cloudflared-quic", v.checkCloudflaredQUIC),
-	}}, nil
+	}
 }
 
 // runCheck wraps a single check in a span so every log line inside it is

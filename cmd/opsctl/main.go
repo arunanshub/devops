@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/alecthomas/kong"
+
 	"github.com/arunanshub/devops/internal/logging"
 )
 

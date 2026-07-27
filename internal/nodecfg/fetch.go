@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -71,7 +72,7 @@ func EnsureBinaries(ctx context.Context, cacheDir, k3sVersion string) (Binaries,
 func HelpText(ctx context.Context, bin string, args ...string) (string, error) {
 	// The binary path is our own checksum-verified cache entry and the args
 	// are fixed --help invocations.
-	cmd := exec.CommandContext(ctx, bin, args...) //nolint:gosec // G204: see above
+	cmd := exec.CommandContext(ctx, bin, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("run %s %s: %w", bin, strings.Join(args, " "), err)
@@ -91,7 +92,7 @@ func ensureBinary(ctx context.Context, dest, binURL, sumURL, sumEntry string) er
 		return err
 	}
 
-	logging.FromContext(ctx).InfoContext(ctx, "downloading schema binary", "url", binURL)
+	logging.FromContext(ctx).InfoContext(ctx, "downloading schema binary", slog.String("url", binURL))
 
 	ctx, cancel := context.WithTimeout(ctx, downloadTimeout)
 	defer cancel()
