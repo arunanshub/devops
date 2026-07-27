@@ -22,6 +22,7 @@ linters:
     # Error and context correctness.
     - errorlint
     - nilerr
+    - nilnesserr
     - contextcheck
     - noctx
 
@@ -33,6 +34,7 @@ linters:
     - reassign
     - fatcontext
     - containedctx
+    - musttag
 
     # Security.
     - gosec
@@ -42,6 +44,11 @@ linters:
     - wastedassign
     - copyloopvar
     - gocritic
+    - modernize
+    - intrange
+    - exptostd
+    - usestdlibvars
+    - godot
 
     # Deliberate project policy.
     - nilnil
@@ -53,6 +60,12 @@ linters:
     # - depguard
     # - forbidigo
     - loggercheck
+    - sloglint
+
+    # Test hygiene.
+    - usetesting
+    - thelper
+    - tparallel
 
     # code quality
     - gocognit
@@ -60,6 +73,7 @@ linters:
     # - funlen
     - cyclop
     - maintidx
+    - lll
 
     # Custom.
     - nilaway
@@ -112,6 +126,15 @@ linters:
       require-specific: true
       allow-unused: false
 
+    sloglint:
+      # One call style everywhere: slog.String(...) attrs, and the
+      # *Context variants whenever a ctx is in scope.
+      attr-only: true
+      context: scope
+
+    lll:
+      line-length: 120
+
   exclusions:
     presets:
       - common-false-positives
@@ -123,6 +146,11 @@ linters:
           - gosec
           - contextcheck
           - maintidx
+
+      # Struct-tag lines (kong CLI help text) cannot wrap.
+      - linters:
+          - lll
+        source: "`.+`$"
 
 formatters:
   enable:

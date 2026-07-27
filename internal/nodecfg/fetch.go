@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -91,7 +92,7 @@ func ensureBinary(ctx context.Context, dest, binURL, sumURL, sumEntry string) er
 		return err
 	}
 
-	logging.FromContext(ctx).InfoContext(ctx, "downloading schema binary", "url", binURL)
+	logging.FromContext(ctx).InfoContext(ctx, "downloading schema binary", slog.String("url", binURL))
 
 	ctx, cancel := context.WithTimeout(ctx, downloadTimeout)
 	defer cancel()

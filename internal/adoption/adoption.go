@@ -14,6 +14,7 @@ package adoption
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/google/go-cmp/cmp"
@@ -152,7 +153,7 @@ func valuesDrift(
 
 	diff := cmp.Diff(bootstrapValues, argocdValues, cmpopts.EquateEmpty())
 	logging.FromContext(ctx).DebugContext(ctx, "compared values",
-		"release", pair.Release, "drifted", diff != "")
+		slog.String("release", pair.Release), slog.Bool("drifted", diff != ""))
 	if diff == "" {
 		return nil, nil
 	}
