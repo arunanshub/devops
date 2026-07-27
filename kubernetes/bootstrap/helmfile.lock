@@ -5,9 +5,9 @@ dependencies:
     version: 9.7.1
   - name: cilium
     repository: https://helm.cilium.io/
-    version: 1.20.0-rc.0
+    version: 1.20.0-rc.1
   - name: hcloud-cloud-controller-manager
     repository: https://charts.hetzner.cloud
-    version: 1.33.0
-digest: sha256:08321324b75b21de0d30c31279a627c7b033c7924500f4d92aba85a2ce5fee47
-generated: "2026-07-20T04:37:25.58245996Z"
+    version: 1.34.0
+digest: sha256:26a0a9a8e657127949fd9bda94963aec437f1eddbdf8adf8d8a7cde66f416704
+generated: "2026-07-27T01:08:36.601059363Z"
