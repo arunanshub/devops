@@ -53,7 +53,10 @@ func TestRunExecutesAllStepsInOrder(t *testing.T) {
 	for _, s := range steps {
 		total += len(s.Commands)
 	}
+
+	require.NotEmpty(t, runner.commands)
 	require.Len(t, runner.commands, total)
+
 	// First command provisions, last applies the root Application.
 	assert.Contains(t, runner.commands[0].String(), "tofu apply")
 	assert.Contains(t, runner.commands[len(runner.commands)-1].String(), "root-application.yaml")

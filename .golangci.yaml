@@ -86,6 +86,7 @@ linters:
         settings:
           include-pkgs: "github.com/arunanshub/devops"
           exclude-pkgs: ""
+          experimental-struct-init: "true"
 
     maintidx:
       under: 40
