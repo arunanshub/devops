@@ -51,15 +51,16 @@ deployment:
   replicas: null
   goMemLimitPercentage: 0.9
 
-# Close the rolling-restart 502 window: keep accepting on the web entryPoint for 5s
-# after SIGTERM so in-flight requests drain (KEDA min2/max5 -> restarts happen; pairs
-# with cloudflared's own drain). web (:8000) is the live traffic entryPoint
-# behind cloudflared.
+# Keep accepting on the web entry point for 5s after SIGTERM while routing
+# components stop selecting the pod. Then give active requests 50s to finish.
+# The chart renders a 60s pod termination period, which leaves 5s for exit.
+# web (:8000) is the live traffic entry point behind cloudflared.
 ports:
   web:
     transport:
       lifeCycle:
         requestAcceptGraceTimeout: "5s"
+        graceTimeOut: "50s"
 
 # Buffered, error-only JSON access logs make 4xx/5xx requests available in Loki
 # with low steady-state log volume. Chart 41 uses the upstream accessLog syntax.

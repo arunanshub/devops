@@ -25,6 +25,7 @@ spec:
         app: arunanshu-dev
     spec:
       automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
@@ -50,6 +51,10 @@ spec:
               name: metrics
               protocol: TCP
           env:
+            # Keep origin connections open longer than Traefik's 90s backend
+            # idle timeout so Traefik closes an idle connection first.
+            - name: KEEP_ALIVE_TIMEOUT
+              value: "95000"
             # Tempo OTLP HTTP receiver (tempo-otlp-http port on the tempo svc);
             # 3200 is the query API, NOT ingest. @vercel/otel reads these OTEL_*
             # vars and appends /v1/traces.
@@ -63,6 +68,12 @@ spec:
               value: "parentbased_traceidratio"
             - name: OTEL_TRACES_SAMPLER_ARG
               value: "0.05"
+          lifecycle:
+            # Let EndpointSlice removal reach routing components before Next.js
+            # receives SIGTERM and starts its built-in graceful request drain.
+            preStop:
+              sleep:
+                seconds: 5
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

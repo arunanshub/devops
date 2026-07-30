@@ -51,6 +51,27 @@ topology_behavior="$(
     <<<"${deployment}"
 )"
 assert_equal "DoNotSchedule" "${topology_behavior}"
+termination_grace="$(
+  yq -r '.spec.template.spec.terminationGracePeriodSeconds' \
+    <<<"${deployment}"
+)"
+assert_equal "60" "${termination_grace}"
+request_accept_grace_count="$(
+  yq '[.spec.template.spec.containers[] |
+    select(.name == "traefik") |
+    .args[] |
+    select(. == "--entryPoints.web.transport.lifeCycle.requestAcceptGraceTimeout=5s")] |
+    length' <<<"${deployment}"
+)"
+assert_equal "1" "${request_accept_grace_count}"
+active_request_grace_count="$(
+  yq '[.spec.template.spec.containers[] |
+    select(.name == "traefik") |
+    .args[] |
+    select(. == "--entryPoints.web.transport.lifeCycle.graceTimeOut=50s")] |
+    length' <<<"${deployment}"
+)"
+assert_equal "1" "${active_request_grace_count}"
 
 grep -q -- '--accesslog=true' <<<"${rendered}"
 grep -q -- '--accesslog.format=json' <<<"${rendered}"

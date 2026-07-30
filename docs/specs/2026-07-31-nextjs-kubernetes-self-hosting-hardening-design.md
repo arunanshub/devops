@@ -1,6 +1,6 @@
 # Make arunanshu.dev safe for multi-replica builds and streamed requests
 
-> Status: Approved for implementation
+> Status: Implemented locally; deployment pending
 >
 > Date: 2026-07-31
 >
@@ -804,7 +804,7 @@ The work is complete when all these statements are true:
 - Both Dockerfiles mount the key only for the build instruction
 - Both Dockerfiles consume `SERVER_ACTIONS_KEY_VERSION`
 - The Bun dependency stage reads the tracked `pnpm-lock.yaml`
-- Bun 1.4 completes the alternate image build before that image gets a release caller
+- The Bun image has no release caller before its deferred Bun 1.4 verification passes
 - Docker history does not contain the supplied test key
 - Two builds with one key embed the same manifest key
 - A key version increase invalidates the build layer
