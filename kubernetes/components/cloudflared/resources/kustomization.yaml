@@ -6,7 +6,7 @@ resources:
   - deployment.yaml
   - metrics-service.yaml
   - servicemonitor.yaml
-  - scaledobject.yaml
+  - vpa.yaml
   - pdb.yaml
   - sealed-tunnel-token.yaml
 
