@@ -1,6 +1,6 @@
 # Make arunanshu.dev safe for multi-replica builds and streamed requests
 
-> Status: Proposed
+> Status: Approved for implementation
 >
 > Date: 2026-07-31
 >
@@ -24,6 +24,7 @@ The implementation must meet these outcomes:
 - The application continues to accept requests for 5s before `SIGTERM`
 - Next.js then has up to 55s to finish active requests
 - Kubernetes keeps each application process alive for 60s
+- Next.js keeps idle backend connections open longer than Traefik
 - Traefik accepts requests for 5s after `SIGTERM`
 - Traefik then gives active requests 50s to finish
 - Kubernetes keeps the Traefik process alive for 60s
@@ -57,6 +58,7 @@ The Next.js application has these relevant properties:
 - The pod has no `preStop` handler
 - The pod uses the Kubernetes default 30s termination period
 - Next.js has built-in graceful handling for `SIGINT` and `SIGTERM`
+- The standalone server uses the Node.js default 5s keep-alive timeout
 
 The Traefik deployment has these relevant properties:
 
@@ -83,6 +85,14 @@ Live verification on 2026-07-31 found:
 - The two current Traefik pods had no error or fatal log entry in the previous four hours
 
 The current pods use one image. The absence of current Server Action errors does not remove the mixed-build rollout risk.
+
+Live inspection of the standalone Node.js server found:
+
+```text
+keepAliveTimeout = 5000ms
+```
+
+Traefik has no backend `ServersTransport` override. It uses the 90s default backend idle-connection timeout.
 
 ## Verified problems
 
@@ -118,6 +128,14 @@ Next.js stops accepting new connections after it receives `SIGTERM`. It then fin
 Kubernetes starts endpoint removal and container termination at the same time. A short interval can occur before all routing components stop selecting the terminating pod. The current pod has no `preStop` handler to cover this interval.
 
 The current 30s pod termination period is also shorter than the observed 44s stream duration. Kubernetes can send `SIGKILL` before Next.js finishes such a request.
+
+### Next.js closes idle backend connections before Traefik
+
+The standalone Next.js server uses the Node.js default 5s keep-alive timeout. Traefik can retain the same idle backend connection for 90s.
+
+Next.js recommends that its keep-alive timeout is longer than the downstream proxy timeout. This order prevents a connection-reuse race when the origin closes a connection that the proxy still holds.
+
+No Traefik `5xx` response occurred during the checked 24-hour period. Treat this change as preventive. Do not attribute an observed incident to this mismatch without matching logs.
 
 ## Requirements for the key and request drain
 
@@ -179,6 +197,18 @@ Use this shutdown budget:
 
 Kubernetes counts the `preStop` handler in the pod termination period. It sends `SIGTERM` after the handler completes. The 5s handler therefore leaves up to 55s for Next.js.
 
+### Backend keep-alive requirement
+
+Set the standalone Next.js server keep-alive timeout to 95s:
+
+```text
+KEEP_ALIVE_TIMEOUT=95000
+```
+
+Traefik closes an idle backend connection after 90s. The additional 5s makes Traefik close the connection first.
+
+Do not change the Traefik backend transport timeout. The 90s default is suitable, and a Next.js environment setting is sufficient.
+
 ## Files and settings to change
 
 ### Changes in arunanshu.dev
@@ -197,8 +227,8 @@ Kubernetes counts the `preStop` handler in the pod termination period. It sends 
 | -------------------------------------------------------------- | ---------------------------------------------------------------- |
 | `kubernetes/base/platform/traefik/values.yaml`                 | Set `graceTimeOut: "50s"` and correct the lifecycle comment      |
 | `tools/traefik/test-config.sh`                                 | Verify the rendered accept, request, and pod termination periods |
-| `kubernetes/base/apps/arunanshu-dev/resources/deployment.yaml` | Add the application `preStop` sleep and 60s termination period   |
-| `tools/loadtest/test-autoscaling-config.sh`                    | Verify the rendered application termination settings             |
+| `kubernetes/base/apps/arunanshu-dev/resources/deployment.yaml` | Add the application shutdown settings and 95s keep-alive timeout |
+| `tools/loadtest/test-autoscaling-config.sh`                    | Verify the rendered application runtime settings                 |
 
 ### External change
 
@@ -226,6 +256,7 @@ The current repository secret list is empty. Create the secret before the workfl
 | Traefik render test             | Enforce the complete shutdown budget               | A chart update can silently change a required period         |
 | Application Deployment          | Give endpoint updates and Next.js time to drain    | A rollout can send traffic to a stopping pod or end a stream |
 | Application render test         | Enforce the application shutdown budget            | A later manifest change can remove the drain settings        |
+| `KEEP_ALIVE_TIMEOUT`            | Make Traefik close idle backend connections first  | A connection-reuse race can occur after Next.js closes first |
 
 ## Application repository design
 
@@ -375,7 +406,7 @@ Do not add the secret value, a hash of the secret, or generated key material to 
 
 ## Infrastructure repository design
 
-### Add an application termination test first
+### Add an application runtime test first
 
 Extend `tools/loadtest/test-autoscaling-config.sh`. This script already renders the application resources and selects the application Deployment. Reuse that render instead of adding a second test script.
 
@@ -396,14 +427,23 @@ pre_stop_sleep="$(
     .lifecycle.preStop.sleep.seconds' \
     - <<<"${app_deployment}"
 )"
+keep_alive_timeout="$(
+  yq -r '.spec.template.spec.containers[] |
+    select(.name == "arunanshu-dev") |
+    .env[] |
+    select(.name == "KEEP_ALIVE_TIMEOUT") |
+    .value' \
+    - <<<"${app_deployment}"
+)"
 
 [[ "${termination_grace}" == "60" ]]
 [[ "${pre_stop_sleep}" == "5" ]]
+[[ "${keep_alive_timeout}" == "95000" ]]
 ```
 
-The first test run must fail. The current Deployment does not contain either field.
+The first test run must fail. The current Deployment does not contain these fields.
 
-### Give the application time to drain
+### Give the application time to drain and align keep-alive
 
 Update `kubernetes/base/apps/arunanshu-dev/resources/deployment.yaml`.
 
@@ -422,9 +462,18 @@ lifecycle:
       seconds: 5
 ```
 
+Add this environment variable to the same container:
+
+```yaml
+- name: KEEP_ALIVE_TIMEOUT
+  value: "95000"
+```
+
 Use the native Kubernetes sleep action. Do not use an `exec` action. The distroless image has no shell.
 
 Do not set `NEXT_MANUAL_SIG_HANDLE`. The standalone Next.js server already handles `SIGINT` and `SIGTERM`. A manual handler would replace the built-in handler and could stop graceful request draining.
+
+The generated standalone `server.js` reads `KEEP_ALIVE_TIMEOUT`. Do not add a custom server or change the application start command.
 
 ### Extend the Traefik render test first
 
@@ -474,9 +523,9 @@ Use this order to avoid a release failure and reduce connection loss:
 
 1. Create `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` in the application repository
 2. Verify the secret name with `gh secret list`
-3. Add the failing application termination assertions
+3. Add the failing application runtime assertions
 4. Add the failing Traefik render assertion
-5. Add the application termination settings
+5. Add the application shutdown and keep-alive settings
 6. Set Traefik `graceTimeOut` to `50s`
 7. Run all infrastructure checks
 8. Merge and deploy the infrastructure change
@@ -604,6 +653,7 @@ After Argo CD syncs the Traefik change, verify:
 - The Deployment has two ready and available replicas
 - Both pods have zero new restarts
 - The pod termination period is 60s
+- The application pod has `KEEP_ALIVE_TIMEOUT=95000`
 - The web entry point has both lifecycle arguments
 - The Gateway and application HTTPRoute remain accepted
 - A request through the Traefik Service returns `200`
@@ -716,6 +766,8 @@ The implementation must not make these changes:
 - Do not add the key to `next.config.ts`
 - Do not change `deploymentId`
 - Do not set `NEXT_MANUAL_SIG_HANDLE`
+- Do not add a custom Next.js server
+- Do not change the Traefik 90s backend idle-connection timeout
 - Do not use an `exec` lifecycle hook in the distroless application image
 - Do not add a shared cache in this change
 
@@ -740,6 +792,7 @@ The work is complete when all these statements are true:
 - The application render test passes after the termination settings change
 - The rendered application `preStop` sleep is 5s
 - The rendered application termination period is 60s
+- The rendered `KEEP_ALIVE_TIMEOUT` value is `95000`
 - The Traefik render test fails before the values change
 - The Traefik render test passes after the values change
 - The rendered pod termination period is 60s
@@ -755,6 +808,7 @@ The work is complete when all these statements are true:
 
 - [Next.js self-hosting and multi-server deployments](https://nextjs.org/docs/app/guides/self-hosting#multi-server-deployments)
 - [Next.js Server Actions security](https://nextjs.org/docs/app/guides/data-security#overwriting-encryption-keys-advanced)
+- [Next.js production server timeouts](https://nextjs.org/docs/app/api-reference/cli/next#configuring-timeout-values)
 - [Docker build secrets](https://docs.docker.com/build/building/secrets/)
 - [Dockerfile secret mounts](https://docs.docker.com/reference/dockerfile#run---mounttypesecret)
 - [Docker secrets with GitHub Actions](https://docs.docker.com/build/ci/github-actions/secrets/)
@@ -763,3 +817,4 @@ The work is complete when all these statements are true:
 - [Kubernetes container lifecycle hooks](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/)
 - [Traefik entry point lifecycle](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/)
 - [Traefik response forwarding](https://doc.traefik.io/traefik/reference/routing-configuration/http/load-balancing/service/)
+- [Traefik backend transport timeouts](https://doc.traefik.io/traefik/reference/routing-configuration/http/load-balancing/serverstransport/)
