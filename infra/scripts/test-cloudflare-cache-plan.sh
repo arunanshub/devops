@@ -30,6 +30,7 @@ if ! jq -e --arg expected_expression "${expected_expression}" '
     and ($home_rules[0].expression == $expected_expression)
     and ($home_rules[0].action_parameters.cache == true)
     and ($home_rules[0].action_parameters.edge_ttl.mode == "bypass_by_default")
+    and ($home_rules[0].action_parameters.browser_ttl.mode == "respect_origin")
     and (
       [
         $home_rules[0].action_parameters
@@ -38,7 +39,16 @@ if ! jq -e --arg expected_expression "${expected_expression}" '
         | .key
       ]
       | sort
-    ) == ["cache", "edge_ttl"]
+    ) == ["browser_ttl", "cache", "edge_ttl"]
+    and (
+      [
+        $home_rules[0].action_parameters.browser_ttl
+        | to_entries[]
+        | select(.value != null)
+        | .key
+      ]
+      | sort
+    ) == ["mode"]
     and (
       [
         $home_rules[0].action_parameters.edge_ttl

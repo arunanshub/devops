@@ -16,7 +16,8 @@
 - Exclude requests that contain the `_rsc` query parameter, including bare `?_rsc`.
 - Set `cache = true`.
 - Set only `edge_ttl.mode = "bypass_by_default"`.
-- Do not add a custom cache key, browser TTL, origin TTL override, response-header rewrite, or cookie removal.
+- Set only `browser_ttl.mode = "respect_origin"` to prevent the zone default from adding `max-age=14400`.
+- Do not add a custom cache key, browser TTL value, origin TTL override, response-header rewrite, or cookie removal.
 - Do not cache RSC responses.
 - Do not change the Next.js application, Traefik, cloudflared, or Kubernetes.
 
@@ -51,7 +52,7 @@ cache = true
 edge_ttl.mode = "bypass_by_default"
 ```
 
-It must reject a home rule that sets `cache_key`, `browser_ttl`, `origin_error_page_passthru`, `respect_strong_etags`, or an `edge_ttl.default` value.
+It must require `browser_ttl.mode = "respect_origin"`. It must reject a home rule that sets `cache_key`, `browser_ttl.default`, `origin_error_page_passthru`, `respect_strong_etags`, or an `edge_ttl.default` value.
 
 - [ ] **Step 2: Run the assertion and confirm the red result**
 
@@ -80,6 +81,9 @@ Add this rule after the Grafana rule in `infra/cloudflare_cache.tf`:
   enabled     = true
   action_parameters = {
     cache = true
+    browser_ttl = {
+      mode = "respect_origin"
+    }
     edge_ttl = {
       mode = "bypass_by_default"
     }

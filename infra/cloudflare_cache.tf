@@ -62,6 +62,9 @@ resource "cloudflare_ruleset" "cache_rules" {
       enabled     = true
       action_parameters = {
         cache = true
+        browser_ttl = {
+          mode = "respect_origin"
+        }
         edge_ttl = {
           mode = "bypass_by_default"
         }

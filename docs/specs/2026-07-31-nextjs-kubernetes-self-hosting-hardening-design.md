@@ -885,7 +885,9 @@ produce a hash. It sends the bare `?_rsc` parameter when no hash input is
 present. The map-key test detects both forms without matching an unrelated
 query parameter.
 
-The rule must not configure a custom cache key, browser time to live, response-header rewrite, cookie removal, or origin time-to-live override.
+Set `browser_ttl.mode = "respect_origin"`. The zone default is four hours. Without this rule setting, Cloudflare adds `max-age=14400` to the cached HTML response because Next.js sends `s-maxage` but no browser `max-age`. `respect_origin` prevents Cloudflare from adding that browser TTL. It does not add or override a browser cache duration.
+
+The rule must not configure a custom cache key, browser time-to-live value, response-header rewrite, cookie removal, or origin time-to-live override.
 
 `bypass_by_default` keeps Next.js in control. Cloudflare follows a valid origin `Cache-Control` header and bypasses its cache when the header is absent. A future dynamic home route remains uncacheable when Next.js returns `private`, `no-store`, or `no-cache`.
 
@@ -1054,6 +1056,7 @@ The work is complete when all these statements are true:
 - The first home document request does not return `DYNAMIC` or `BYPASS`
 - A repeat home document request returns `HIT` with an `Age` header
 - The cached home response keeps the Next.js `Cache-Control` header
+- The cached home response does not contain a Cloudflare-added browser `max-age`
 - RSC navigation remains outside the Cloudflare cache
 - A missing or incorrect RSC `_rsc` value returns a corrective HTTP `307`
 - A correct bare RSC `_rsc` parameter returns `text/x-component`
@@ -1083,6 +1086,7 @@ The work is complete when all these statements are true:
 - [Cloudflare cache response statuses](https://developers.cloudflare.com/cache/concepts/cache-responses/)
 - [Cloudflare Origin Cache Control](https://developers.cloudflare.com/cache/concepts/cache-control/)
 - [Cloudflare revalidation](https://developers.cloudflare.com/cache/concepts/revalidation/)
+- [Cloudflare edge and browser cache TTL](https://developers.cloudflare.com/cache/how-to/edge-browser-cache-ttl/)
 - [Cloudflare Cache Rule settings](https://developers.cloudflare.com/cache/how-to/cache-rules/settings/)
 - [Cloudflare Cache Rules `Vary`](https://developers.cloudflare.com/cache/concepts/vary/)
 - [Cloudflare provider `cloudflare_ruleset`](https://registry.terraform.io/providers/cloudflare/cloudflare/5.22.0/docs/resources/ruleset)
