@@ -217,7 +217,7 @@ Do not change the Traefik backend transport timeout. The 90s default is suitable
 | ----------------------------------- | ------------------------------------------------------------- |
 | `.github/workflows/release.yml`     | Validate the repository secret and pass it to BuildKit        |
 | `Dockerfile`                        | Mount the secret for `pnpm build` and consume the key version |
-| `Dockerfile.bun`                    | Apply the same build contract to the alternate image          |
+| `Dockerfile.bun`                    | Fix its lockfile input and apply the same build contract      |
 | `justfile`                          | Require and forward the secret for local image builds         |
 | `docs/specs/k8s-pipeline-design.md` | Document the key, cache version, rotation, and first rollout  |
 
@@ -244,19 +244,19 @@ The current repository secret list is empty. Create the secret before the workfl
 
 ### Why each file must change
 
-| File or setting                 | Reason                                             | Failure when omitted                                         |
-| ------------------------------- | -------------------------------------------------- | ------------------------------------------------------------ |
-| GitHub repository secret        | Keep one key across production builds              | Each build generates a different key                         |
-| `.github/workflows/release.yml` | Validate and supply the secret                     | The production builder cannot read the key                   |
-| `Dockerfile`                    | Limit key access to `next build`                   | The key is absent or persists in Docker metadata             |
-| `Dockerfile.bun`                | Keep the alternate image contract equal            | A Bun image can reintroduce per-build keys                   |
-| `justfile`                      | Preserve local image builds after a required mount | The existing recipe fails without guidance                   |
-| Application pipeline document   | Record operation and rotation rules                | A later change can remove or rotate the key incorrectly      |
-| Traefik Helm values             | Increase active-request drain time                 | A restart can end streams after the 10s default              |
-| Traefik render test             | Enforce the complete shutdown budget               | A chart update can silently change a required period         |
-| Application Deployment          | Give endpoint updates and Next.js time to drain    | A rollout can send traffic to a stopping pod or end a stream |
-| Application render test         | Enforce the application shutdown budget            | A later manifest change can remove the drain settings        |
-| `KEEP_ALIVE_TIMEOUT`            | Make Traefik close idle backend connections first  | A connection-reuse race can occur after Next.js closes first |
+| File or setting                 | Reason                                             | Failure when omitted                                                         |
+| ------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------- |
+| GitHub repository secret        | Keep one key across production builds              | Each build generates a different key                                         |
+| `.github/workflows/release.yml` | Validate and supply the secret                     | The production builder cannot read the key                                   |
+| `Dockerfile`                    | Limit key access to `next build`                   | The key is absent or persists in Docker metadata                             |
+| `Dockerfile.bun`                | Keep the alternate image contract equal            | Its absent lockfile input stops builds, or it can reintroduce per-build keys |
+| `justfile`                      | Preserve local image builds after a required mount | The existing recipe fails without guidance                                   |
+| Application pipeline document   | Record operation and rotation rules                | A later change can remove or rotate the key incorrectly                      |
+| Traefik Helm values             | Increase active-request drain time                 | A restart can end streams after the 10s default                              |
+| Traefik render test             | Enforce the complete shutdown budget               | A chart update can silently change a required period                         |
+| Application Deployment          | Give endpoint updates and Next.js time to drain    | A rollout can send traffic to a stopping pod or end a stream                 |
+| Application render test         | Enforce the application shutdown budget            | A later manifest change can remove the drain settings                        |
+| `KEEP_ALIVE_TIMEOUT`            | Make Traefik close idle backend connections first  | A connection-reuse race can occur after Next.js closes first                 |
 
 ## Application repository design
 
@@ -341,6 +341,14 @@ Apply the same pattern to `Dockerfile.bun`. Add this syntax directive at the top
 ```dockerfile
 # syntax=docker/dockerfile:1
 ```
+
+The repository uses `pnpm-lock.yaml` and has no `bun.lock`. Replace the invalid lockfile copy:
+
+```dockerfile
+COPY package.json pnpm-lock.yaml ./
+```
+
+Bun automatically migrates the pnpm lockfile during `bun install`. With Bun 1.4, `--frozen-lockfile` performs this migration without changing `pnpm-lock.yaml` or writing a new lockfile.
 
 Use this final command in that file:
 
@@ -784,6 +792,7 @@ The work is complete when all these statements are true:
 - The release validation rejects a missing, malformed, or wrong-length key
 - Both Dockerfiles mount the key only for the build instruction
 - Both Dockerfiles consume `SERVER_ACTIONS_KEY_VERSION`
+- The Bun image builds from the tracked `pnpm-lock.yaml`
 - Docker history does not contain the supplied test key
 - Two builds with one key embed the same manifest key
 - A key version increase invalidates the build layer
@@ -812,6 +821,7 @@ The work is complete when all these statements are true:
 - [Docker build secrets](https://docs.docker.com/build/building/secrets/)
 - [Dockerfile secret mounts](https://docs.docker.com/reference/dockerfile#run---mounttypesecret)
 - [Docker secrets with GitHub Actions](https://docs.docker.com/build/ci/github-actions/secrets/)
+- [Bun lockfile migration](https://bun.sh/docs/pm/lockfile#automatic-lockfile-migration)
 - [GitHub Actions repository secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)
 - [Kubernetes pod termination](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-termination-flow)
 - [Kubernetes container lifecycle hooks](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/)
