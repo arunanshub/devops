@@ -33,9 +33,13 @@ app_sampling="$(yq -r 'select(.kind == "Deployment") | .spec.template.spec.conta
 [[ "${app_sampler}" == "parentbased_traceidratio" ]]
 [[ "${app_sampling}" == "0.05" ]]
 
+traefik_chart_version="$(
+  yq -r '.spec.sources[] | select(.chart == "traefik") | .targetRevision' \
+    kubernetes/base/platform/traefik/application.yaml
+)"
 traefik_render="$(
   helm template traefik traefik/traefik \
-    --version 40.3.0 \
+    --version "${traefik_chart_version}" \
     --namespace traefik \
     --set metrics.prometheus.serviceMonitor.enabled=false \
     --values kubernetes/base/platform/traefik/values.yaml

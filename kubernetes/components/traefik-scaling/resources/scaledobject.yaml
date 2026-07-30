@@ -11,10 +11,11 @@ spec:
   minReplicaCount: 2
   maxReplicaCount: 5
   pollingInterval: 30
-  cooldownPeriod: 60
   fallback:
     failureThreshold: 3
     replicas: 2
+    # Do not reduce a busy deployment when VictoriaMetrics is unavailable.
+    behavior: currentReplicasIfHigher
   triggers:
     - type: prometheus
       metadata:

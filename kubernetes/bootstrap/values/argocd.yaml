@@ -15,6 +15,14 @@ controller:
       memory: 768Mi
     limits:
       memory: 2Gi
+  # Export Application sync and health state to the existing VictoriaMetrics
+  # and Alertmanager path.
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      namespace: monitoring
 
 server:
   resources:

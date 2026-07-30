@@ -26,6 +26,13 @@ extraObjects:
 providers:
   kubernetesGateway:
     enabled: true
+  # Gateway API owns HTTP routing. Keep the CRD provider for Middleware
+  # ExtensionRefs, but do not watch or claim Kubernetes Ingress resources.
+  kubernetesIngress:
+    enabled: false
+
+ingressClass:
+  enabled: false
 
 gateway:
   listeners:
@@ -37,48 +44,38 @@ service:
   spec:
     type: ClusterIP
 
-# GOMEMLIMIT vs VPA: the chart bakes GOMEMLIMIT = limit * goMemLimitPercentage at
-# render time (a fixed byte value). A live VPA (InPlaceOrRecreate) resizes the memory
-# limit, but the baked GOMEMLIMIT stays frozen -> GC over-fires against a stale ceiling.
-# Disable the static calc (set to 0) and inject GOMEMLIMIT from the live cgroup limit so
-# it tracks VPA resizes. (chart PR #1796)
+# KEDA owns replicas. VPA manages requests only, so the 1Gi memory limit remains
+# fixed. Let the chart set GOMEMLIMIT to 90% of that limit and retain headroom for
+# memory that the Go runtime does not control.
 deployment:
-  goMemLimitPercentage: 0
-env:
-  - name: GOMEMLIMIT
-    valueFrom:
-      resourceFieldRef:
-        resource: limits.memory
-        # Explicit divisor: 1 (bytes). Omitting it makes the k8s API store the zero-value
-        # "0", which the helm-rendered manifest lacks -> permanent ArgoCD OutOfSync. With it
-        # pinned, desired == live (server-dry-run confirmed it persists as "1").
-        divisor: "1"
+  replicas: null
+  goMemLimitPercentage: 0.9
 
 # Close the rolling-restart 502 window: keep accepting on the web entryPoint for 5s
 # after SIGTERM so in-flight requests drain (KEDA min2/max5 -> restarts happen; pairs
-# with cloudflared's own drain). requestAcceptGraceTimeout requires traefik v3.7+ (chart
-# 40.3.0 ships v3.7.4). web (:8000) is the live traffic entryPoint behind cloudflared.
+# with cloudflared's own drain). web (:8000) is the live traffic entryPoint
+# behind cloudflared.
 ports:
   web:
     transport:
       lifeCycle:
         requestAcceptGraceTimeout: "5s"
 
-# We have zero access logs today — 4xx/5xx are invisible beyond a Prometheus counter.
-# Buffered, error-only JSON access logs close that blind spot at near-zero cost and feed
-# straight into Loki. statuscodes/filters keys are lowercase in this chart.
-logs:
-  access:
-    enabled: true
-    format: json
-    bufferingSize: 100
-    filters:
-      statuscodes: "400-599"
+# Buffered, error-only JSON access logs make 4xx/5xx requests available in Loki
+# with low steady-state log volume. Chart 41 uses the upstream accessLog syntax.
+accessLog:
+  enabled: true
+  format: json
+  bufferingSize: 100
+  filters:
+    statusCodes: "400-599"
 
 topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: kubernetes.io/hostname
-    whenUnsatisfiable: ScheduleAnyway
+    # Two minimum replicas must not share one node. maxSkew still permits five
+    # replicas across the three-node cluster.
+    whenUnsatisfiable: DoNotSchedule
     labelSelector:
       matchLabels:
         app.kubernetes.io/name: traefik
@@ -91,7 +88,7 @@ resources:
   limits:
     # Honest fixed ceiling. VPA is RequestsOnly (traefik-scaling/resources/vpa.yaml), so it
     # no longer inflates this via ratio preservation. 1Gi sits above the measured 674Mi
-    # load peak. GOMEMLIMIT tracks this limit via resourceFieldRef. No CPU limit intentionally.
+    # load peak. The chart sets GOMEMLIMIT to 90% of this value. No CPU limit intentionally.
     memory: 1Gi
 
 tracing:

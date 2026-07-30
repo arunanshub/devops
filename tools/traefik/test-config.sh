@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+assert_equal() {
+  local expected="$1"
+  local actual="$2"
+
+  if [[ "${actual}" != "${expected}" ]]; then
+    printf 'expected %q, got %q\n' "${expected}" "${actual}" >&2
+    return 1
+  fi
+}
+
+application="kubernetes/base/platform/traefik/application.yaml"
+values="kubernetes/base/platform/traefik/values.yaml"
+scaled_object="kubernetes/components/traefik-scaling/resources/scaledobject.yaml"
+network_policy="kubernetes/components/network-policies/resources/traefik-netpol.yaml"
+argocd_values="kubernetes/base/infra/argocd/values.yaml"
+argocd_bootstrap_values="kubernetes/bootstrap/values/argocd.yaml"
+cluster_alerts="kubernetes/base/monitoring/cluster-alerts/resources/prometheusrule.yaml"
+
+chart_version="$(
+  yq -r '.spec.sources[] | select(.chart == "traefik") | .targetRevision' \
+    "${application}"
+)"
+assert_equal "41.0.2" "${chart_version}"
+
+rendered="$(
+  helm template traefik traefik/traefik \
+    --version "${chart_version}" \
+    --namespace traefik \
+    --api-versions monitoring.coreos.com/v1 \
+    --values "${values}"
+)"
+
+deployment="$(
+  yq 'select(.kind == "Deployment" and .metadata.name == "traefik")' \
+    <<<"${rendered}"
+)"
+
+replicas_present="$(yq -r '.spec | has("replicas")' <<<"${deployment}")"
+assert_equal "false" "${replicas_present}"
+go_mem_limit="$(
+  yq -r '.spec.template.spec.containers[0].env[] |
+    select(.name == "GOMEMLIMIT") | .value' <<<"${deployment}"
+)"
+assert_equal "921MiB" "${go_mem_limit}"
+topology_behavior="$(
+  yq -r '.spec.template.spec.topologySpreadConstraints[] |
+    select(.topologyKey == "kubernetes.io/hostname") | .whenUnsatisfiable' \
+    <<<"${deployment}"
+)"
+assert_equal "DoNotSchedule" "${topology_behavior}"
+
+grep -q -- '--accesslog=true' <<<"${rendered}"
+grep -q -- '--accesslog.format=json' <<<"${rendered}"
+grep -q -- '--accesslog.filters.statuscodes=400-599' <<<"${rendered}"
+if grep -q -- '--providers.kubernetesingress' <<<"${rendered}"; then
+  printf 'the unused Kubernetes Ingress provider is enabled\n' >&2
+  exit 1
+fi
+ingress_class="$(
+  yq -r 'select(.kind == "IngressClass") | .metadata.name' <<<"${rendered}"
+)"
+assert_equal "" "${ingress_class}"
+old_logs_key="$(yq -r 'has("logs")' "${values}")"
+assert_equal "false" "${old_logs_key}"
+
+fallback_behavior="$(yq -r '.spec.fallback.behavior' "${scaled_object}")"
+assert_equal "currentReplicasIfHigher" "${fallback_behavior}"
+cooldown_present="$(yq -r '.spec | has("cooldownPeriod")' "${scaled_object}")"
+assert_equal "false" "${cooldown_present}"
+
+policy_name="$(yq -r '.metadata.name' "${network_policy}")"
+assert_equal "traefik" "${policy_name}"
+policy_namespace="$(yq -r '.metadata.namespace' "${network_policy}")"
+assert_equal "traefik" "${policy_namespace}"
+policy_app_label="$(
+  yq -r '.spec.endpointSelector.matchLabels."app.kubernetes.io/name"' \
+    "${network_policy}"
+)"
+assert_equal "traefik" "${policy_app_label}"
+for port in 8000 8080 9100; do
+  grep -q "port: \"${port}\"" "${network_policy}"
+done
+grep -q 'k8s:io.kubernetes.pod.namespace: cloudflared' "${network_policy}"
+grep -q 'k8s:io.kubernetes.pod.namespace: arunanshu-dev' "${network_policy}"
+grep -q 'k8s:io.kubernetes.pod.namespace: monitoring' "${network_policy}"
+grep -q 'app.kubernetes.io/name: k6' "${network_policy}"
+grep -q 'fromEntities:' "${network_policy}"
+grep -q -- '- host' "${network_policy}"
+egress_present="$(yq -r '.spec | has("egress")' "${network_policy}")"
+assert_equal "false" "${egress_present}"
+
+argocd_values_json="$(yq -o=json '.' "${argocd_values}")"
+argocd_bootstrap_values_json="$(yq -o=json '.' "${argocd_bootstrap_values}")"
+assert_equal "${argocd_values_json}" "${argocd_bootstrap_values_json}"
+for file in "${argocd_values}" "${argocd_bootstrap_values}"; do
+  metrics_enabled="$(yq -r '.controller.metrics.enabled' "${file}")"
+  assert_equal "true" "${metrics_enabled}"
+  service_monitor_enabled="$(
+    yq -r '.controller.metrics.serviceMonitor.enabled' "${file}"
+  )"
+  assert_equal "true" "${service_monitor_enabled}"
+  service_monitor_interval="$(
+    yq -r '.controller.metrics.serviceMonitor.interval' "${file}"
+  )"
+  assert_equal "30s" "${service_monitor_interval}"
+  service_monitor_namespace="$(
+    yq -r '.controller.metrics.serviceMonitor.namespace' "${file}"
+  )"
+  assert_equal "monitoring" "${service_monitor_namespace}"
+done
+
+for alert in \
+  ArgoCDApplicationNotSynced \
+  ArgoCDApplicationDegraded \
+  ArgoCDApplicationMetricsAbsent; do
+  yq -e ".spec.groups[] | select(.name == \"cluster.argocd\") |
+    .rules[] | select(.alert == \"${alert}\")" "${cluster_alerts}" >/dev/null
+done

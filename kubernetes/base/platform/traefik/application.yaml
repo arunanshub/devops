@@ -27,15 +27,6 @@ spec:
     server: https://kubernetes.default.svc
     namespace: traefik
 
-  # KEDA manages replica count via ScaledObject; ignore spec.replicas so
-  # ArgoCD doesn't fight KEDA over the live Deployment replica count.
-  ignoreDifferences:
-    - group: apps
-      kind: Deployment
-      name: traefik
-      jsonPointers:
-        - /spec/replicas
-
   syncPolicy:
     automated:
       prune: true

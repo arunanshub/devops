@@ -53,6 +53,14 @@ network isolation, and scaling behavior.
 - Do not add BasicAuth.
 - Do not add egress restrictions in this change.
 
+### Argo CD failure alerts
+
+- Export the existing application-controller metrics through a ServiceMonitor.
+- Use the existing VictoriaMetrics and Alertmanager email path.
+- Alert when an Application remains out of sync, becomes degraded, or stops
+  exporting application state.
+- Do not add Argo CD Notifications or another alert delivery system.
+
 ## Rollout
 
 1. Record the live chart, pods, placement, resources, autoscalers, metrics, and

@@ -41,6 +41,44 @@ spec:
             summary: "SUC k3s upgrade Job {{ $labels.job_name }} is failing"
             description: "An SUC upgrade Job in system-upgrade has had a Failed condition for >5m. SUC retries forever and cordons the target node on each attempt, so the node will be stranded unschedulable. Common cause: the Plan target is below the running k3s version (downgrade guard) — k3s cannot be downgraded. Check: kubectl -n system-upgrade get jobs,pods; kubectl -n system-upgrade logs job/{{ $labels.job_name }}; kubectl -n system-upgrade get plan k3s-server -o yaml"
 
+    - name: cluster.argocd
+      interval: 1m
+      rules:
+        # A persistent non-synced state covers render errors, failed applies,
+        # and reconciliation that cannot reach the declared Git state. The
+        # delay suppresses normal auto-sync transitions.
+        - alert: ArgoCDApplicationNotSynced
+          expr: argocd_app_info{sync_status!="Synced"} == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Argo CD Application {{ $labels.name }} is not synchronized"
+            description: "Application {{ $labels.name }} targets namespace {{ $labels.namespace }} and has sync status {{ $labels.sync_status }} and health status {{ $labels.health_status }} for more than 15 minutes. Check: kubectl -n argocd get application {{ $labels.name }} -o yaml"
+
+        # A degraded Application can have a valid render but an unhealthy live
+        # resource. Keep this separate from sync state because the response and
+        # severity differ.
+        - alert: ArgoCDApplicationDegraded
+          expr: argocd_app_info{health_status="Degraded"} == 1
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Argo CD Application {{ $labels.name }} is degraded"
+            description: "Application {{ $labels.name }} targets namespace {{ $labels.namespace }} and has been degraded for more than 10 minutes. Sync status is {{ $labels.sync_status }}. Check: kubectl -n argocd get application {{ $labels.name }} -o yaml"
+
+        # The state alerts cannot work when the application-controller metrics
+        # target is absent. This also detects a broken ServiceMonitor or scrape.
+        - alert: ArgoCDApplicationMetricsAbsent
+          expr: absent(argocd_app_info) == 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Argo CD Application metrics are absent"
+            description: "VictoriaMetrics has received no argocd_app_info samples for more than 15 minutes. Check the argocd-metrics Service, the ServiceMonitor in monitoring, and vmagent target status."
+
     - name: cluster.tunnel
       interval: 1m
       rules:

@@ -1,0 +1,48 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik
+  namespace: traefik
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: traefik
+      app.kubernetes.io/instance: traefik-traefik
+  ingress:
+    # Main Gateway API entrypoint. cloudflared serves production traffic, k6
+    # serves the controlled in-cluster load test, and host access preserves
+    # kubectl port-forward diagnostics.
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: cloudflared
+            app: cloudflared
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: arunanshu-dev
+            app.kubernetes.io/name: k6
+      fromEntities:
+        - host
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+    # The chart health probes use port 8080. The public dashboard HTTPRoute
+    # also sends requests from a Traefik pod to api@internal on this port.
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: traefik
+            app.kubernetes.io/name: traefik
+            app.kubernetes.io/instance: traefik-traefik
+      fromEntities:
+        - host
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    # Only monitoring can scrape the dedicated Prometheus entrypoint.
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: monitoring
+      toPorts:
+        - ports:
+            - port: "9100"
+              protocol: TCP
