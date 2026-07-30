@@ -9,9 +9,8 @@ spec:
       app.kubernetes.io/name: traefik
       app.kubernetes.io/instance: traefik-traefik
   ingress:
-    # Main Gateway API entrypoint. cloudflared serves production traffic, k6
-    # serves the controlled in-cluster load test, and host access preserves
-    # kubectl port-forward diagnostics.
+    # Main Gateway API entrypoint. cloudflared serves production traffic and k6
+    # serves the controlled in-cluster load test.
     - fromEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: cloudflared
@@ -19,7 +18,13 @@ spec:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: arunanshu-dev
             app.kubernetes.io/name: k6
-      fromEntities:
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+    # Host access preserves kubectl port-forward diagnostics. Cilium does not
+    # permit FromEntities and FromEndpoints in the same ingress rule.
+    - fromEntities:
         - host
       toPorts:
         - ports:
@@ -32,7 +37,11 @@ spec:
             k8s:io.kubernetes.pod.namespace: traefik
             app.kubernetes.io/name: traefik
             app.kubernetes.io/instance: traefik-traefik
-      fromEntities:
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - fromEntities:
         - host
       toPorts:
         - ports:

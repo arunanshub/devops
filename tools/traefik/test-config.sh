@@ -89,6 +89,12 @@ grep -q 'k8s:io.kubernetes.pod.namespace: monitoring' "${network_policy}"
 grep -q 'app.kubernetes.io/name: k6' "${network_policy}"
 grep -q 'fromEntities:' "${network_policy}"
 grep -q -- '- host' "${network_policy}"
+mixed_source_rules="$(
+  yq '[.spec.ingress[] |
+    select(has("fromEndpoints") and has("fromEntities"))] | length' \
+    "${network_policy}"
+)"
+assert_equal "0" "${mixed_source_rules}"
 egress_present="$(yq -r '.spec | has("egress")' "${network_policy}")"
 assert_equal "false" "${egress_present}"
 
