@@ -873,6 +873,18 @@ The rule must match only requests that meet all these conditions:
 - The request does not contain the `rsc` header
 - The query does not contain the `_rsc` parameter
 
+Use this exact Cloudflare expression:
+
+```text
+(http.host eq "arunanshu.dev" and http.request.uri.path eq "/" and http.request.method in {"GET" "HEAD"} and not has_key(http.request.headers, "rsc") and not has_key(http.request.uri.args, "_rsc"))
+```
+
+Use `has_key(http.request.uri.args, "_rsc")`. Do not test only for the
+`"_rsc="` substring. Next.js sends `?_rsc=<hash>` when the request headers
+produce a hash. It sends the bare `?_rsc` parameter when no hash input is
+present. The map-key test detects both forms without matching an unrelated
+query parameter.
+
 The rule must not configure a custom cache key, browser time to live, response-header rewrite, cookie removal, or origin time-to-live override.
 
 `bypass_by_default` keeps Next.js in control. Cloudflare follows a valid origin `Cache-Control` header and bypasses its cache when the header is absent. A future dynamic home route remains uncacheable when Next.js returns `private`, `no-store`, or `no-cache`.
@@ -886,6 +898,50 @@ Next.js uses the `_rsc` query parameter and request headers to distinguish HTML,
 Cloudflare added Cache Rules `Vary` support to all plans in July 2026. Cloudflare provider `5.22.0`, which this repository locks, supports the `vary` action parameter. This change removes the old plan limitation, but it does not remove deployment-version and cache-cardinality concerns.
 
 Caching all router header variants is outside this change. It can create many low-use entries. A cached RSC response can also outlive its application deployment. Keep RSC requests dynamic until a separate design defines deployment-scoped cache keys or a rollout-aware purge.
+
+### RSC request-header validation
+
+Next.js `16.3.0-preview.10` enables
+`experimental.validateRSCRequestHeaders` by default. The application does not
+disable it. The installed server source and the production deployment confirm
+that it is active.
+
+For an RSC request, Next.js calculates `_rsc` from these request headers:
+
+- `next-router-prefetch`
+- `next-router-segment-prefetch`
+- `next-router-state-tree`
+- `next-url`
+
+Next.js uses SHA-256 and truncates the digest to 96 bits. The hash does not
+include `x-deployment-id`. If `_rsc` is absent or incorrect, Next.js returns
+HTTP `307` with a location that has the expected parameter.
+
+Production checks gave these results:
+
+```text
+RSC: 1, no _rsc          -> 307 Location: /?_rsc
+RSC: 1, _rsc=bad         -> 307 Location: /?_rsc
+RSC: 1, bare _rsc        -> 200 Content-Type: text/x-component
+RSC: 1, state {}, bad     -> 307 Location: /?_rsc=xUpqymIsyTgXzRBR
+RSC: 1, state {}, correct -> 200 Content-Type: text/x-component
+```
+
+Keep this validation enabled. Do not add an explicit Next.js configuration
+entry in this change because the installed version already enables it by
+default and the option is experimental. Test the behavior after each Next.js
+upgrade.
+
+This validation is defense in depth. It does not replace the Cloudflare rule
+conditions:
+
+- Cloudflare can return a cache hit before the request reaches Next.js.
+- The `_rsc` hash does not include the deployment ID.
+- The option does not add request headers to the Cloudflare cache key.
+- The option does not make an RSC response safe to use after a deployment.
+
+Therefore, the home Cache Rule must continue to exclude both the `rsc` header
+and the `_rsc` query parameter. It must not cache RSC responses.
 
 ### Failure model
 
@@ -912,10 +968,12 @@ Run these checks after the rule takes effect:
 2. Confirm that `Cache-Control` still contains the Next.js `s-maxage` value.
 3. Confirm that an RSC navigation returns HTTP `200` with `text/x-component`.
 4. Confirm that the RSC response is not served from the Cloudflare cache.
-5. Confirm that a valid Server Action returns its expected response.
-6. Complete one rolling application deployment.
-7. Confirm that direct loads and client navigation work after all old pods stop.
-8. Check Traefik, cloudflared, and application logs for new HTTP `5xx`, navigation, asset, or Server Action errors.
+5. Confirm that an RSC request without `_rsc` returns HTTP `307` to the same URL with the correct `_rsc` parameter.
+6. Confirm that an RSC request with an incorrect `_rsc` value returns HTTP `307` to the same URL with the correct `_rsc` parameter.
+7. Confirm that a valid Server Action returns its expected response.
+8. Complete one rolling application deployment.
+9. Confirm that direct loads and client navigation work after all old pods stop.
+10. Check Traefik, cloudflared, and application logs for new HTTP `5xx`, navigation, asset, or Server Action errors.
 
 Rollback consists of removing the home document rule and applying OpenTofu again. Purge the `arunanshu.dev` host after rollback so that no cached home response remains. A single-file purge can fail when a Cache Rule expression restricts the request method.
 
@@ -991,6 +1049,8 @@ The work is complete when all these statements are true:
 - A repeat home document request returns `HIT` with an `Age` header
 - The cached home response keeps the Next.js `Cache-Control` header
 - RSC navigation remains outside the Cloudflare cache
+- A missing or incorrect RSC `_rsc` value returns a corrective HTTP `307`
+- A correct bare RSC `_rsc` parameter returns `text/x-component`
 - The home document and client navigation work after a rolling deployment
 - Removing the rule and purging the host restores `CF-Cache-Status: DYNAMIC`
 
@@ -1008,8 +1068,12 @@ The work is complete when all these statements are true:
 - [Kubernetes container lifecycle hooks](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/)
 - [Traefik entry point lifecycle](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/)
 - [Traefik response forwarding](https://doc.traefik.io/traefik/reference/routing-configuration/http/load-balancing/service/)
-- [Traefik backend transport timeouts](https://doc.traefik.io/traefik/reference/routing-configuration/http/load-balancing/serverstransport/)
 - [Next.js CDN caching](https://nextjs.org/docs/app/guides/cdn-caching)
+- [Next.js RSC cache-poisoning advisory](https://github.com/vercel/next.js/security/advisories/GHSA-wfc6-r584-vfw7)
+- [Next.js RSC cache-busting collision advisory](https://github.com/vercel/next.js/security/advisories/GHSA-vfv6-92ff-j949)
+- [Cloudflare URI argument field](https://developers.cloudflare.com/ruleset-engine/rules-language/fields/reference/http.request.uri.args/)
+- [Cloudflare Rules language functions](https://developers.cloudflare.com/ruleset-engine/rules-language/functions/)
+- [Traefik backend transport timeouts](https://doc.traefik.io/traefik/reference/routing-configuration/http/load-balancing/serverstransport/)
 - [Cloudflare cache response statuses](https://developers.cloudflare.com/cache/concepts/cache-responses/)
 - [Cloudflare Cache Rule settings](https://developers.cloudflare.com/cache/how-to/cache-rules/settings/)
 - [Cloudflare Cache Rules `Vary`](https://developers.cloudflare.com/cache/concepts/vary/)
