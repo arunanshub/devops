@@ -356,6 +356,17 @@ Use this final command in that file:
 sh -c 'test -n "${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY}" && bun run -b build'
 ```
 
+The current `oven/bun:slim` image provides Bun 1.3.14. During verification, Bun completed the Next.js compile, type check, and static page generation. It then crashed with `SIGILL`. `Dockerfile.bun` has no release or local caller, so this upstream Bun failure does not block the production Node.js image.
+
+Keep `Dockerfile.bun` for the Bun 1.4 release. When the stable image provides Bun 1.4:
+
+1. Repeat the complete Bun image build
+2. Verify the embedded Server Functions key
+3. Verify that Docker history does not contain the key
+4. Record the result in this specification
+
+Do not add the Bun image to the release workflow until this build passes.
+
 Docker documents the `env` and `required` mount options in the [Dockerfile secret mount reference](https://docs.docker.com/reference/dockerfile#run---mounttypesecret).
 
 ### Keep local image builds explicit
@@ -572,7 +583,7 @@ NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(openssl rand -base64 32)"
 just docker-build
 ```
 
-Build the alternate Bun image with the same test interface:
+Build the alternate Bun image with the same test interface after the stable image provides Bun 1.4:
 
 ```bash
 docker build \
@@ -792,7 +803,8 @@ The work is complete when all these statements are true:
 - The release validation rejects a missing, malformed, or wrong-length key
 - Both Dockerfiles mount the key only for the build instruction
 - Both Dockerfiles consume `SERVER_ACTIONS_KEY_VERSION`
-- The Bun image builds from the tracked `pnpm-lock.yaml`
+- The Bun dependency stage reads the tracked `pnpm-lock.yaml`
+- Bun 1.4 completes the alternate image build before that image gets a release caller
 - Docker history does not contain the supplied test key
 - Two builds with one key embed the same manifest key
 - A key version increase invalidates the build layer
