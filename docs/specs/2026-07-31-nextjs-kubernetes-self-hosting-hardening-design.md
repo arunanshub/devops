@@ -69,6 +69,21 @@ The Traefik deployment has these relevant properties:
 - The app route has compression but has no response buffering middleware
 - The response write time-out is `0s`, which means no time limit
 
+The live cluster uses K3s `v1.36.2+k3s1`. Its kubeconfig is `infra/kubeconfig.yaml` in the infrastructure repository. All live commands in this specification must use that file. Do not use the default `kubectl` context.
+
+Live verification on 2026-07-31 found:
+
+- The application, Traefik, and cloudflared Deployments were `Available`
+- Each Deployment had two ready pods and zero pod restarts
+- The related Argo CD Applications were `Synced` and `Healthy`
+- The Traefik Gateway was `Accepted` and `Programmed`
+- The application HTTPRoute was `Accepted` and had resolved references
+- The public home page returned HTTP `200`
+- The two current application pods had no `Failed to find Server Action` log entry in the previous 24 hours
+- The two current Traefik pods had no error or fatal log entry in the previous four hours
+
+The current pods use one image. The absence of current Server Action errors does not remove the mixed-build rollout risk.
+
 ## Verified problems
 
 ### Production builds use different encryption keys
@@ -572,6 +587,16 @@ devbox run -- shellcheck --enable=all --severity=style \
 ```
 
 ### Live Traefik checks
+
+From the infrastructure repository, select the correct cluster:
+
+```bash
+export KUBECONFIG="$PWD/infra/kubeconfig.yaml"
+kubectl config current-context
+kubectl cluster-info
+```
+
+The control-plane address must be `https://[2a01:4f9:c014:e7f9::1]:6443`. Stop if the command requests AWS credentials or shows a different control plane.
 
 After Argo CD syncs the Traefik change, verify:
 
