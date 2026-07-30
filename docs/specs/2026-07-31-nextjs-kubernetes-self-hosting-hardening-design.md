@@ -847,6 +847,82 @@ Application code must still:
 
 The current Server Action captures no sensitive value. It accepts a delay and a display name.
 
+## Cache the home document at the Cloudflare edge
+
+Two browser measurements of `https://arunanshu.dev/` recorded total response times of `795.62 ms` and `815.60 ms`. Cloudflare reported `cfOrigin` values of `569 ms` and `607 ms`. Both responses had `CF-Cache-Status: DYNAMIC`.
+
+The origin application is not using this time. A direct request inside an application pod returned response headers in a median of `5.53 ms`. A request from a Traefik pod through Traefik and the application completed in `0 to 10 ms`. The home response is prerendered and currently returns:
+
+```text
+Cache-Control: s-maxage=900, stale-while-revalidate=31535100
+Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+X-Nextjs-Prerender: 1
+```
+
+Cloudflare does not make Hypertext Markup Language (HTML) responses cacheable by default. It therefore sends every home document request to the origin, even though Next.js supplies a shared-cache policy.
+
+### Decision
+
+Add one Cloudflare Cache Rule for the home document. The rule must make the response eligible for caching and use `edge_ttl.mode = "bypass_by_default"`.
+
+The rule must match only requests that meet all these conditions:
+
+- Host is `arunanshu.dev`
+- Path is exactly `/`
+- Method is `GET` or `HEAD`
+- The request does not contain the `rsc` header
+- The query does not contain the `_rsc` parameter
+
+The rule must not configure a custom cache key, browser time to live, response-header rewrite, cookie removal, or origin time-to-live override.
+
+`bypass_by_default` keeps Next.js in control. Cloudflare follows a valid origin `Cache-Control` header and bypasses its cache when the header is absent. A future dynamic home route remains uncacheable when Next.js returns `private`, `no-store`, or `no-cache`.
+
+The exact-path match limits the first rollout to the measured problem. Do not widen the rule to other routes until the home document passes the acceptance checks.
+
+### Why the first rule excludes RSC
+
+Next.js uses the `_rsc` query parameter and request headers to distinguish HTML, React Server Component (RSC), and prefetch responses. The current deployment identifier is present in a request header. It is not part of the RSC URL.
+
+Cloudflare added Cache Rules `Vary` support to all plans in July 2026. Cloudflare provider `5.22.0`, which this repository locks, supports the `vary` action parameter. This change removes the old plan limitation, but it does not remove deployment-version and cache-cardinality concerns.
+
+Caching all router header variants is outside this change. It can create many low-use entries. A cached RSC response can also outlive its application deployment. Keep RSC requests dynamic until a separate design defines deployment-scoped cache keys or a rollout-aware purge.
+
+### Failure model
+
+The home document stays fresh at the edge for `900s`. After that period, the current `stale-while-revalidate` directive lets Cloudflare serve the prior response while it refreshes the cache. A successful refresh replaces that response. An origin failure can extend the stale period.
+
+The current `deploymentId` protects client navigation and adds deployment-specific query parameters to static assets, but it does not purge HTML. This first change accepts stale home content during a refresh or origin failure. It does not add a Cloudflare credential to Kubernetes or a release job. Add automatic purge only when a separate design defines credential storage, rollout ordering, failure handling, and retry limits.
+
+The rule does not cache these requests:
+
+- Server Actions, because they use `POST`
+- RSC requests, because they contain the `rsc` header or `_rsc` query parameter
+- A dynamic home response that Next.js marks private or uncacheable
+- Any other application path
+
+If the rule matches an unexpected response, Next.js remains the cache-policy authority. Cloudflare returns `BYPASS` when the origin policy forbids caching.
+
+### Rollout and rollback
+
+Apply the OpenTofu change. Then make two home document requests from the same Cloudflare location. The first request can return `MISS`. The next request must return `HIT` with an `Age` header.
+
+Run these checks after the rule takes effect:
+
+1. Confirm that the cached response is HTML and returns HTTP `200`.
+2. Confirm that `Cache-Control` still contains the Next.js `s-maxage` value.
+3. Confirm that an RSC navigation returns HTTP `200` with `text/x-component`.
+4. Confirm that the RSC response is not served from the Cloudflare cache.
+5. Confirm that a valid Server Action returns its expected response.
+6. Complete one rolling application deployment.
+7. Confirm that direct loads and client navigation work after all old pods stop.
+8. Check Traefik, cloudflared, and application logs for new HTTP `5xx`, navigation, asset, or Server Action errors.
+
+Rollback consists of removing the home document rule and applying OpenTofu again. Purge the `arunanshu.dev` host after rollback so that no cached home response remains. A single-file purge can fail when a Cache Rule expression restricts the request method.
+
+### Expected result
+
+A cache miss still uses the current Cloudflare-to-origin path. A cache hit removes the measured `569 to 607 ms` origin wait. The first change optimizes repeat home document loads without changing the application, Traefik, cloudflared, or Kubernetes data path.
+
 ## Explicit non-changes
 
 The implementation must not make these changes:
@@ -871,6 +947,11 @@ The implementation must not make these changes:
 - Do not change the Traefik 90s backend idle-connection timeout
 - Do not use an `exec` lifecycle hook in the distroless application image
 - Do not add a shared cache in this change
+- Do not cache RSC responses at Cloudflare
+- Do not widen the Cloudflare document rule beyond `/`
+- Do not override the Next.js edge or browser cache time to live
+- Do not add a custom Cloudflare cache key
+- Do not add a Cloudflare purge credential or rollout hook
 
 These changes do not fix the two verified problems. Some can also stop valid streams or add a new public surface.
 
@@ -906,6 +987,12 @@ The work is complete when all these statements are true:
 - The application rolling deployment completes
 - Server Action and RSC requests succeed after all old pods stop
 - No new sustained Traefik, cloudflared, or application error spike remains
+- The first home document request does not return `DYNAMIC` or `BYPASS`
+- A repeat home document request returns `HIT` with an `Age` header
+- The cached home response keeps the Next.js `Cache-Control` header
+- RSC navigation remains outside the Cloudflare cache
+- The home document and client navigation work after a rolling deployment
+- Removing the rule and purging the host restores `CF-Cache-Status: DYNAMIC`
 
 ## Source documents
 
@@ -922,3 +1009,8 @@ The work is complete when all these statements are true:
 - [Traefik entry point lifecycle](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/)
 - [Traefik response forwarding](https://doc.traefik.io/traefik/reference/routing-configuration/http/load-balancing/service/)
 - [Traefik backend transport timeouts](https://doc.traefik.io/traefik/reference/routing-configuration/http/load-balancing/serverstransport/)
+- [Next.js CDN caching](https://nextjs.org/docs/app/guides/cdn-caching)
+- [Cloudflare cache response statuses](https://developers.cloudflare.com/cache/concepts/cache-responses/)
+- [Cloudflare Cache Rule settings](https://developers.cloudflare.com/cache/how-to/cache-rules/settings/)
+- [Cloudflare Cache Rules `Vary`](https://developers.cloudflare.com/cache/concepts/vary/)
+- [Cloudflare provider `cloudflare_ruleset`](https://registry.terraform.io/providers/cloudflare/cloudflare/5.22.0/docs/resources/ruleset)
