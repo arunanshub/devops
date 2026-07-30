@@ -625,7 +625,7 @@ The live Traefik Deployment has:
 - `requestAcceptGraceTimeout=5s`
 - `graceTimeOut=50s`
 
-The application HTTPRoute was `Accepted` and had resolved references. Requests to `arunanshu.dev` and `www.arunanshu.dev` returned HTTP `200` over HTTP/2.
+The application HTTPRoute was `Accepted` and had resolved references. A request to `arunanshu.dev` returned HTTP `200` over HTTP/2. A request to `www.arunanshu.dev` returned the expected HTTP `308` redirect to `arunanshu.dev`, where the final response was HTTP `200`.
 
 The first observation period ran from `2026-07-30T20:44:05Z` through `2026-07-30T20:50:20Z`. All 12 checks returned HTTP `200`. Both replicas stayed ready, and the total restart count stayed at zero. No application error matched `Failed to find Server Action`, `uncaught`, `unhandled`, `error`, or `exception`.
 
