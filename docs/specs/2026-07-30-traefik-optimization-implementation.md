@@ -4,7 +4,7 @@
 > superpowers:subagent-driven-development or superpowers:executing-plans to
 > implement this plan task-by-task.
 
-**Goal:** Deploy Traefik chart 41.0.2 with safe scaling, memory, placement, and
+**Goal:** Deploy Traefik chart 41.1.0 with safe scaling, memory, placement, and
 network controls, and alert when an Argo CD Application stays unhealthy.
 
 **Architecture:** Argo CD continues to render the pinned Traefik chart and
@@ -14,7 +14,7 @@ exports metrics through a ServiceMonitor, and the existing cluster-alerts
 PrometheusRule sends persistent failures to the existing Alertmanager email
 receiver.
 
-**Tech Stack:** Helm, Argo CD 10.2.1, Traefik 41.0.2, KEDA 2.20.1, VPA,
+**Tech Stack:** Helm, Argo CD 10.2.1, Traefik 41.1.0, KEDA 2.20.1, VPA,
 CiliumNetworkPolicy, PrometheusRule, VictoriaMetrics, shell tests.
 
 ## Global Constraints
@@ -45,7 +45,7 @@ CiliumNetworkPolicy, PrometheusRule, VictoriaMetrics, shell tests.
 The test must:
 
 ```text
-read chart version 41.0.2 from the Argo Application
+read chart version 41.1.0 from the Argo Application
 render that exact chart with the repository values
 require accessLog flags and reject the old logs key
 require an omitted Deployment replica field
@@ -273,7 +273,7 @@ Confirm:
 
 ```text
 Traefik Application Synced and Healthy
-Traefik chart label 41.0.2
+Traefik chart label 41.1.0
 two ready Traefik pods on different nodes
 Gateway and all HTTPRoutes Accepted and Programmed
 dashboard and public origin requests succeed

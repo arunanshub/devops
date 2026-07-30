@@ -23,7 +23,7 @@ chart_version="$(
   yq -r '.spec.sources[] | select(.chart == "traefik") | .targetRevision' \
     "${application}"
 )"
-assert_equal "41.0.2" "${chart_version}"
+assert_equal "41.1.0" "${chart_version}"
 
 rendered="$(
   helm template traefik traefik/traefik \

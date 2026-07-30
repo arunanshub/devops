@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make the Traefik deployment valid for chart 41.0.2, preserve the public
+Make the Traefik deployment valid for chart 41.1.0, preserve the public
 dashboard behind Cloudflare Access, and improve availability, memory safety,
 network isolation, and scaling behavior.
 
@@ -68,7 +68,7 @@ network isolation, and scaling behavior.
 2. Prove that the current chart 41 render fails.
 3. Add focused checks for the corrected render and policy.
 4. Apply the chart and scaling changes in Git.
-5. Render chart 41.0.2 and build all related Kustomize resources.
+5. Render chart 41.1.0 and build all related Kustomize resources.
 6. Review the generated Deployment, Service, Gateway, RBAC, and policy.
 7. Commit and push only after all local checks pass.
 8. Watch Argo CD synchronization and the Traefik rolling update.
