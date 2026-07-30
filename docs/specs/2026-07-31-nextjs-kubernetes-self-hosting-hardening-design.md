@@ -1,6 +1,6 @@
 # Make arunanshu.dev safe for multi-replica builds and streamed requests
 
-> Status: Implemented locally; deployment pending
+> Status: Deployed and verified
 >
 > Date: 2026-07-31
 >
@@ -559,6 +559,88 @@ Use this order to avoid a release failure and reduce connection loss:
 17. Confirm that application errors return to the baseline
 
 The first secret-backed image will overlap with an image that contains an older generated key. This first rollout can still produce Server Action errors. The stable key protects all later builds.
+
+## Deployment record
+
+The production deployment completed on 2026-07-31.
+
+### Changes and release
+
+- Application commit `5c11258` contains the build-key and image changes.
+- Infrastructure commit `ec99dc6` contains the application and Traefik lifecycle changes.
+- Infrastructure commit `f09ff2b` selects the new application image.
+- GitHub lists `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`. The secret update time is `2026-07-30T20:09:38Z`.
+- Application CI run `30579746279` passed.
+- Application release run `30579746284` passed.
+- The release validation accepted the production key.
+- The release published image `20260730203436-5c11258`.
+- The published image digest is `sha256:b38bc2e8e0c5458a94414d45a868479d00a6d3639c613f499e5bb58c59eb34ca`.
+
+The production release uses `Dockerfile`, which uses Node.js. It does not use `Dockerfile.bun`. Bun 1.3.14 still stops with `SIGILL` after the Next.js build work completes. Keep the Bun file for a new test with Bun 1.4. Do not use it for a release before that test passes.
+
+### Build verification
+
+The application checks produced these results:
+
+- TypeScript, ESLint, Prettier, actionlint, `just` format, and the production Next.js build passed.
+- A missing local key stopped the `just` recipe.
+- A missing Docker secret stopped the image build.
+- Two Node.js images used the same test key and different deployment IDs. Both images embedded the same 44-character canonical base64 key.
+- Each embedded test key decoded to 32 bytes.
+- Docker history did not contain the test key.
+- A test key change with `SERVER_ACTIONS_KEY_VERSION=2` changed the embedded key. This result confirms build-cache invalidation.
+- The Bun dependency stage accepted `pnpm-lock.yaml`.
+- The full Bun 1.3.14 image test stopped with `SIGILL`. This result is the reason for the Bun release deferral.
+
+The infrastructure checks produced these results:
+
+- The focused application render test passed.
+- The focused Traefik render test passed.
+- YAML format and shell checks passed.
+- The production Kustomize render passed.
+- Kubeconform reported 51 valid resources, zero invalid resources, and zero errors.
+- A server-side dry run passed against the cluster from `infra/kubeconfig.yaml`.
+
+The repository Vitest command is not a defined CI gate. A direct `pnpm exec vitest run` test stopped because of an existing path-alias resolution problem. This problem is outside this change and did not affect the release checks.
+
+### Live verification
+
+Argo CD applied both changes. The `arunanshu-dev` and `traefik` Applications were `Synced` and `Healthy` after each rollout.
+
+The live application Deployment has:
+
+- Two ready and available replicas
+- Image `20260730203436-5c11258` on all ready pods
+- Digest `sha256:b38bc2e8e0c5458a94414d45a868479d00a6d3639c613f499e5bb58c59eb34ca` on all ready pods
+- Zero container restarts
+- `terminationGracePeriodSeconds: 60`
+- A native 5s `preStop` sleep
+- `KEEP_ALIVE_TIMEOUT=95000`
+
+The live Traefik Deployment has:
+
+- Two ready and available replicas
+- Zero container restarts
+- `terminationGracePeriodSeconds: 60`
+- `requestAcceptGraceTimeout=5s`
+- `graceTimeOut=50s`
+
+The application HTTPRoute was `Accepted` and had resolved references. Requests to `arunanshu.dev` and `www.arunanshu.dev` returned HTTP `200` over HTTP/2.
+
+The first observation period ran from `2026-07-30T20:44:05Z` through `2026-07-30T20:50:20Z`. All 12 checks returned HTTP `200`. Both replicas stayed ready, and the total restart count stayed at zero. No application error matched `Failed to find Server Action`, `uncaught`, `unhandled`, `error`, or `exception`.
+
+A first direct Server Action probe did not include the client router-state and deployment headers. The action returned its expected data, but the follow-up page render produced synthetic HTTP `500` responses and listener warnings in one pod. This was a test error and not a key mismatch. A live comparison confirmed that both pods had the same embedded key.
+
+Only the affected pod was replaced. The other pod stayed ready, and the public page continued to return HTTP `200`. The replacement pod became ready with the published image digest and zero restarts.
+
+The corrected test used the router state from the live page and the current deployment ID. It produced these results:
+
+- 20 of 20 Server Action requests returned HTTP `200` with the expected action result.
+- 20 of 20 RSC navigation requests returned HTTP `200` with `text/x-component`.
+
+The clean observation period after the pod replacement ran from `2026-07-30T21:00:23Z` through `2026-07-30T21:03:11Z`. All six checks returned HTTP `200`. Both replicas stayed ready with zero restarts and zero new application error matches. During this period, Traefik recorded zero HTTP `5xx` responses, and cloudflared recorded zero error matches.
+
+These results confirm the stable shared key, the live lifecycle values, route continuity during a one-pod replacement, and stable traffic after the rollout. The changes are preventive. The checks do not claim a latency improvement.
 
 ## Validate builds and rollouts
 
