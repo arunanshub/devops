@@ -61,7 +61,9 @@ Run:
 cd infra
 devbox run -- sops exec-env secrets.yaml \
   'tofu plan -input=false -no-color -out=/tmp/arunanshu-home-cache-red.tfplan'
-./scripts/test-cloudflare-cache-plan.sh /tmp/arunanshu-home-cache-red.tfplan
+cd ..
+devbox run -- sops exec-env infra/secrets.yaml \
+  './infra/scripts/test-cloudflare-cache-plan.sh /tmp/arunanshu-home-cache-red.tfplan'
 ```
 
 Expected: the plan command succeeds and the assertion fails because the home rule does not exist.
@@ -95,7 +97,9 @@ Run:
 cd infra
 devbox run -- sops exec-env secrets.yaml \
   'tofu plan -input=false -no-color -out=/tmp/arunanshu-home-cache-green.tfplan'
-./scripts/test-cloudflare-cache-plan.sh /tmp/arunanshu-home-cache-green.tfplan
+cd ..
+devbox run -- sops exec-env infra/secrets.yaml \
+  './infra/scripts/test-cloudflare-cache-plan.sh /tmp/arunanshu-home-cache-green.tfplan'
 ```
 
 Expected: both commands succeed. The plan adds one home cache rule. The assertion prints `home document cache plan is safe`.

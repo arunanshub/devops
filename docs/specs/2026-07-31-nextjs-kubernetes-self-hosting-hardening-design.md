@@ -945,9 +945,15 @@ and the `_rsc` query parameter. It must not cache RSC responses.
 
 ### Failure model
 
-The home document stays fresh at the edge for `900s`. After that period, the current `stale-while-revalidate` directive lets Cloudflare serve the prior response while it refreshes the cache. A successful refresh replaces that response. An origin failure can extend the stale period.
+The home document stays fresh at the edge for `900s`. Cloudflare enables Origin Cache Control by default on the current plan. Under this mode, Cloudflare treats `s-maxage` as shared-cache revalidation. It does not serve the response with `UPDATING` after the `900s` period, even though the response also contains `stale-while-revalidate`. It revalidates first and returns `EXPIRED`.
 
-The current `deploymentId` protects client navigation and adds deployment-specific query parameters to static assets, but it does not purge HTML. This first change accepts stale home content during a refresh or origin failure. It does not add a Cloudflare credential to Kubernetes or a release job. Add automatic purge only when a separate design defines credential storage, rollout ordering, failure handling, and retry limits.
+If a deployment changes `/` from static or ISR content to dynamic content, a previously cached public document can remain fresh until the end of its current `900s` period. The next revalidation gets the dynamic Next.js response. Next.js uses `private, no-cache, no-store, max-age=0, must-revalidate` when the route revalidation value is zero. Cloudflare then stops storing the document.
+
+For an immediate static-to-dynamic cutover, purge the `arunanshu.dev` hostname after the deployment. Without a purge, the maximum normal transition period is the remaining part of the `900s` freshness period. The old object contains only the previously public home document. When the new response has the correct private cache policy, Cloudflare does not store that personalized response.
+
+The infrastructure cannot identify application data as public or private. If application code explicitly gives a personalized response a shared-cache directive such as `s-maxage`, Cloudflare will follow that incorrect origin policy. Do not add shared-cache directives to personalized responses.
+
+The current `deploymentId` protects client navigation and adds deployment-specific query parameters to static assets, but it does not purge HTML. This first change accepts the previously public home document for up to the remaining part of its `900s` freshness period after a deployment. It does not add a Cloudflare credential to Kubernetes or a release job. Add automatic purge only when a separate design defines credential storage, rollout ordering, failure handling, and retry limits.
 
 The rule does not cache these requests:
 
@@ -1075,6 +1081,8 @@ The work is complete when all these statements are true:
 - [Cloudflare Rules language functions](https://developers.cloudflare.com/ruleset-engine/rules-language/functions/)
 - [Traefik backend transport timeouts](https://doc.traefik.io/traefik/reference/routing-configuration/http/load-balancing/serverstransport/)
 - [Cloudflare cache response statuses](https://developers.cloudflare.com/cache/concepts/cache-responses/)
+- [Cloudflare Origin Cache Control](https://developers.cloudflare.com/cache/concepts/cache-control/)
+- [Cloudflare revalidation](https://developers.cloudflare.com/cache/concepts/revalidation/)
 - [Cloudflare Cache Rule settings](https://developers.cloudflare.com/cache/how-to/cache-rules/settings/)
 - [Cloudflare Cache Rules `Vary`](https://developers.cloudflare.com/cache/concepts/vary/)
 - [Cloudflare provider `cloudflare_ruleset`](https://registry.terraform.io/providers/cloudflare/cloudflare/5.22.0/docs/resources/ruleset)

@@ -49,26 +49,24 @@ resource "cloudflare_ruleset" "cache_rules" {
       }
     },
 
-    # NOTE — why arunanshu.dev pages / RSC are deliberately NOT edge-cached here:
+    # Cache only the home HTML response. bypass_by_default follows the
+    # Cache-Control policy from Next.js. A future dynamic response marked
+    # private, no-store, or no-cache therefore bypasses the Cloudflare cache.
     #
-    # The obvious win would be to edge-cache the App Router RSC payloads (the
-    # prefetch storm that "slows to a crawl" is uncached India->SIN->EU round
-    # trips). But it cannot be done skew-safely on a non-Enterprise plan:
-    #   - Next.js skew protection rides the deployment id in a REQUEST HEADER
-    #     (x-deployment-id), not in the RSC URL (only static assets get ?dpl=).
-    #   - The `?_rsc=` query param is a hash of request headers (router state),
-    #     NOT build-scoped — the same route yields the same key across deploys.
-    #   - Cloudflare cannot put a request header in the cache key except on
-    #     Enterprise. So an edge-cached RSC entry is not build-scoped: after a
-    #     deploy a new-build client gets served the old-build payload, Next sees
-    #     the x-nextjs-deployment-id mismatch and force-reloads — risking a reload
-    #     glitch/loop until the stale entry expires. A short TTL only bounds that
-    #     window, it does not remove it.
-    #
-    # Static assets (/_next/static/...?dpl=) ARE safely cached by CF's default
-    # extension caching: the ?dpl= in the URL makes those keys build-scoped, so
-    # they self-invalidate on deploy. The RSC storm is best addressed app-side
-    # (reduce <Link> prefetch fan-out), which is decoupled and skew-free.
+    # RSC stays dynamic. Its _rsc hash does not include the deployment id, and
+    # Next.js cannot validate an RSC request when Cloudflare serves a cache hit.
+    {
+      description = "Edge-cache arunanshu.dev home HTML"
+      expression  = "(http.host eq \"arunanshu.dev\" and http.request.uri.path eq \"/\" and http.request.method in {\"GET\" \"HEAD\"} and not has_key(http.request.headers, \"rsc\") and not has_key(http.request.uri.args, \"_rsc\"))"
+      action      = "set_cache_settings"
+      enabled     = true
+      action_parameters = {
+        cache = true
+        edge_ttl = {
+          mode = "bypass_by_default"
+        }
+      }
+    },
   ]
 }
 
