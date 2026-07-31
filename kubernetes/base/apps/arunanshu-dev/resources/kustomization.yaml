@@ -12,7 +12,7 @@ resources:
   - vmservicescrape.yaml
   - middleware.yaml
   - purge-cache-job.yaml
-  - sealed-cf-cache-purge.yaml
+  - cf-cache-purge.sealedsecret.yaml
 
 images:
   - name: arunanshu-dev
