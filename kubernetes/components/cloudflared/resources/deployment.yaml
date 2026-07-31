@@ -44,8 +44,8 @@ spec:
             # rollback: docs/cloudflare-tunnel-transport.md
             # Cloudflare: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/run-parameters/#protocol
             # Related upstream report: https://github.com/cloudflare/cloudflared/issues/895
-            - --protocol
-            - http2
+            # - --protocol
+            # - http2
             - run
           ports:
             - name: metrics
