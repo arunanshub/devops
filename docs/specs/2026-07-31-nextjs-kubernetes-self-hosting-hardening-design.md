@@ -849,7 +849,7 @@ The current Server Action captures no sensitive value. It accepts a delay and a 
 
 ## Cache public documents at the Cloudflare edge (origin-driven)
 
-> **Status update (2026-07-31):** The first change cached only `/`. That rule is superseded by a **host-wide** eligibility rule in `infra/cloudflare_cache.tf`. Cloudflare still does not cache HTML/`text/x-component` by default; one Cache Rule marks apex responses eligible. Next.js `Cache-Control` / `s-maxage` remains the policy authority (`edge_ttl.mode = bypass_by_default`). There is **no path allowlist**. Static RSC flights with `?_rsc=…` are eligible (same `s-maxage` as HTML; query string is the cache key). Only `rsc` **without** `_rsc` is excluded (307 on the document URL must not poison HTML). `/api/*` and `/rpc/*` stay out. Deploy-time host purge is an Argo CD **PostSync Job** (not a Deployment init container): `purge-cache-job.yaml` + SealedSecret, token from `cloudflare_account_token.cache_purge` in `infra/cloudflare_tokens.tf` (`just seal-cf-cache-purge`). Redis / shared Next cache handlers remain out of scope.
+> **Status update (2026-07-31):** The first change cached only `/`. That rule is superseded by a **host-wide** eligibility rule in `infra/cloudflare_cache.tf`. Cloudflare still does not cache HTML/`text/x-component` by default; one Cache Rule marks apex responses eligible. Next.js `Cache-Control` / `s-maxage` remains the policy authority (`edge_ttl.mode = bypass_by_default`). There is **no path allowlist**. Static RSC flights with `?_rsc=…` are eligible (same `s-maxage` as HTML; query string is the cache key). The `rsc` header and `_rsc` query parameter must be both present or both absent. A mismatched request bypasses this Cache Rule so HTML and RSC representations cannot share an unsafe cache key. `/api/*` and `/rpc/*` stay out. Deploy-time host purge is a bounded Argo CD **PostSync Job** (not a Deployment init container): `purge-cache-job.yaml` + SealedSecret, token from `cloudflare_account_token.cache_purge` in `infra/cloudflare_tokens.tf` (`just seal-cf-cache-purge`). The Job has an active deadline, bounded curl time-outs and retries, and a digest-pinned curl image. Redis / shared Next cache handlers remain out of scope.
 
 ### Historical note: home-only measurement
 
@@ -1017,7 +1017,7 @@ The implementation must not make these changes:
 - Do not change the Traefik 90s backend idle-connection timeout
 - Do not use an `exec` lifecycle hook in the distroless application image
 - Do not add a shared cache in this change
-- Do not cache RSC requests that lack `_rsc` (307 on the document URL)
+- Do not make mismatched `rsc` / `_rsc` requests cache-eligible; both markers must be present or both must be absent
 - Do not maintain a path-by-path document allowlist (host-wide origin-driven rule is the model)
 - Do not override the Next.js edge or browser cache time to live
 - Do not add a custom Cloudflare cache key

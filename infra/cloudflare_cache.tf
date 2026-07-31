@@ -63,12 +63,13 @@ resource "cloudflare_ruleset" "cache_rules" {
     # include the query string — Cloudflare default does). Include those
     # requests so soft navigation can HIT the edge.
     #
-    # Exclude only: rsc header WITHOUT _rsc. Those requests return 307 to add
-    # _rsc on the *document* URL; caching that under /path would poison HTML.
+    # Require RSC request parity: the rsc header and _rsc query parameter must
+    # be both present or both absent. Either one alone can return a different
+    # representation under a cache key that Cloudflare would otherwise share.
     # Deploy-time host purge (PostSync Job) clears HTML + all _rsc variants.
     {
       description = "Edge-cache arunanshu.dev when Next.js Cache-Control allows"
-      expression  = "(http.host eq \"arunanshu.dev\" and http.request.method in {\"GET\" \"HEAD\"} and not starts_with(http.request.uri.path, \"/api/\") and not starts_with(http.request.uri.path, \"/rpc/\") and not (has_key(http.request.headers, \"rsc\") and not has_key(http.request.uri.args, \"_rsc\")))"
+      expression  = "(http.host eq \"arunanshu.dev\" and http.request.method in {\"GET\" \"HEAD\"} and not starts_with(http.request.uri.path, \"/api/\") and not starts_with(http.request.uri.path, \"/rpc/\") and not (has_key(http.request.headers, \"rsc\") and not has_key(http.request.uri.args, \"_rsc\")) and not (has_key(http.request.uri.args, \"_rsc\") and not has_key(http.request.headers, \"rsc\")))"
       action      = "set_cache_settings"
       enabled     = true
       action_parameters = {

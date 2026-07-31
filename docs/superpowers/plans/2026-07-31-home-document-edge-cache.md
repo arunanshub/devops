@@ -1,6 +1,6 @@
 # Home Document Edge Cache Implementation Plan
 
-> **Superseded (2026-07-31):** Replaced by a **host-wide** origin-driven Cache Rule (all apex paths, Next.js headers as authority, RSC excluded) plus an optional Argo PostSync host purge Job. See `infra/cloudflare_cache.tf` and `kubernetes/base/apps/arunanshu-dev/resources/purge-cache-job.yaml`.
+> **Superseded (2026-07-31):** Replaced by a **host-wide** origin-driven Cache Rule (all apex paths, Next.js headers as authority, RSC flights require matching `rsc` and `_rsc` markers) plus a bounded Argo PostSync host purge Job. See `infra/cloudflare_cache.tf` and `kubernetes/base/apps/arunanshu-dev/resources/purge-cache-job.yaml`.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
