@@ -1,0 +1,76 @@
+# Argo CD PostSync hook: purge Cloudflare HTML/document cache for arunanshu.dev
+# after a successful Application sync (Deployment healthy).
+#
+# Why not a Deployment initContainer:
+# - init runs before the new pod is Ready while old pods still serve traffic
+# - fires once per pod (rollout, restart, KEDA scale-up), not once per deploy
+#
+# PostSync runs once after Argo considers the sync healthy. KEDA scale does not
+# re-sync this Application (replicas are ignoreDifferences).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: purge-cloudflare-cache
+  namespace: arunanshu-dev
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    # Delete previous hook Job before creating a new one so re-syncs work.
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: purge-cloudflare-cache
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: purge
+          # curl image; pin by digest when adding Renovate later if desired.
+          image: curlimages/curl:8.14.1
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: CLOUDFLARE_ZONE_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflare-cache-purge
+                  key: zone_id
+            - name: CLOUDFLARE_CACHE_PURGE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflare-cache-purge
+                  key: api_token
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              response="$(curl -sS -w '\n%{http_code}' -X POST \
+                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache" \
+                -H "Authorization: Bearer ${CLOUDFLARE_CACHE_PURGE_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data '{"hosts":["arunanshu.dev"]}')"
+              body="$(printf '%s\n' "$response" | sed '$d')"
+              code="$(printf '%s\n' "$response" | tail -n 1)"
+              printf 'cloudflare purge http_status=%s body=%s\n' "$code" "$body"
+              test "$code" -ge 200 -a "$code" -lt 300
+              printf '%s\n' "$body" | grep -q '"success":true\|"success": true'
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi

@@ -33,3 +33,14 @@ output "tunnel_token" {
   value       = data.cloudflare_zero_trust_tunnel_cloudflared_token.main.token
   sensitive   = true
 }
+
+output "cache_purge_token" {
+  description = "Least-privilege Cloudflare Cache Purge token for arunanshu.dev. Seal via `just seal-cf-cache-purge`."
+  value       = cloudflare_account_token.cache_purge.value
+  sensitive   = true
+}
+
+output "cache_purge_token_id" {
+  description = "Cloudflare account token id for the cache-purge token (safe to log)."
+  value       = cloudflare_account_token.cache_purge.id
+}

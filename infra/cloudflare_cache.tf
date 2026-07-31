@@ -17,7 +17,7 @@ resource "cloudflare_tiered_cache" "smart" {
 
 # --- Cache Rules (http_request_cache_settings phase) --------------------------
 # A zone has exactly ONE entry-point ruleset per phase, so the Grafana static
-# rule and the blog page rule below live in the same ruleset.
+# rule and the arunanshu.dev document rule live in the same ruleset.
 #
 # Renamed from cloudflare_ruleset.grafana_static_cache (see moved block) now that
 # it carries more than the Grafana rule.
@@ -49,15 +49,26 @@ resource "cloudflare_ruleset" "cache_rules" {
       }
     },
 
-    # Cache only the home HTML response. bypass_by_default follows the
-    # Cache-Control policy from Next.js. A future dynamic response marked
-    # private, no-store, or no-cache therefore bypasses the Cloudflare cache.
+    # Host-wide cache eligibility for arunanshu.dev. Cloudflare does not cache
+    # HTML or text/x-component by default even when Next.js sends a shared
+    # Cache-Control policy. This rule only makes responses *eligible*;
+    # edge_ttl.mode = bypass_by_default keeps Next.js as the policy authority:
+    # s-maxage / public → store; private / no-store / missing → bypass.
     #
-    # RSC stays dynamic. Its _rsc hash does not include the deployment id, and
-    # Next.js cannot validate an RSC request when Cloudflare serves a cache hit.
+    # No path allowlist: new public routes inherit edge caching from origin
+    # headers. Defense-in-depth excludes /api and /rpc.
+    #
+    # RSC flights for static / use-cache routes send the same s-maxage as HTML.
+    # Next.js keys variants via the _rsc query parameter (CDN cache key must
+    # include the query string — Cloudflare default does). Include those
+    # requests so soft navigation can HIT the edge.
+    #
+    # Exclude only: rsc header WITHOUT _rsc. Those requests return 307 to add
+    # _rsc on the *document* URL; caching that under /path would poison HTML.
+    # Deploy-time host purge (PostSync Job) clears HTML + all _rsc variants.
     {
-      description = "Edge-cache arunanshu.dev home HTML"
-      expression  = "(http.host eq \"arunanshu.dev\" and http.request.uri.path eq \"/\" and http.request.method in {\"GET\" \"HEAD\"} and not has_key(http.request.headers, \"rsc\") and not has_key(http.request.uri.args, \"_rsc\"))"
+      description = "Edge-cache arunanshu.dev when Next.js Cache-Control allows"
+      expression  = "(http.host eq \"arunanshu.dev\" and http.request.method in {\"GET\" \"HEAD\"} and not starts_with(http.request.uri.path, \"/api/\") and not starts_with(http.request.uri.path, \"/rpc/\") and not (has_key(http.request.headers, \"rsc\") and not has_key(http.request.uri.args, \"_rsc\")))"
       action      = "set_cache_settings"
       enabled     = true
       action_parameters = {

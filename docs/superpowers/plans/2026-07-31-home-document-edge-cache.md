@@ -1,8 +1,10 @@
 # Home Document Edge Cache Implementation Plan
 
+> **Superseded (2026-07-31):** Replaced by a **host-wide** origin-driven Cache Rule (all apex paths, Next.js headers as authority, RSC excluded) plus an optional Argo PostSync host purge Job. See `infra/cloudflare_cache.tf` and `kubernetes/base/apps/arunanshu-dev/resources/purge-cache-job.yaml`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Cache only the Next.js HTML response for `https://arunanshu.dev/` at Cloudflare while all RSC and uncacheable responses stay outside the edge cache.
+**Goal (historical):** Cache only the Next.js HTML response for `https://arunanshu.dev/` at Cloudflare while all RSC and uncacheable responses stay outside the edge cache.
 
 **Architecture:** Add one rule to the existing zone-level `http_request_cache_settings` ruleset. The request expression excludes the `rsc` header and every `_rsc` query parameter form. `bypass_by_default` makes the origin `Cache-Control` header the cache authority.
 

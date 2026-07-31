@@ -11,6 +11,8 @@ resources:
   - pdb.yaml
   - vmservicescrape.yaml
   - middleware.yaml
+  - purge-cache-job.yaml
+  - sealed-cf-cache-purge.yaml
 
 images:
   - name: arunanshu-dev

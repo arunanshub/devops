@@ -128,6 +128,37 @@ seal-cloudflared-token:
     echo "Sealed token written to $out"
     echo "Next: add 'sealed-tunnel-token.yaml' to kubernetes/base/infra/cloudflared/resources/kustomization.yaml, then commit both."
 
+# Seal the OpenTofu-managed Cloudflare Cache Purge token for the arunanshu-dev
+# PostSync Job. Token HCL: infra/cloudflare_tokens.tf
+# (resource cloudflare_account_token.cache_purge). Requires a prior
+# `just apply` so the sensitive value exists in state. Override with
+# CF_CACHE_PURGE_TOKEN=… only for emergencies.
+# Writes kubernetes/base/apps/arunanshu-dev/resources/sealed-cf-cache-purge.yaml
+# (already listed next to purge-cache-job.yaml in that kustomization).
+seal-cf-cache-purge:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out="{{ k8s / "base/apps/arunanshu-dev/resources/sealed-cf-cache-purge.yaml" }}"
+    zone_id=$(awk -F'"' '/cloudflare_zone_id/{print $2}' "{{ infra / "terraform.tfvars" }}")
+    if [[ -z "${CF_CACHE_PURGE_TOKEN:-}" ]]; then
+        CF_CACHE_PURGE_TOKEN=$(
+            cd "{{ infra }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
+                "tofu output -raw cache_purge_token"
+        )
+    fi
+    if [[ -z "${CF_CACHE_PURGE_TOKEN:-}" ]]; then
+        printf 'No cache_purge_token from tofu (and CF_CACHE_PURGE_TOKEN unset). Run just apply first.\n' >&2
+        exit 1
+    fi
+    kubectl create secret generic cloudflare-cache-purge \
+        --namespace arunanshu-dev \
+        --from-literal=zone_id="$zone_id" \
+        --from-literal=api_token="$CF_CACHE_PURGE_TOKEN" \
+        --dry-run=client -o yaml | \
+    kubeseal --cert "{{ k8s / "sealed-secrets-cert.pem" }}" --format yaml \
+        > "$out"
+    printf 'Sealed to %s — commit with purge-cache-job.yaml if not already in tree.\n' "$out"
+
 # Seal R2 credentials for k3s etcd snapshot S3 upload.
 # Run AFTER Task 2 (R2 buckets created, credentials in secrets.yaml).
 # Requires cluster access (kubeseal reads the sealed-secrets controller pubkey).
