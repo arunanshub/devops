@@ -17,4 +17,4 @@ resources:
 images:
   - name: arunanshu-dev
     newName: ghcr.io/arunanshub/arunanshu.dev
-    newTag: 20260801101059-57654ee
+    newTag: 20260801130112-30f995c
