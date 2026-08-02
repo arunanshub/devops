@@ -12,5 +12,5 @@ resources:
 
 images:
   - name: cloudflare/cloudflared
-    newTag: 2026.5.2
-    digest: sha256:538a4603570b9a80f01a983d7ca777f6075dcf656fd31a1e3e96cdb8142938ce
+    newTag: 2026.7.3
+    digest: sha256:e39ee8da81ad5e05d77f38d2f51c60ca51bf2a8450ac3abab50c17fdb91d91bf
