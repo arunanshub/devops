@@ -15,6 +15,8 @@ jobs:
   go:
     name: Go build, test, lint
     runs-on: ubuntu-latest
+    env:
+      GOTESTSUM_VERSION: 1.13.0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -110,8 +112,21 @@ jobs:
           - name: Check go.mod is tidy
             run: go mod tidy -diff
 
+          # gotestsum wraps `go test -json`; the github-actions format adds
+          # per-package log grouping and puts failures at the top of the
+          # summary instead of buried in the scroll.
+          #
+          # -count=1 disables Go's *test result* cache, which lives in the same
+          # GOCACHE the build cache above restores. Without it, a run whose Go
+          # inputs are unchanged replays "ok ... (cached)" and never executes a
+          # test. Go considers that sound, but CI should prove the tests pass
+          # on this commit, and cached results hide flakes. Compiled objects
+          # are still reused, so this costs seconds, not minutes.
           - name: Test
-            run: go test -race ./...
+            run: |
+              curl -sSL "https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_VERSION}/gotestsum_${GOTESTSUM_VERSION}_linux_amd64.tar.gz" \
+                | tar -xz -C "$RUNNER_TEMP" gotestsum
+              "$RUNNER_TEMP/gotestsum" --format github-actions -- -race -count=1 ./...
 
           # Guards the helmfile→ArgoCD adoption invariant (chart version,
           # releaseName, rendered values). See CLAUDE.md "Helmfile→ArgoCD
