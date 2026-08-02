@@ -135,12 +135,7 @@ jobs:
               ./custom-gcl run ./...
 
       - name: Save Go build cache
-        # TEMPORARY (revert before merge): saving on pull_request too, so the
-        # cache can be verified end to end on this branch. Branch-scoped cache
-        # entries are readable by later runs on the same branch, so the next
-        # push here should restore instead of compiling cold. The permanent
-        # condition is `github.event_name == 'push'`.
-        if: always()
+        if: github.event_name == 'push'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/go-build
