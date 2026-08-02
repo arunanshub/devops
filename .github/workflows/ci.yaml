@@ -166,7 +166,8 @@ jobs:
               curl -sSL "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
                 | sudo tar -C /usr/local/bin -xz kubeconform
 
-      # Mirrors the lefthook kustomize-validate hook exactly.
+      # Mirrors the lefthook kustomize-validate hook exactly. Keep the two in
+      # sync: a check that only runs locally is a check that stops running.
       - name: Validate rendered manifests
         run: >
           kustomize build kubernetes/overlays/prod | kubeconform --strict --ignore-missing-schemas --summary --schema-location default --schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
