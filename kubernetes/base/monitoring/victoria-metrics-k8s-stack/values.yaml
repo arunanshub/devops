@@ -12,6 +12,16 @@ external:
 
 victoria-metrics-operator:
   enabled: true
+  # Same shape as grafana and kube-state-metrics: the chart ships `resources: {}` and the
+  # VPA had no controlledValues, so the operator ran unbounded. Pinned by RequestsOnly in
+  # components/monitoring-vpa/resources/vpa-vm-operator.yaml. 256Mi == that VPA's
+  # maxAllowed, so the request can never exceed the limit. Measured 63Mi. No CPU limit.
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
   # disable_prometheus_converter defaults to false — ServiceMonitor/PodMonitor/PrometheusRule
   # objects are auto-converted to VM CRDs, keeping cilium/traefik/cloudflared/keda/tempo/
   # hcloud-ccm scrape definitions working untouched.
@@ -93,6 +103,27 @@ vmagent:
       requests:
         cpu: 50m
         memory: 96Mi
+      limits:
+        # vmagent had NO memory limit and no VPA, so nothing bounded it at all — the
+        # largest such workload here. It scrapes every target, so RSS tracks series count and
+        # the remote-write queue. 384Mi sits ~2.3x above the measured 164Mi RSS. No CPU
+        # limit (matches vmsingle/vmalert): CPU is compressible, requests guarantee
+        # scheduling. There is no vmagent VPA, so this ceiling stays exactly as declared.
+        memory: 384Mi
+    # The operator leaves config-reloader memory UNLIMITED by default — verified live with
+    # `kubectl exec <operator-pod> -- /app --printDefaults | grep RELOADER`:
+    #   VM_CONFIG_RELOADER_LIMIT_MEMORY   unlimited
+    #   VM_CONFIG_RELOADER_REQUEST_MEMORY 25Mi
+    # That default is why every config-reloader sidecar ran unbounded. Set per-CR rather
+    # than via the global env var: the chart maps operator.* keys to VM_<KEY-WITHOUT-
+    # UNDERSCORES>, which cannot produce VM_CONFIG_RELOADER_LIMIT_MEMORY. Requests repeat
+    # the operator defaults so this block does not silently drop them. 64Mi vs 9Mi measured.
+    configReloaderResources:
+      requests:
+        cpu: 10m
+        memory: 25Mi
+      limits:
+        memory: 64Mi
 
 vmalert:
   enabled: true
@@ -110,6 +141,17 @@ vmalert:
         memory: 128Mi
       limits:
         memory: 256Mi
+    # See the vmagent configReloaderResources note above for why this is per-CR.
+    # Measured 7Mi. NOTE: unlike vmagent, this sidecar IS covered by a VPA container
+    # policy (components/monitoring-vpa/resources/vpa-vmalert.yaml) in the default
+    # RequestsAndLimits mode, so VPA scales this limit with the request instead of
+    # pinning it at 64Mi. The container stays bounded either way, which is the point.
+    configReloaderResources:
+      requests:
+        cpu: 10m
+        memory: 25Mi
+      limits:
+        memory: 64Mi
 
 # spec.secrets mounts the SealedSecret at /etc/vm/secrets/alertmanager-smtp/ (different
 # path from prometheus-operator's Alertmanager at /etc/alertmanager/secrets/...).
@@ -128,6 +170,14 @@ alertmanager:
         memory: 64Mi
       limits:
         memory: 128Mi
+    # See the vmagent configReloaderResources note above. Measured 9Mi. Same VPA caveat
+    # as vmalert: vpa-vmalertmanager.yaml controls this sidecar in RequestsAndLimits mode.
+    configReloaderResources:
+      requests:
+        cpu: 10m
+        memory: 25Mi
+      limits:
+        memory: 64Mi
   config:
     global:
       resolve_timeout: 5m
@@ -220,6 +270,24 @@ grafana:
     requests:
       cpu: 25m
       memory: 384Mi
+    limits:
+      # Pinned by controlledValues: RequestsOnly in components/monitoring-vpa/resources/
+      # vpa-grafana.yaml — edit both together or VPA ratio-preservation moves this ceiling.
+      # MUST be >= the VPA maxAllowed memory (1Gi): maxAllowed caps the REQUEST only, so a
+      # limit below it lets VPA drive request > limit, which the kubelet rejects.
+      # Measured 177Mi for the grafana container alone.
+      memory: 1Gi
+  # One shared key that the chart applies to EVERY sidecar container (_pod.tpl uses
+  # .Values.sidecar.resources for all of them). grafana-sc-dashboard and
+  # grafana-sc-datasources measured 79Mi and 74Mi — they are the larger half of the pod's
+  # 333Mi, not trivial sidecars. 256Mi stays above the 192Mi VPA maxAllowed set for them.
+  sidecar:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
   # Keep off: the Traefik compress middleware owns origin-side compression for all
   # routes; in-process gzip here would be redundant and would no-op that middleware.
   grafana.ini:
@@ -237,6 +305,17 @@ grafana:
 
 kube-state-metrics:
   enabled: true
+  # Same shape as grafana: unbounded memory, and a VPA that was silently free to inflate
+  # any limit. Pinned by controlledValues: RequestsOnly in vpa-kube-state-metrics.yaml.
+  # 512Mi == that VPA's maxAllowed, so VPA can never push the request above the limit.
+  # KSM memory tracks object count, so it grows with the cluster. Measured 77Mi.
+  # No CPU limit, matching every other component here.
+  resources:
+    requests:
+      cpu: 10m
+      memory: 96Mi
+    limits:
+      memory: 512Mi
   # VPA recommendations as custom-resource-state metrics. KSM auto-prefixes
   # kube_customresource_, yielding kube_customresource_vpa_containerrecommendations_*
   # which Grafana dashboard 14588 expects.
@@ -337,6 +416,22 @@ kube-state-metrics:
 
 prometheus-node-exporter:
   enabled: true
+  # The chart ships `resources: {}`, so node-exporter ran with NO request and NO limit.
+  # That makes the pod BestEffort, and it carries no priorityClassName either — so the
+  # kubelet evicts it FIRST under node memory pressure, losing node telemetry exactly
+  # when the node is in trouble. A request alone moves it to Burstable and out of the
+  # front of the eviction queue. Measured 17-25Mi across the three nodes; footprint is
+  # flat (fixed collector set). There is no node-exporter VPA, so both values stay as
+  # declared. The limit is deliberately loose at 128Mi (5x the measured peak): this is
+  # the only change here that ADDS an OOM-kill path where none existed, and node-exporter
+  # is what feeds the node-level alerts — a false kill blinds them. 128Mi is noise
+  # against an 8GB node, so buy the headroom.
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
   # extraArgs REPLACES the chart default list, so the chart's filesystem excludes are
   # repeated here alongside the netstat regex (extended with Ip_FragFails/Ip_ReasmFails —
   # direct MTU-misconfiguration indicators in the VXLAN+WireGuard overlay stack).

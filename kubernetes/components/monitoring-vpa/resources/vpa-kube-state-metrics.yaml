@@ -14,6 +14,10 @@ spec:
   resourcePolicy:
     containerPolicies:
       - containerName: kube-state-metrics
+        # RequestsOnly: pins the 512Mi limit declared in the chart values so ratio
+        # preservation cannot inflate it. maxAllowed below equals that limit, so the
+        # request can never exceed it.
+        controlledValues: RequestsOnly
         minAllowed:
           cpu: 10m
           memory: 64Mi

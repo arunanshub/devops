@@ -14,6 +14,10 @@ spec:
   resourcePolicy:
     containerPolicies:
       - containerName: operator
+        # RequestsOnly: pins the 256Mi limit declared in the chart values so ratio
+        # preservation cannot inflate it. maxAllowed below equals that limit, so the
+        # request can never exceed it.
+        controlledValues: RequestsOnly
         minAllowed:
           cpu: 10m
           memory: 32Mi

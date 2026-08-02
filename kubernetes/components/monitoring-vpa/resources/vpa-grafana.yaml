@@ -14,9 +14,34 @@ spec:
   resourcePolicy:
     containerPolicies:
       - containerName: grafana
+        # RequestsOnly: VPA manages the request only and leaves the limit at the
+        # chart-declared 1Gi, so ratio preservation cannot inflate it. Without this the
+        # limit added in the chart values would be scaled with the request instead of
+        # pinned — the same trap already fixed for traefik and vmsingle.
+        controlledValues: RequestsOnly
         minAllowed:
           cpu: 25m
           memory: 256Mi
         maxAllowed:
           cpu: 500m
           memory: 1Gi
+      # These two sidecars had no container policy, so VPA sized them with no ceiling
+      # while the chart gave them no limit — 79Mi and 74Mi measured, the larger half of
+      # the pod. maxAllowed 192Mi stays below the shared 256Mi sidecar limit, so VPA can
+      # never drive a request above the limit.
+      - containerName: grafana-sc-dashboard
+        controlledValues: RequestsOnly
+        minAllowed:
+          cpu: 10m
+          memory: 64Mi
+        maxAllowed:
+          cpu: 100m
+          memory: 192Mi
+      - containerName: grafana-sc-datasources
+        controlledValues: RequestsOnly
+        minAllowed:
+          cpu: 10m
+          memory: 64Mi
+        maxAllowed:
+          cpu: 100m
+          memory: 192Mi
