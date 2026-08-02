@@ -15,21 +15,53 @@ jobs:
   go:
     name: Go build, test, lint
     runs-on: ubuntu-latest
+    env:
+      GOTESTSUM_VERSION: 1.13.0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         id: setup-go
         with:
           go-version-file: go.mod
+          # The built-in cache cannot express what the build cache needs, so
+          # both Go caches are managed explicitly below. In setup-go v7's
+          # cache-restore.ts the key is an exact match with no restore-keys:
+          #
+          #   const primaryKey = `setup-go-${platform}-${arch}-...-${fileHash}`
+          #   const cacheKey = await cache.restoreCache(cachePaths, primaryKey)
+          #
+          # where fileHash defaults to hashFiles('go.mod'). Actions caches are
+          # immutable, so a hit is never re-saved: ~/.cache/go-build freezes at
+          # whatever the first run after a go.mod change produced, and every
+          # later run recompiles cold — 45s in `go build`, plus 70s inside
+          # `go test -race` before the first test ran. cache-dependency-path
+          # only changes which file is hashed; without restore-keys a changed
+          # key is a total miss, so it cannot fix this either.
+          cache: false
 
-      - name: Check go.mod is tidy
-        run: go mod tidy -diff
+      # go.sum is the correct key for module downloads: the contents are
+      # pinned by it, so an immutable entry is never stale.
+      - name: Cache Go modules
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-mod-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-
 
-      - name: Build
-        run: go build ./...
-
-      - name: Test
-        run: go test -race ./...
+      # Compiled objects, in contrast, must roll forward: they change on every
+      # source edit, so the key carries the SHA and the restore-keys prefix
+      # picks up the newest prior entry. Restore and save are split so only
+      # master pushes write an entry — a ~290MB entry per PR commit would
+      # thrash the 10GB per-repo cache budget and evict the useful ones.
+      - name: Restore Go build cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: go-build-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-build-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ hashFiles('go.sum') }}-
+            go-build-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-
 
       # The linter is a custom golangci-lint build with the nilaway plugin
       # (see .custom-gcl.yaml) — same binary lefthook uses locally. The Go
@@ -43,6 +75,9 @@ jobs:
           path: custom-gcl
           key: custom-gcl-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ hashFiles('.custom-gcl.yaml') }}
 
+      # Kept out of the parallel group below: on a miss this is a full compile
+      # that wants all four cores to itself, and it is rare enough that the
+      # serialization costs nothing on the normal path.
       - name: Build custom golangci-lint
         if: steps.cache-gcl.outputs.cache-hit != 'true'
         run: |
@@ -59,22 +94,6 @@ jobs:
           restore-keys: |
             gcl-analysis-${{ runner.os }}-${{ hashFiles('go.sum', '.golangci.yaml') }}-
 
-      - name: Check formatting
-        run: ./custom-gcl fmt --diff
-
-      - name: Lint
-        run: ./custom-gcl run ./...
-
-      # Guards the helmfile→ArgoCD adoption invariant (chart version,
-      # releaseName, rendered values). See CLAUDE.md "Helmfile→ArgoCD adoption".
-      - name: Verify helmfile→ArgoCD adoption invariant
-        env:
-          # Must match the K8S_API_ENDPOINT exported by the Justfile.
-          K8S_API_ENDPOINT: "10.0.0.100"
-          # Rendered but excluded from comparison (bootstrap-only overlay).
-          ARGOCD_ADMIN_PASSWORD_HASH: "ci-placeholder"
-        run: go run ./cmd/opsctl verify-adoption
-
       # Validates nodes/ config keys against the REAL flag schemas of the
       # pinned k3s and kubelet binaries — an invalid key crash-loops k3s at
       # runtime and is invisible to YAML-level checks.
@@ -84,8 +103,58 @@ jobs:
           path: ~/.cache/opsctl
           key: schema-binaries-${{ runner.os }}-${{ hashFiles('infra/locals.tf') }}
 
-      - name: Verify node config against k3s/kubelet schemas
-        run: go run ./cmd/opsctl verify-node-config
+      # Four independent read-only checks over the same warm build cache. The
+      # cache restores above stay serial and outside this group on purpose:
+      # whether a JS action's post-step (the cache *save*) registers correctly
+      # from inside a parallel group is undocumented, and a silently dropped
+      # save would reintroduce the cold-cache bug this file just fixed.
+      - parallel:
+          - name: Check go.mod is tidy
+            run: go mod tidy -diff
+
+          # gotestsum wraps `go test -json`; the github-actions format adds
+          # per-package log grouping and puts failures at the top of the
+          # summary instead of buried in the scroll.
+          #
+          # -count=1 disables Go's *test result* cache, which lives in the same
+          # GOCACHE the build cache above restores. Without it, a run whose Go
+          # inputs are unchanged replays "ok ... (cached)" and never executes a
+          # test. Go considers that sound, but CI should prove the tests pass
+          # on this commit, and cached results hide flakes. Compiled objects
+          # are still reused, so this costs seconds, not minutes.
+          - name: Test
+            run: |
+              curl -sSL "https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_VERSION}/gotestsum_${GOTESTSUM_VERSION}_linux_amd64.tar.gz" \
+                | tar -xz -C "$RUNNER_TEMP" gotestsum
+              "$RUNNER_TEMP/gotestsum" --format github-actions -- -race -count=1 ./...
+
+          # Guards the helmfile→ArgoCD adoption invariant (chart version,
+          # releaseName, rendered values). See CLAUDE.md "Helmfile→ArgoCD
+          # adoption". Built once and run twice — two `go run` invocations
+          # would link the binary twice.
+          - name: Build and verify invariants
+            env:
+              # Must match the K8S_API_ENDPOINT exported by the Justfile.
+              K8S_API_ENDPOINT: "10.0.0.100"
+              # Rendered but excluded from comparison (bootstrap-only overlay).
+              ARGOCD_ADMIN_PASSWORD_HASH: "ci-placeholder"
+            run: |
+              go build ./...
+              go build -o "$RUNNER_TEMP/opsctl" ./cmd/opsctl
+              "$RUNNER_TEMP/opsctl" verify-adoption
+              "$RUNNER_TEMP/opsctl" verify-node-config
+
+          - name: Format and lint
+            run: |
+              ./custom-gcl fmt --diff
+              ./custom-gcl run ./...
+
+      - name: Save Go build cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: go-build-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
 
   kubernetes:
     name: Kustomize render + kubeconform
@@ -96,14 +165,19 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install kustomize and kubeconform
-        run: |
-          curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
-            | sudo tar -C /usr/local/bin -xz kustomize
-          curl -sSL "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
-            | sudo tar -C /usr/local/bin -xz kubeconform
+      - parallel:
+          - name: Install kustomize
+            run: |
+              curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
+                | sudo tar -C /usr/local/bin -xz kustomize
 
-      # Mirrors the lefthook kustomize-validate hook exactly.
+          - name: Install kubeconform
+            run: |
+              curl -sSL "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+                | sudo tar -C /usr/local/bin -xz kubeconform
+
+      # Mirrors the lefthook kustomize-validate hook exactly. Keep the two in
+      # sync: a check that only runs locally is a check that stops running.
       - name: Validate rendered manifests
         run: >
           kustomize build kubernetes/overlays/prod | kubeconform --strict --ignore-missing-schemas --summary --schema-location default --schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
@@ -117,11 +191,22 @@ jobs:
         with:
           tofu_version: 1.12.4
 
-      - name: Check formatting
-        run: tofu -chdir=infra fmt -check -recursive
+      # Provider plugins are the only slow part of `init`; the lock file pins
+      # exactly which ones are downloaded, so it is the whole key.
+      - name: Cache OpenTofu providers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: infra/.terraform
+          key: tofu-providers-${{ runner.os }}-${{ hashFiles('infra/.terraform.lock.hcl') }}
 
-      - name: Init (no backend, no state)
-        run: tofu -chdir=infra init -backend=false
+      # fmt reads the source and needs no providers, so it overlaps with the
+      # download. validate needs the schemas and follows the group.
+      - parallel:
+          - name: Check formatting
+            run: tofu -chdir=infra fmt -check -recursive
+
+          - name: Init (no backend, no state)
+            run: tofu -chdir=infra init -backend=false
 
       - name: Validate
         run: tofu -chdir=infra validate
@@ -129,37 +214,37 @@ jobs:
   hygiene:
     name: yamlfmt, shellcheck, just fmt
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.mod
-
-      - name: yamlfmt lint
-        run: |
-          go install github.com/google/yamlfmt/cmd/yamlfmt@v0.21.0
-          yamlfmt -lint
-
+    env:
+      YAMLFMT_VERSION: 0.21.0
       # Pinned to the devbox version — the runner's preinstalled shellcheck is
       # older and emits SC2317 false-positives on trap-invoked cleanup code.
-      - name: Install shellcheck
-        env:
-          SHELLCHECK_VERSION: v0.11.0
-        run: |
-          curl -sSL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
-            | tar -xJ --strip-components=1 -C /tmp "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
-          sudo mv /tmp/shellcheck /usr/local/bin/shellcheck
-          shellcheck --version
-
-      - name: shellcheck
-        run: >
-          git ls-files '*.sh' '*.bash' '*.sh.tpl' '*.bash.tpl' | xargs -r shellcheck --enable=all --severity=style
-
+      SHELLCHECK_VERSION: v0.11.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
         with:
           just-version: "1.56.0"
-      - name: Check Justfile formatting
-        run: just --fmt --check --unstable
+
+      # Each check fetches its own pinned binary, so all three overlap. yamlfmt
+      # comes from the release tarball rather than `go install`, which is both
+      # faster and removes the only reason this job needed a Go toolchain.
+      - parallel:
+          - name: yamlfmt lint
+            run: |
+              curl -sSL "https://github.com/google/yamlfmt/releases/download/v${YAMLFMT_VERSION}/yamlfmt_${YAMLFMT_VERSION}_Linux_x86_64.tar.gz" \
+                | tar -xz -C "$RUNNER_TEMP" yamlfmt
+              "$RUNNER_TEMP/yamlfmt" -lint
+
+          - name: shellcheck
+            run: |
+              curl -sSL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
+                | tar -xJ --strip-components=1 -C "$RUNNER_TEMP" "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+              "$RUNNER_TEMP/shellcheck" --version
+              git ls-files '*.sh' '*.bash' '*.sh.tpl' '*.bash.tpl' \
+                | xargs -r "$RUNNER_TEMP/shellcheck" --enable=all --severity=style
+
+          - name: Check Justfile formatting
+            run: just --fmt --check --unstable
 
   gitleaks:
     name: Secret scan
