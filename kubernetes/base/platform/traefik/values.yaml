@@ -37,8 +37,22 @@ ingressClass:
 gateway:
   listeners:
     web:
+      # Route publication is an edge-security boundary. Restrict this shared
+      # listener to the namespaces that already own its accepted HTTPRoutes;
+      # `kubernetes.io/metadata.name` is an immutable label on every Namespace.
       namespacePolicy:
-        from: All
+        from: Selector
+        selector:
+          matchExpressions:
+            - key: kubernetes.io/metadata.name
+              operator: In
+              values:
+                - arunanshu-dev
+                - argocd
+                - headlamp
+                - kube-system
+                - monitoring
+                - traefik
 
 service:
   spec:
@@ -61,6 +75,12 @@ ports:
       lifeCycle:
         requestAcceptGraceTimeout: "5s"
         graceTimeOut: "50s"
+  # No Gateway listener, tunnel origin, or Cilium allow rule uses HTTPS on
+  # :8443. Keep the chart's listener default but do not publish dead Service
+  # port 443 inside the cluster.
+  websecure:
+    expose:
+      default: false
 
 # Buffered, error-only JSON access logs make 4xx/5xx requests available in Loki
 # with low steady-state log volume. Chart 41 uses the upstream accessLog syntax.

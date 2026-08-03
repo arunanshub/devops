@@ -6,4 +6,3 @@ resources:
   - vpa-hubble-ui.yaml
   - vpa-cilium-operator.yaml
   - vpa-cilium.yaml
-  - vpa-cilium-envoy.yaml

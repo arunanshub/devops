@@ -83,11 +83,11 @@ operator:
   prometheus:
     enabled: true
 
+# Traefik owns Gateway routing. No desired Cilium policy uses L7/DNS/FQDN
+# enforcement or CiliumEnvoyConfig, so the chart's otherwise-default standalone
+# Envoy DaemonSet has no consumer. Re-enable before adding any of those features.
 envoy:
-  resources:
-    requests:
-      cpu: 25m
-      memory: 100Mi
+  enabled: false
 
 # Metrics exposure only; ServiceMonitor is ArgoCD-side (CRD absent at bootstrap).
 prometheus:
