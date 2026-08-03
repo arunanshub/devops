@@ -116,8 +116,21 @@ mixed_source_rules="$(
     "${network_policy}"
 )"
 assert_equal "0" "${mixed_source_rules}"
-egress_present="$(yq -r '.spec | has("egress")' "${network_policy}")"
-assert_equal "false" "${egress_present}"
+api_server_egress_port="$(
+  yq -r '.spec.egress[] |
+    select(.toEntities[]? == "kube-apiserver") |
+    .toPorts[].ports[] |
+    select(.port == "6443" and .protocol == "TCP") | .port' \
+    "${network_policy}"
+)"
+assert_equal "6443" "${api_server_egress_port}"
+api_load_balancer_cidr_rules="$(
+  yq '[.spec.egress[] |
+    select(.toCIDR[]? == "10.0.0.100/32") |
+    select(.toPorts[].ports[]? | .port == "6443" and .protocol == "TCP")] |
+    length' "${network_policy}"
+)"
+assert_equal "0" "${api_load_balancer_cidr_rules}"
 
 argocd_values_json="$(yq -o=json '.' "${argocd_values}")"
 argocd_bootstrap_values_json="$(yq -o=json '.' "${argocd_bootstrap_values}")"

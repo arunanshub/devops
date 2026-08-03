@@ -56,10 +56,11 @@ spec:
             - port: "9100"
               protocol: TCP
   egress:
-    # Kubernetes API — required by the Gateway/CRD providers. This is the
-    # private API load balancer configured for Cilium's kube-proxy replacement.
-    - toCIDR:
-        - 10.0.0.100/32
+    # Kubernetes API — required by the Gateway/CRD providers. Cilium's service
+    # load balancing redirects the Service VIP to API backends, so match the
+    # kube-apiserver identity rather than the private load-balancer IP.
+    - toEntities:
+        - kube-apiserver
       toPorts:
         - ports:
             - port: "6443"
