@@ -198,11 +198,13 @@ bpf:
 
 Cilium was running a metrics endpoint but Prometheus had no ServiceMonitor to discover it. We added `prometheus.serviceMonitor.enabled: true` and `operator.prometheus.serviceMonitor.enabled: true`, plus five Hubble metric families:
 
-- **`drop`** — `hubble_drop_total` labelled by reason and direction. The most important one. This surfaces silent eBPF-level drops before they become user-visible.
+- **`drop` with context labels** — `hubble_drop_total` includes source and destination namespace, workload, and IP plus traffic direction. Alerts identify the denied path without requiring a live Hubble query. The IP labels add series only for observed drops, which is acceptable at this cluster's scale.
 - **`tcp`** — TCP connection state machine counters.
 - **`flow:sourceContext=namespace;destinationContext=namespace`** — cross-namespace traffic matrix. Namespace-level (not pod-level) to keep Prometheus label cardinality manageable.
 - **`icmp`** — ICMP stats, including "Fragmentation Needed" responses if PMTUD fires.
 - **`dns:query;ignoreAAAA`** — DNS query counts per name, minus AAAA noise.
+
+Changes to the static Hubble metric list require an agent restart. Restart one Cilium pod at a time and wait for it to become ready before moving to the next node. The DaemonSet does not carry a ConfigMap checksum annotation, and a bulk restart would create avoidable datapath risk.
 
 ---
 

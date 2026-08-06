@@ -33,8 +33,8 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "Cilium eBPF datapath drops on {{ $labels.node }}"
-            description: "{{ $value }} eBPF drops in 5m on {{ $labels.node }}. Reason: {{ $labels.reason }}, direction: {{ $labels.direction }}. Run: hubble observe --verdict DROPPED --follow"
+            summary: "Cilium {{ $labels.reason }}: {{ $labels.source_namespace }}/{{ $labels.source_workload }} ({{ $labels.source_ip }}) -> {{ $labels.destination_namespace }}/{{ $labels.destination_workload }} ({{ $labels.destination_ip }})"
+            description: "{{ $value }} eBPF drops in 5m on {{ $labels.node }}. Source: namespace={{ $labels.source_namespace }}, workload={{ $labels.source_workload }}, IP={{ $labels.source_ip }}. Destination: namespace={{ $labels.destination_namespace }}, workload={{ $labels.destination_workload }}, IP={{ $labels.destination_ip }}. Reason={{ $labels.reason }}, protocol={{ $labels.protocol }}, direction={{ $labels.traffic_direction }}."
 
         # cilium-health marks a node unreachable when ICMP and HTTP probes both
         # fail. Primary cause: WireGuard session failed to establish after idle

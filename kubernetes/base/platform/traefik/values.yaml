@@ -1,3 +1,9 @@
+global:
+  # Renovate and GitOps own upgrades. Disable Traefik's daily outbound version
+  # check so the enforced egress policy does not generate expected drops.
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
 ingressRoute:
   dashboard:
     enabled: true

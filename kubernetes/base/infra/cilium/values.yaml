@@ -148,11 +148,11 @@ hubble:
     auto:
       method: cronJob
   metrics:
-    # Drop visibility is the most important: surfaces MTU issues, policy
-    # violations, and any other silent packet loss via hubble_drop_total.
-    # Flow uses namespace-level context to keep cardinality manageable.
+    # Drop visibility includes endpoint context so alerts identify the denied
+    # path. Only dropped flows create these IP-labelled series. Flow uses
+    # namespace-level context to keep its higher-volume cardinality manageable.
     enabled:
-      - drop
+      - "drop:labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction"
       - tcp
       - "flow:sourceContext=namespace;destinationContext=namespace"
       - icmp

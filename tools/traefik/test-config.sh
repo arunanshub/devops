@@ -72,6 +72,22 @@ active_request_grace_count="$(
     length' <<<"${deployment}"
 )"
 assert_equal "1" "${active_request_grace_count}"
+version_check_disabled_count="$(
+  yq '[.spec.template.spec.containers[] |
+    select(.name == "traefik") |
+    .args[] |
+    select(. == "--global.checkNewVersion=false")] |
+    length' <<<"${deployment}"
+)"
+assert_equal "1" "${version_check_disabled_count}"
+anonymous_usage_enabled_count="$(
+  yq '[.spec.template.spec.containers[] |
+    select(.name == "traefik") |
+    .args[] |
+    select(. == "--global.sendAnonymousUsage")] |
+    length' <<<"${deployment}"
+)"
+assert_equal "0" "${anonymous_usage_enabled_count}"
 
 grep -q -- '--accesslog=true' <<<"${rendered}"
 grep -q -- '--accesslog.format=json' <<<"${rendered}"

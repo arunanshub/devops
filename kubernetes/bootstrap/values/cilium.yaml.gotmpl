@@ -124,7 +124,7 @@ hubble:
   # opsctl verify-adoption).
   metrics:
     enabled:
-      - drop
+      - "drop:labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction"
       - tcp
       - "flow:sourceContext=namespace;destinationContext=namespace"
       - icmp
