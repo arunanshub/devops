@@ -2,6 +2,7 @@ package nodecfg
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -116,7 +117,7 @@ func VerifyKubeletConfig(declared []string, configz []byte) ([]Finding, error) {
 		return nil, fmt.Errorf("parse configz: %w", err)
 	}
 	if doc.KubeletConfig == nil {
-		return nil, fmt.Errorf("configz has no kubeletconfig document")
+		return nil, errors.New("configz has no kubeletconfig document")
 	}
 
 	var findings []Finding

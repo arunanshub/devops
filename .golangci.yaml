@@ -36,6 +36,11 @@ linters:
     - containedctx
     - musttag
 
+    # API and protobuf correctness.
+    - protogetter
+    - canonicalheader
+    - nosprintfhostport
+
     # Security.
     - gosec
 
@@ -49,6 +54,23 @@ linters:
     - exptostd
     - usestdlibvars
     - godot
+    - perfsprint
+    - mirror
+    - unparam
+    - predeclared
+    - errname
+    - dupword
+    - misspell
+    - goconst
+    - prealloc
+    - gocheckcompilerdirectives
+    - asciicheck
+
+    # Layout and ordering.
+    - whitespace
+    - tagalign
+    - funcorder
+    - embeddedstructfieldcheck
 
     # Deliberate project policy.
     - nilnil
@@ -57,8 +79,6 @@ linters:
 
     # Agent containment.
     - nolintlint
-    # - depguard
-    # - forbidigo
     - loggercheck
     - sloglint
 
@@ -66,11 +86,10 @@ linters:
     - usetesting
     - thelper
     - tparallel
+    - testifylint
 
-    # code quality
+    # Code quality.
     - gocognit
-    # - nestif
-    # - funlen
     - cyclop
     - maintidx
     - lll
@@ -110,6 +129,12 @@ linters:
     gosec:
       excludes:
         - G104
+
+    goconst:
+      ignore-tests: true
+
+    exhaustive:
+      default-signifies-exhaustive: true
 
     gocritic:
       enabled-tags:
@@ -157,10 +182,16 @@ formatters:
   enable:
     - gofumpt
     - gci
+    - golines
 
   settings:
+    golines:
+      # Auto-wrap long lines to the lll limit. Measured to clear ~897 of the
+      # lll hits repo-wide; the rest are struct tags, strings and comments it
+      # cannot wrap, and those get wrapped or excluded by hand.
+      max-len: 120
     gci:
       sections:
         - standard
         - default
-        - prefix(github.com/arunanshub/devops)
+        - localmodule

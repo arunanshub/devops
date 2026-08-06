@@ -159,6 +159,6 @@ func valuesDrift(
 	}
 	return []Finding{{
 		Release: pair.Release,
-		Problem: fmt.Sprintf("values drift (-bootstrap +argocd):\n%s", diff),
+		Problem: "values drift (-bootstrap +argocd):\n" + diff,
 	}}, nil
 }

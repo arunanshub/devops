@@ -60,7 +60,15 @@ func TestTraefikNetworkPolicyDoesNotPinKubernetesAPIToLoadBalancerIP(t *testing.
 func readTraefikNetworkPolicy(t *testing.T) ciliumNetworkPolicy {
 	t.Helper()
 
-	path := filepath.Join("..", "..", "kubernetes", "components", "network-policies", "resources", "traefik-netpol.yaml")
+	path := filepath.Join(
+		"..",
+		"..",
+		"kubernetes",
+		"components",
+		"network-policies",
+		"resources",
+		"traefik-netpol.yaml",
+	)
 	raw, err := os.ReadFile(path)
 	require.NoError(t, err, "read Traefik network policy")
 

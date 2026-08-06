@@ -47,7 +47,7 @@ var adoptedReleases = []adoption.Pair{
 // rendered values — the invariants that make adoption a no-op diff under
 // ServerSideApply (see CLAUDE.md "Helmfile→ArgoCD adoption").
 type verifyAdoptionCmd struct {
-	RepoRoot string `default:"." type:"existingdir" help:"Repository root all paths resolve against."`
+	RepoRoot string `default:"."                                  help:"Repository root all paths resolve against." type:"existingdir"`
 	Helmfile string `default:"kubernetes/bootstrap/helmfile.yaml" help:"Repo-relative bootstrap helmfile path."`
 }
 
