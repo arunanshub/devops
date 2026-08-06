@@ -18,9 +18,9 @@ import (
 // getVPACmd lists VPAs whose updateMode differs from the expected one —
 // useful for spotting VPAs that were never switched to in-place resizing.
 type getVPACmd struct {
-	Kubeconfig string        `env:"KUBECONFIG" help:"Path to kubeconfig."                           required:"" type:"existingfile"`
-	ExpectMode string        `                 help:"List VPAs whose updateMode differs from this."                                 default:"InPlaceOrRecreate"`
-	Timeout    time.Duration `                 help:"Overall timeout."                                                              default:"30s"`
+	Kubeconfig string        `env:"KUBECONFIG"            help:"Path to kubeconfig."                           required:"" type:"existingfile"`
+	ExpectMode string        `default:"InPlaceOrRecreate" help:"List VPAs whose updateMode differs from this."`
+	Timeout    time.Duration `default:"30s"               help:"Overall timeout."`
 }
 
 func (c *getVPACmd) Run(ctx context.Context) error {

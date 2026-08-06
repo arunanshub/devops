@@ -27,12 +27,12 @@ type clusterCmd struct {
 // exists — after that point ArgoCD owns the cluster and re-running helmfile
 // fights it for resource ownership.
 type clusterBootstrapCmd struct {
-	RepoRoot    string `default:"."                     help:"Repository root."                                       type:"existingdir"`
-	Kubeconfig  string `default:"infra/kubeconfig.yaml" help:"Kubeconfig path (written by tofu-apply)."                                  env:"KUBECONFIG"`
-	APIEndpoint string `default:"10.0.0.100"            help:"In-cluster API endpoint (the private API LB IP)."                          env:"K8S_API_ENDPOINT"`
-	DryRun      bool   `                                help:"Print the steps and commands without executing."`
-	FromStep    string `                                help:"Resume from a named step after a mid-sequence failure."`
-	ListSteps   bool   `                                help:"List step names and exit."`
+	RepoRoot    string `default:"."                                                   help:"Repository root." type:"existingdir"`
+	Kubeconfig  string `default:"infra/kubeconfig.yaml"                               env:"KUBECONFIG"        help:"Kubeconfig path (written by tofu-apply)."`
+	APIEndpoint string `default:"10.0.0.100"                                          env:"K8S_API_ENDPOINT"  help:"In-cluster API endpoint (the private API LB IP)."`
+	DryRun      bool   `help:"Print the steps and commands without executing."`
+	FromStep    string `help:"Resume from a named step after a mid-sequence failure."`
+	ListSteps   bool   `help:"List step names and exit."`
 }
 
 func (c *clusterBootstrapCmd) Run(ctx context.Context) error {
@@ -73,11 +73,11 @@ func (c *clusterBootstrapCmd) Run(ctx context.Context) error {
 // the helmfile→ArgoCD adoption invariant, and (optionally) the live MTU
 // verification (which creates two short-lived test pods).
 type clusterVerifyCmd struct {
-	RepoRoot   string        `default:"."                                  help:"Repository root."                                  type:"existingdir"`
-	Kubeconfig string        `                                             help:"Path to kubeconfig."                               type:"existingfile" env:"KUBECONFIG" required:""`
-	Helmfile   string        `default:"kubernetes/bootstrap/helmfile.yaml" help:"Bootstrap helmfile path."`
-	SkipMTU    bool          `                                             help:"Skip the MTU verification (no test pods created)."`
-	Timeout    time.Duration `default:"10m"                                help:"Overall timeout."`
+	RepoRoot   string        `default:"."                                              help:"Repository root."         type:"existingdir"`
+	Kubeconfig string        `env:"KUBECONFIG"                                         help:"Path to kubeconfig."      required:""        type:"existingfile"`
+	Helmfile   string        `default:"kubernetes/bootstrap/helmfile.yaml"             help:"Bootstrap helmfile path."`
+	SkipMTU    bool          `help:"Skip the MTU verification (no test pods created)."`
+	Timeout    time.Duration `default:"10m"                                            help:"Overall timeout."`
 }
 
 func (c *clusterVerifyCmd) Run(ctx context.Context) error {

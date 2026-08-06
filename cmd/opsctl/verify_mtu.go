@@ -15,16 +15,16 @@ import (
 // or any Cilium config change. The expected values are documented on the
 // flags and in docs/cilium-mtu-overlay-networking.md.
 type verifyMTUCmd struct {
-	Kubeconfig     string        `env:"KUBECONFIG" help:"Path to kubeconfig."                                                                                     required:"" type:"existingfile"`
-	Namespace      string        `                 help:"Namespace for the throwaway test pods."                                                                                                  default:"default"`
-	Image          string        `                 help:"Image for the test pods; must ship ping and ip."                                                                                         default:"busybox:1.36"`
-	ExpectedWgMTU  int           `                 help:"cilium_wg0 MTU: enp7s0 1450 - WireGuard IPv6 overhead 95 (Cilium >= 1.20.0-pre.3; 80/1370 on <= pre.2)."                                 default:"1355"`
-	ExpectedPodMTU int           `                 help:"Pod eth0 MTU (Cilium uses the native device MTU)."                                                                                       default:"1450"`
-	CeilingPayload int           `                 help:"ICMP payload at the VXLAN+WG path ceiling: overlay clamp 1305 - 28 header - 1 slack."                                                    default:"1276"`
-	PassPayload    int           `                 help:"ICMP payload comfortably below the ceiling."                                                                                             default:"1200"`
-	MinQuicMTU     int           `                 help:"Minimum acceptable cloudflared quic_client_mtu (expected ~1344 at pod MTU 1450)."                                                        default:"1300"`
-	ReadyTimeout   time.Duration `                 help:"How long the test pods may take to become Ready."                                                                                        default:"90s"`
-	Timeout        time.Duration `                 help:"Overall timeout."                                                                                                                        default:"5m"`
+	Kubeconfig     string        `env:"KUBECONFIG"       help:"Path to kubeconfig."                                                                                     required:"" type:"existingfile"`
+	Namespace      string        `default:"default"      help:"Namespace for the throwaway test pods."`
+	Image          string        `default:"busybox:1.36" help:"Image for the test pods; must ship ping and ip."`
+	ExpectedWgMTU  int           `default:"1355"         help:"cilium_wg0 MTU: enp7s0 1450 - WireGuard IPv6 overhead 95 (Cilium >= 1.20.0-pre.3; 80/1370 on <= pre.2)."`
+	ExpectedPodMTU int           `default:"1450"         help:"Pod eth0 MTU (Cilium uses the native device MTU)."`
+	CeilingPayload int           `default:"1276"         help:"ICMP payload at the VXLAN+WG path ceiling: overlay clamp 1305 - 28 header - 1 slack."`
+	PassPayload    int           `default:"1200"         help:"ICMP payload comfortably below the ceiling."`
+	MinQuicMTU     int           `default:"1300"         help:"Minimum acceptable cloudflared quic_client_mtu (expected ~1344 at pod MTU 1450)."`
+	ReadyTimeout   time.Duration `default:"90s"          help:"How long the test pods may take to become Ready."`
+	Timeout        time.Duration `default:"5m"           help:"Overall timeout."`
 }
 
 func (c *verifyMTUCmd) Run(ctx context.Context) error {

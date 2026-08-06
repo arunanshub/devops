@@ -18,10 +18,10 @@ import (
 // every YAML-level check — this is the plan-time schema validation the
 // node-config layer otherwise lacks.
 type verifyNodeConfigCmd struct {
-	Dir        string `default:"nodes"           help:"Root of the declarative node config tree."                      type:"existingdir"`
-	LocalsPath string `default:"infra/locals.tf" help:"File carrying the k3s_version pin."`
-	K3sVersion string `                          help:"Override the k3s version (default: parsed from --locals-path)."`
-	CacheDir   string `                          help:"Binary cache directory (default: ~/.cache/opsctl)."`
+	Dir        string `default:"nodes"                                                       help:"Root of the declarative node config tree." type:"existingdir"`
+	LocalsPath string `default:"infra/locals.tf"                                             help:"File carrying the k3s_version pin."`
+	K3sVersion string `help:"Override the k3s version (default: parsed from --locals-path)."`
+	CacheDir   string `help:"Binary cache directory (default: ~/.cache/opsctl)."`
 }
 
 func (c *verifyNodeConfigCmd) Run(ctx context.Context) error {

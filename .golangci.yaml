@@ -190,6 +190,8 @@ formatters:
       # lll hits repo-wide; the rest are struct tags, strings and comments it
       # cannot wrap, and those get wrapped or excluded by hand.
       max-len: 120
+      # tagalign owns struct-tag alignment. Keep golines from undoing its fix.
+      reformat-tags: false
     gci:
       sections:
         - standard
