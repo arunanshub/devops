@@ -159,19 +159,26 @@
             prefix: cilium-wireguard-capture-
           register: wireguard_remote_capture
 
-        - name: Enable WireGuard dynamic debug
-          ansible.builtin.shell: "printf '%s\\n' 'module wireguard +p' > /sys/kernel/debug/dynamic_debug/control"
-          args:
-            executable: /bin/bash
-          register: wireguard_debug_enable
-          changed_when: true
-
-        - name: Start one-second interface counter sampler
+        - name: Start bounded WireGuard debug and interface counter sampler
           ansible.builtin.shell: |
             set -euo pipefail
             capture_dir={{ wireguard_remote_capture.path | quote }}
+            capture_started={{ wireguard_capture_started.stdout | quote }}
+            unmount_debugfs={{ (wireguard_debugfs_before.rc == 1) | ternary('true', 'false') }}
+            cleanup() {
+              printf '%s\n' 'module wireguard -p' > /sys/kernel/debug/dynamic_debug/control || true
+              journalctl --dmesg --since "${capture_started}" --no-pager \
+                | grep -i wireguard > "${capture_dir}/kernel-wireguard.log" || true
+              ip -s -d link show cilium_wg0 > "${capture_dir}/link-after.txt" || true
+              rm -f "${capture_dir}/sampler.pid"
+              if [[ "${unmount_debugfs}" == "true" ]]; then
+                umount /sys/kernel/debug || true
+              fi
+            }
+            trap cleanup EXIT
             printf '%s\n' "$$" > "${capture_dir}/sampler.pid"
             printf 'timestamp_utc\ttx_packets\ttx_dropped\ttx_errors\n' > "${capture_dir}/counters.tsv"
+            printf '%s\n' 'module wireguard +p' > /sys/kernel/debug/dynamic_debug/control
             end=$((SECONDS + {{ wireguard_capture_duration | int }}))
             while (( SECONDS < end )); do
               printf '%s\t%s\t%s\t%s\n' \
@@ -184,7 +191,7 @@
             done
           args:
             executable: /bin/bash
-          async: "{{ wireguard_capture_duration | int + 60 }}"
+          async: "{{ wireguard_capture_duration | int + 120 }}"
           poll: 0
           register: wireguard_sampler_job
 
@@ -215,26 +222,6 @@
           until: wireguard_sampler_result.finished
           retries: "{{ (wireguard_capture_duration | int / 5) | round(0, 'ceil') | int + 12 }}"
           delay: 5
-
-        - name: Capture kernel WireGuard messages
-          ansible.builtin.shell: |
-            set -o pipefail
-            journalctl --dmesg --since {{ wireguard_capture_started.stdout | quote }} --no-pager \
-              | grep -i wireguard > {{ (wireguard_remote_capture.path + '/kernel-wireguard.log') | quote }} || true
-          args:
-            executable: /bin/bash
-          changed_when: false
-
-        - name: Capture final interface state
-          ansible.builtin.command: ip -s -d link show cilium_wg0
-          register: wireguard_link_after
-          changed_when: false
-
-        - name: Save final interface state remotely
-          ansible.builtin.copy:
-            dest: "{{ wireguard_remote_capture.path }}/link-after.txt"
-            content: "{{ wireguard_link_after.stdout }}\n"
-            mode: "0600"
 
         - name: Fetch remote capture files
           ansible.builtin.fetch:
@@ -292,7 +279,7 @@
           ansible.builtin.shell: "printf '%s\\n' 'module wireguard -p' > /sys/kernel/debug/dynamic_debug/control"
           args:
             executable: /bin/bash
-          when: wireguard_debug_enable is defined and wireguard_debug_enable is changed
+          when: wireguard_sampler_job is defined
           changed_when: true
           failed_when: false
 
@@ -300,7 +287,9 @@
           ansible.builtin.shell: |
             pid_file={{ (wireguard_remote_capture.path + '/sampler.pid') | quote }}
             if [[ -f "${pid_file}" ]]; then
-              kill "$(cat "${pid_file}")" 2>/dev/null || true
+              sampler_pid="$(cat "${pid_file}")"
+              kill "${sampler_pid}" 2>/dev/null || true
+              timeout 10s tail --pid="${sampler_pid}" --follow=/dev/null || true
             fi
           args:
             executable: /bin/bash

@@ -103,6 +103,8 @@ func TestWireGuardDiagnosticPlaybookHasBoundedCleanup(t *testing.T) {
 		"wireguard_capture_duration | int <= 1800",
 		"module wireguard +p",
 		"module wireguard -p",
+		"trap cleanup EXIT",
+		"wireguard_sampler_job is defined",
 		"/sys/class/net/cilium_wg0/statistics/tx_dropped",
 		"always:",
 		".artifacts/wireguard",
