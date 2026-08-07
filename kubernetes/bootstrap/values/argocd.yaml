@@ -39,6 +39,24 @@ repoServer:
       memory: 192Mi
     limits:
       memory: 1Gi
+  # Prefer the application-controller's node. The controller polls the
+  # repo-server with large gRPC responses. On 2026-08-03 a chart-update
+  # rollout spread the three components across three nodes. The extra
+  # cross-node bursts overflowed the WireGuard staged queue (128 packets)
+  # and raised cilium_wg0 tx_dropped. Co-location keeps this traffic on
+  # one node. Soft rule: scheduling never blocks if the node is full.
+  # This replaces the chart's default anti-affinity preset, which only
+  # separates replicas of the same component (a no-op at 1 replica).
+  # See docs/2026-08-07-cilium-wireguard-tx-drops-research.md.
+  affinity:
+    podAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-application-controller
+            topologyKey: kubernetes.io/hostname
 
 redis:
   resources:
@@ -47,6 +65,16 @@ redis:
       memory: 64Mi
     limits:
       memory: 256Mi
+  # Same co-location rule as the repo-server (see comment above).
+  affinity:
+    podAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-application-controller
+            topologyKey: kubernetes.io/hostname
 
 # Disabled: dex is unconfigured (no SSO/OIDC/connectors — logs "dex is not
 # configured"). Auth is admin-only local login. Re-enable if SSO is added.

@@ -1,5 +1,84 @@
 # Cilium WireGuard transmit-drop investigation
 
+## Root cause and fix (added 2026-08-08)
+
+The investigation is closed. The cause is a workload placement change, not a
+Cilium or kernel fault.
+
+### What happens in the kernel
+
+The Linux WireGuard driver stages every outgoing packet in a per-peer queue.
+This happens on every send, also when a valid key exists. The queue holds 128
+packets. The sender drains the queue immediately after it adds packets. Many
+CPUs can add packets to the same peer queue at the same time. When more than
+128 packets sit in the queue between an add and a drain, the driver removes
+the oldest packets and counts each one in `tx_dropped`. A GSO send of 64 KB
+becomes about 48 segments at the 1355-byte WireGuard MTU. Three concurrent
+large sends to one peer can exceed the 128-packet limit. A key gap is not
+required. Source: `wg_xmit()` in Linux v6.8
+`drivers/net/wireguard/device.c` (verified 2026-08-08).
+
+### Evidence from the 2026-08-07 capture
+
+- Drops occur only in seconds with a traffic burst. The burst seconds carry
+  1,411 to 6,885 packets. The mean is 273 packets per second.
+- The burst seconds align to the 30-second wall clock (:29-:31 and :58-:60).
+  This matches the vmagent scrape interval.
+- Handshakes and key rotation happen at seconds :04-:07 of odd minutes, on a
+  clean 120-second cycle. No kernel WireGuard event occurs near any drop
+  burst. A key or handshake gap is therefore not the mechanism.
+
+### What changed on 2026-08-03
+
+- Commit `c616002` (#123) merged at 06:00 UTC. ArgoCD rolled out Cilium
+  1.20.0, ArgoCD chart 10.2.2, and hcloud-csi 2.22.1 together.
+- Before the rollout, the three ArgoCD components (application-controller,
+  repo-server, redis) all ran on `cp-1`. Their gRPC traffic never left the
+  node.
+- The rollout restarted these pods. The scheduler spread them:
+  controller on `cp-1`, repo-server on `cp-2`, redis on `cp-3`. The chart's
+  default anti-affinity did not cause this. That preset only separates
+  replicas of the same component, and each component has one replica. The
+  spread was scheduler placement chance.
+- The WireGuard transmit rate stepped up in the 06:00-06:30 UTC window on
+  all three nodes. `cp-2` (repo-server) rose from ~100 to ~277 packets per
+  second. The cloudflared scale-up at 14:36 UTC shows no step.
+- Per-pod counters show no pod increased its own traffic. The new cross-node
+  traffic is the same ArgoCD traffic that was node-local before.
+- Hubble on `cp-2` shows controller-to-repo-server gRPC (port 8081) as the
+  top cross-node flow.
+- `cp-2` is the dominant dropper (0.2-0.6 packets per second). Its drop rate
+  stepped up at the same time as its traffic.
+
+### Why drops follow traffic volume
+
+The repo-server sends large manifest responses to the controller on `cp-1`.
+The scrape targets on `cp-2` send large responses to vmagent on `cp-3` every
+30 seconds. Both flows now share the WireGuard peer queues on `cp-2`. The
+added ArgoCD traffic pushed the concurrent burst size past the 128-packet
+staged-queue limit. Before 2026-08-03, the same scrape bursts ran without
+drops.
+
+### The fix
+
+Soft pod affinity now co-locates the repo-server and redis with the
+application-controller. See `kubernetes/base/infra/argocd/values.yaml` and
+the identical bootstrap copy. The rule is `preferred`, so scheduling never
+blocks when the target node is full. Residual risk: if the controller moves
+to another node, the other two pods stay behind until their next restart.
+
+### Confounder note
+
+Cilium 1.20.0 final rolled out in the same commit and the same minute. The
+evidence points at the traffic increase, not at Cilium: the traffic step is
+real new volume on `cilium_vxlan`, `cilium_wg0`, and the physical NIC, and
+the rc.1-to-final source diff contains no datapath change. The fix is the
+discriminator. If drops return to the ~0.01 baseline after co-location, the
+traffic explanation is confirmed. If drops persist, check
+`gso_max_size`/`gso_max_segs` on the Cilium devices next
+(`ip -d link show`). A larger GSO size would let one send exceed 128
+segments without a concurrency race.
+
 ## Scope
 
 This investigates the increase in `node_network_transmit_drop_total` after
@@ -158,11 +237,22 @@ without fixing the missing-key interval.
 
 ## Unknowns
 
-- Which remote peer accounts for each local staged-queue discard.
-- Whether each discard is queue overflow or a staged-packet purge.
-- What temporarily prevents immediate encryption despite successful peer
-  handshakes and stable CiliumNode keys.
-- What changed the cross-node packet volume at the same time as the Cilium
-  rollout.
+Resolved on 2026-08-08 (see "Root cause and fix" above):
+
+- ~~Whether each discard is queue overflow or a staged-packet purge.~~
+  It is queue overflow in `wg_xmit()`. A purge needs a peer removal, and
+  CiliumNode state stayed stable.
+- ~~What temporarily prevents immediate encryption despite successful peer
+  handshakes and stable CiliumNode keys.~~ Nothing does. The overflow does
+  not need a key gap. Staging happens on every send, and concurrent bursts
+  alone exceed the 128-packet limit.
+- ~~What changed the cross-node packet volume at the same time as the Cilium
+  rollout.~~ The ArgoCD 10.2.2 restart spread the controller, repo-server,
+  and redis across three nodes. Their traffic was node-local before.
+
+Still open, and not blocking:
+
+- Which remote peer accounts for each local staged-queue discard. The
+  per-peer split needs a kernel probe. It is not needed after the fix.
 - Whether the installed Ubuntu kernel has the CVE fix despite the current
   Canonical package-family status.
