@@ -92,7 +92,7 @@ variable "bootstrap_node" {
 
 variable "cloudflare_api_token" {
   type        = string
-  description = "Cloudflare API token. Needs: Tunnel:Edit, Access:Edit, DNS:Edit. Injected via sops exec-env."
+  description = "Cloudflare API token. Needs: Tunnel:Edit, Access:Edit, DNS:Edit, Notifications:Edit. Injected via sops exec-env."
   sensitive   = true
 }
 
