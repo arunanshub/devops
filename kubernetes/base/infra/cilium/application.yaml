@@ -15,9 +15,7 @@ spec:
   sources:
     - repoURL: https://helm.cilium.io/
       chart: cilium
-      # Temporary rollback: WireGuard TX drops increased when 1.20.0 was
-      # deployed on 2026-08-03. Keep rc.1 until the regression is resolved.
-      targetRevision: 1.20.0-rc.1
+      targetRevision: 1.20.0
       helm:
         releaseName: cilium
         valueFiles:
