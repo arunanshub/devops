@@ -20,6 +20,13 @@ ipam:
 routingMode: tunnel
 tunnelProtocol: vxlan
 
+# Preserve networking on two nodes while the Cilium DaemonSet rolls. The
+# chart default allows two agents to be unavailable at once.
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+
 # MTU left at default (0 = auto-detect). Path MTU enforcement via pmtuDiscovery below.
 
 # WireGuard for node-to-node encryption. No-op on a single-node cluster, but

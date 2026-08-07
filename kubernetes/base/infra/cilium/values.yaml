@@ -16,6 +16,13 @@ ipam:
 routingMode: tunnel
 tunnelProtocol: vxlan
 
+# Preserve networking on two nodes while the Cilium DaemonSet rolls. The
+# chart default allows two agents to be unavailable at once.
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+
 # MTU is left at the default (0 = auto-detect from enp7s0 = 1450).
 # Cilium's MTU param is the physical device MTU, not the pod MTU.
 # Setting it lower shrinks cilium_wg0 too aggressively and breaks the VXLAN path.
