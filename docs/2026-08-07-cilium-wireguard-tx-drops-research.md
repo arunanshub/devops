@@ -67,6 +67,15 @@ the identical bootstrap copy. The rule is `preferred`, so scheduling never
 blocks when the target node is full. Residual risk: if the controller moves
 to another node, the other two pods stay behind until their next restart.
 
+The `CiliumWireGuardTransmitDrops` alert is now ratio-based. The old rule
+fired on any drop increase, so it stayed red under benign traffic growth.
+The new rule fires when drops exceed 0.05% of WireGuard transmit packets
+over 30 minutes. The healthy baseline is ~0.005-0.01%. This event ran at
+~0.07-0.2%. Real degradation starts near 0.5%. The queue overflow itself is
+normal kernel behavior under synchronized bursts, and the 128-packet limit
+is a compile-time constant. The correct response to future organic growth
+is to accept the ratio, not to chase the counter.
+
 ### Confounder note
 
 Cilium 1.20.0 final rolled out in the same commit and the same minute. The
