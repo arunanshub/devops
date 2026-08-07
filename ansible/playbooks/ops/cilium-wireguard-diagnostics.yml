@@ -53,38 +53,6 @@
       register: wireguard_interface
       failed_when: not wireguard_interface.stat.exists
 
-    - name: Check whether debugfs is mounted
-      ansible.builtin.command: findmnt --mountpoint /sys/kernel/debug
-      register: wireguard_debugfs_before
-      changed_when: false
-      failed_when: wireguard_debugfs_before.rc not in [0, 1]
-
-    - name: Mount debugfs for the bounded capture # noqa command-instead-of-module
-      ansible.builtin.command: mount -t debugfs debugfs /sys/kernel/debug
-      when: wireguard_debugfs_before.rc == 1
-      changed_when: true
-
-    - name: Check for pre-existing WireGuard dynamic debug
-      ansible.builtin.shell: |
-        set -o pipefail
-        grep '\[wireguard\]' /sys/kernel/debug/dynamic_debug/control | grep -E '=[^ ]*p' || true
-      args:
-        executable: /bin/bash
-      register: wireguard_debug_before
-      changed_when: false
-
-    - name: Refuse to overwrite pre-existing WireGuard debug state
-      ansible.builtin.assert:
-        that:
-          - wireguard_debug_before.stdout | length == 0
-        fail_msg: "WireGuard dynamic debug is already enabled; preserve and inspect that state manually."
-
-    - name: Create remote capture directory
-      ansible.builtin.tempfile:
-        state: directory
-        prefix: cilium-wireguard-capture-
-      register: wireguard_remote_capture
-
     - name: Record capture start time
       ansible.builtin.command: date --iso-8601=seconds
       register: wireguard_capture_started
@@ -110,15 +78,22 @@
       changed_when: false
       failed_when: wireguard_cilium_pod.stdout | length == 0
 
-    - name: Capture initial WireGuard peer state
-      ansible.builtin.shell: |
-        set -o pipefail
-        kubectl --namespace=kube-system exec {{ wireguard_cilium_pod.stdout | quote }} -c cilium-agent -- cilium-dbg debuginfo \
-          | sed -n '/interface: cilium_wg0/,/^```/p'
-      args:
-        executable: /bin/bash
+    - name: Capture initial WireGuard encryption state
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --namespace=kube-system
+          - exec
+          - "{{ wireguard_cilium_pod.stdout }}"
+          - -c
+          - cilium-agent
+          - --
+          - cilium-dbg
+          - encrypt
+          - status
+          - --output=json
       delegate_to: localhost
-      register: wireguard_peers_before
+      register: wireguard_encryption_before
       changed_when: false
 
     - name: Save initial peer and CiliumNode state
@@ -128,8 +103,8 @@
         mode: "0600"
       delegate_to: localhost
       loop:
-        - name: peers-before.txt
-          content: "{{ wireguard_peers_before.stdout }}"
+        - name: encryption-before.json
+          content: "{{ wireguard_encryption_before.stdout }}"
         - name: capture-metadata.txt
           content: "node={{ inventory_hostname }}\nduration={{ wireguard_capture_duration }}\nstarted={{ wireguard_capture_started.stdout }}"
         - name: link-before.txt
@@ -151,10 +126,44 @@
   tasks:
     - name: Capture WireGuard evidence with fail-safe cleanup
       block:
+        - name: Check whether debugfs is mounted
+          ansible.builtin.command: findmnt --mountpoint /sys/kernel/debug
+          register: wireguard_debugfs_before
+          changed_when: false
+          failed_when: wireguard_debugfs_before.rc not in [0, 1]
+
+        - name: Mount debugfs for the bounded capture # noqa command-instead-of-module
+          ansible.builtin.command: mount -t debugfs debugfs /sys/kernel/debug
+          when: wireguard_debugfs_before.rc == 1
+          register: wireguard_debugfs_mount
+          changed_when: true
+
+        - name: Check for pre-existing WireGuard dynamic debug
+          ansible.builtin.shell: |
+            set -o pipefail
+            grep '\[wireguard\]' /sys/kernel/debug/dynamic_debug/control | grep -E '=[^ ]*p' || true
+          args:
+            executable: /bin/bash
+          register: wireguard_debug_before
+          changed_when: false
+
+        - name: Refuse to overwrite pre-existing WireGuard debug state
+          ansible.builtin.assert:
+            that:
+              - wireguard_debug_before.stdout | length == 0
+            fail_msg: "WireGuard dynamic debug is already enabled; preserve and inspect that state manually."
+
+        - name: Create remote capture directory
+          ansible.builtin.tempfile:
+            state: directory
+            prefix: cilium-wireguard-capture-
+          register: wireguard_remote_capture
+
         - name: Enable WireGuard dynamic debug
           ansible.builtin.shell: "printf '%s\\n' 'module wireguard +p' > /sys/kernel/debug/dynamic_debug/control"
           args:
             executable: /bin/bash
+          register: wireguard_debug_enable
           changed_when: true
 
         - name: Start one-second interface counter sampler
@@ -237,15 +246,22 @@
             - "{{ wireguard_remote_capture.path }}/kernel-wireguard.log"
             - "{{ wireguard_remote_capture.path }}/link-after.txt"
 
-        - name: Capture final WireGuard peer state
-          ansible.builtin.shell: |
-            set -o pipefail
-            kubectl --namespace=kube-system exec {{ wireguard_cilium_pod.stdout | quote }} -c cilium-agent -- cilium-dbg debuginfo \
-              | sed -n '/interface: cilium_wg0/,/^```/p'
-          args:
-            executable: /bin/bash
+        - name: Capture final WireGuard encryption state
+          ansible.builtin.command:
+            argv:
+              - kubectl
+              - --namespace=kube-system
+              - exec
+              - "{{ wireguard_cilium_pod.stdout }}"
+              - -c
+              - cilium-agent
+              - --
+              - cilium-dbg
+              - encrypt
+              - status
+              - --output=json
           delegate_to: localhost
-          register: wireguard_peers_after
+          register: wireguard_encryption_after
           changed_when: false
 
         - name: Capture final CiliumNode resources and Cilium logs
@@ -264,10 +280,10 @@
                   --since-time={{ wireguard_capture_started.stdout | quote }}
               destination: "{{ wireguard_capture_local_dir }}/cilium-agent.log"
 
-        - name: Save final WireGuard peer state
+        - name: Save final WireGuard encryption state
           ansible.builtin.copy:
-            dest: "{{ wireguard_capture_local_dir }}/peers-after.txt"
-            content: "{{ wireguard_peers_after.stdout }}\n"
+            dest: "{{ wireguard_capture_local_dir }}/encryption-after.json"
+            content: "{{ wireguard_encryption_after.stdout }}\n"
             mode: "0600"
           delegate_to: localhost
 
@@ -276,6 +292,7 @@
           ansible.builtin.shell: "printf '%s\\n' 'module wireguard -p' > /sys/kernel/debug/dynamic_debug/control"
           args:
             executable: /bin/bash
+          when: wireguard_debug_enable is defined and wireguard_debug_enable is changed
           changed_when: true
           failed_when: false
 
@@ -287,6 +304,7 @@
             fi
           args:
             executable: /bin/bash
+          when: wireguard_remote_capture is defined
           changed_when: false
           failed_when: false
 
@@ -294,11 +312,12 @@
           ansible.builtin.file:
             path: "{{ wireguard_remote_capture.path }}"
             state: absent
+          when: wireguard_remote_capture is defined
           failed_when: false
 
         - name: Unmount debugfs only when mounted by this playbook
           ansible.builtin.command: umount /sys/kernel/debug
-          when: wireguard_debugfs_before.rc == 1
+          when: wireguard_debugfs_mount is defined and wireguard_debugfs_mount is changed
           changed_when: true
           failed_when: false
 
