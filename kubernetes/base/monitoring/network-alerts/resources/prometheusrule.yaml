@@ -59,6 +59,19 @@ spec:
             summary: "Cilium health endpoints unreachable from {{ $labels.instance }}"
             description: "{{ $value }} health endpoint(s) unreachable on {{ $labels.instance }}. Run: cilium-health status --probe (exec into the cilium pod on that node)"
 
+        # Linux increments this counter when WireGuard discards inner packets
+        # waiting for a usable sending key. Keep it separate from physical-NIC
+        # drops: the upstream node-exporter dashboard's "physical" recording
+        # rule also includes cilium_wg0.
+        - alert: CiliumWireGuardTransmitDrops
+          expr: increase(node_network_transmit_drop_total{job="node-exporter",device="cilium_wg0"}[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "WireGuard transmit drops on {{ $labels.instance }}"
+            description: "cilium_wg0 discarded {{ $value }} packets in the last 5m on {{ $labels.instance }}. This indicates a sustained unusable-key or peer-purge interval, not a physical NIC drop. Run: just diagnose-wireguard node=<kubernetes-node-name> duration=900"
+
     # cloudflared is the SOLE external ingress path into the cluster. Each replica
     # holds 4 HA connections to the Cloudflare edge; healthy steady state is 8
     # (2 replicas x 4). This group watches that the tunnel stays connected.
