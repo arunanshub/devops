@@ -76,6 +76,46 @@ normal kernel behavior under synchronized bursts, and the 128-packet limit
 is a compile-time constant. The correct response to future organic growth
 is to accept the ratio, not to chase the counter.
 
+### Verification result (2026-08-07 ~20:26 UTC rollout)
+
+The experiment confirmed the root cause.
+
+- After the co-location rollout, the first 10-minute window showed zero
+  drops on all three nodes. The scrape traffic still crossed nodes in that
+  window (vmagent still ran on `cp-3`). This isolates the ArgoCD traffic as
+  the cause.
+- The second window showed 15 drops on `cp-2` in 10 minutes (0.025 packets
+  per second). This is inside the pre-2026-08-03 baseline envelope.
+- `cp-2` WireGuard transmit fell from ~277 to ~121 packets per second.
+- The `CiliumWireGuardTransmitDrops` alert is deployed in its ratio form
+  and is not active. Cilium health is 3/3. All nodes are Ready.
+
+Caveat: kured rebooted `cp-3` at 20:37 UTC (OS patch window) and cut the
+clean observation at ~11 minutes. The reboot moved vmagent onto `cp-2`,
+next to vmsingle, by chance. Cross-node traffic is now lower than any
+recent baseline, partly by that accident. vmagent placement is not pinned.
+A future drain can move it off `cp-2` again. Expect the WireGuard transmit
+rate to rise back toward the 2026-07-30 to 2026-08-03 profile when that
+happens, with drops near baseline and no alert. That is normal drift, not
+a regression. Do not add more affinity for it unless drops return.
+
+### Burst source confirmed (2026-08-07 21:37 UTC)
+
+A later check confirmed the burst source. The vmagent configuration sets no
+`scrape_align_interval` and no `scrape_offset`. The VictoriaMetrics
+documentation says that vmagent spreads scrapes at random. The measured
+behaviour does not agree with that statement.
+
+A 110-second sample of `cilium_wg0` transmit packets on `cp-2` shows the
+traffic peaks at seconds :30, :01, :27, and :58 of each minute. A
+75-second Hubble capture in the same window shows the top flow is remote
+node traffic to vmagent. The scrape targets are therefore synchronized to
+the 30-second wall clock.
+
+This confirms the mechanism. The scrape bursts alone stayed below the
+128-packet limit before 2026-08-03. The ArgoCD traffic added a second
+large stream to the same peer queues. The sum crossed the limit.
+
 ### Confounder note
 
 Cilium 1.20.0 final rolled out in the same commit and the same minute. The
