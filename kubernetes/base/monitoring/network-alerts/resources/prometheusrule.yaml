@@ -65,24 +65,32 @@ spec:
         # queue during concurrent GSO bursts — a bounded queue doing its job,
         # not a fault (see docs/2026-08-07-cilium-wireguard-tx-drops-research.md).
         # Alert on the LOSS RATIO, not on any increase: an any-increase rule
-        # stays red forever under benign traffic growth. Anchor points:
+        # stays red forever under benign traffic growth. Ratio anchors:
         #   healthy baseline  ~0.005-0.01% of wg tx packets
         #   2026-08-03 event  ~0.07-0.2%   (ArgoCD pods spread across nodes)
         #   real degradation  >=0.5%       (TCP throughput visibly suffers)
-        # Threshold 0.05% sits ~10x above baseline and fires on a repeat of
-        # the 2026-08-03 event, while proportional growth stays quiet.
+        # A ratio alone is not enough. When cross-node traffic falls, the
+        # denominator gets small and normal drops make a large ratio. This
+        # happened on 2026-08-07: cp-2 had 127 drops in 30m at a ratio of
+        # 0.113%, but the absolute count was near baseline. The rule
+        # therefore needs BOTH a high ratio AND a real number of drops.
+        # Absolute anchors, drops per 30 minutes per node:
+        #   healthy baseline  4-28
+        #   low-traffic noise ~127   (2026-08-07, after co-location)
+        #   2026-08-03 event  194-362
+        # The floor of 150 keeps the event and rejects both other states.
         # Keep this separate from physical-NIC drops: the upstream
         # node-exporter dashboard's "physical" recording rule also
         # includes cilium_wg0.
         - alert: CiliumWireGuardTransmitDrops
           expr: >-
-            increase(node_network_transmit_drop_total{job="node-exporter",device="cilium_wg0"}[30m]) / increase(node_network_transmit_packets_total{job="node-exporter",device="cilium_wg0"}[30m]) > 0.0005
+            increase(node_network_transmit_drop_total{job="node-exporter",device="cilium_wg0"}[30m]) / increase(node_network_transmit_packets_total{job="node-exporter",device="cilium_wg0"}[30m]) > 0.0005 and increase(node_network_transmit_drop_total{job="node-exporter",device="cilium_wg0"}[30m]) > 150
           for: 30m
           labels:
             severity: warning
           annotations:
             summary: "WireGuard transmit drop ratio high on {{ $labels.instance }}"
-            description: "cilium_wg0 dropped {{ $value | humanizePercentage }} of transmitted packets over 30m on {{ $labels.instance }} (threshold 0.05%). This is kernel WireGuard staged-queue loss below Hubble, not a physical NIC or Cilium policy drop. Likely cause: a chatty workload pair split across nodes. Run: just diagnose-wireguard node=<kubernetes-node-name> duration=900"
+            description: "cilium_wg0 dropped {{ $value | humanizePercentage }} of transmitted packets over 30m on {{ $labels.instance }}, and more than 150 packets. This is kernel WireGuard staged-queue loss below Hubble, not a physical NIC or Cilium policy drop. Likely cause: a chatty workload pair split across nodes. Run: just diagnose-wireguard node=<kubernetes-node-name> duration=900"
 
     # cloudflared is the SOLE external ingress path into the cluster. Each replica
     # holds 4 HA connections to the Cloudflare edge; healthy steady state is 8
