@@ -201,6 +201,11 @@ alertmanager:
         - matchers:
             - alertname = "InfoInhibitor"
           receiver: "null"
+        # Info alerts report state, not a fault. RecordingRulesNoData is one
+        # example: count:up0 gives 0 samples when every target is up.
+        - matchers:
+            - severity = "info"
+          receiver: "null"
     receivers:
       - name: "null"
       - name: email
