@@ -66,6 +66,13 @@ resource "cloudflare_zone_setting" "brotli" {
   value      = "on"
 }
 
+# Advertise Cloudflare edge IPv6 addresses for all proxied hostnames. The
+# cloudflared origin path is independent and does not need inbound IPv6.
+resource "cloudflare_zone_setting" "ipv6" {
+  zone_id    = var.cloudflare_zone_id
+  setting_id = "ipv6"
+  value      = "on"
+}
 
 # 0-RTT Connection Resumption: lets returning clients send their first request
 # inside the opening TLS1.3/QUIC handshake packet, saving ~1 RTT (~80ms from .in)
