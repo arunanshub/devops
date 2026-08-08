@@ -8,6 +8,11 @@ cat > /etc/rancher/k3s/config.yaml << 'K3SCFG'
 ${k3s_config}
 K3SCFG
 
+# The file holds the k3s server token. The heredoc gives mode 0644 through the
+# default umask. Only root must read the token. The Ansible baseline role holds
+# the same guard for the nodes that exist now.
+chmod 0600 /etc/rancher/k3s/config.yaml
+
 %{ if role != "worker" ~}
 # Public IPv6 is assigned during server creation, so derive it on first boot
 # and replace the marker rendered by Tofu in the tls-san list.

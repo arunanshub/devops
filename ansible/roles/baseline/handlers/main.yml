@@ -1,0 +1,4 @@
+- name: Load the tuned kernel values
+  ansible.builtin.command:
+    cmd: sysctl --load=/etc/sysctl.d/90-k8s-node-tuning.conf
+  changed_when: true
