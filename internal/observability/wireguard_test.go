@@ -16,15 +16,13 @@ const (
 	wireGuardPlaybookPath = "ansible/playbooks/ops/cilium-wireguard-diagnostics.yml"
 )
 
-// The thresholds are pinned deliberately. The rule needs both a ratio and an
-// absolute floor: 150 drops per 30m rejects the 127-drop low-traffic case seen
-// on 2026-08-07, which a ratio alone reported as 0.113%. See the alert's own
-// comment block for the full set of anchors.
+// The thresholds are pinned. The rule must fire only where TCP throughput
+// suffers. See docs/2026-08-07-cilium-wireguard-tx-drops-research.md.
 const (
 	wireGuardTxDrops   = `increase(node_network_transmit_drop_total{job="node-exporter",device="cilium_wg0"}[30m])`
 	wireGuardTxPackets = `increase(node_network_transmit_packets_total{job="node-exporter",device="cilium_wg0"}[30m])`
 
-	wireGuardDropExpr = wireGuardTxDrops + " / " + wireGuardTxPackets + " > 0.0005 and " + wireGuardTxDrops + " > 150"
+	wireGuardDropExpr = wireGuardTxDrops + " / " + wireGuardTxPackets + " > 0.005 and " + wireGuardTxDrops + " > 1500"
 )
 
 func TestWireGuardTransmitDropAlertIsDeviceSpecific(t *testing.T) {
@@ -52,7 +50,7 @@ func TestWireGuardTransmitDropAlertIsDeviceSpecific(t *testing.T) {
 			}
 
 			assert.Equal(t, wireGuardDropExpr, rule.Expr)
-			assert.Equal(t, "30m", rule.For)
+			assert.Equal(t, "1h", rule.For)
 			assert.Equal(t, "warning", rule.Labels["severity"])
 			assert.Contains(t, rule.Annotations["summary"], "{{ $labels.instance }}")
 			assert.Contains(t, rule.Annotations["description"], "cilium_wg0")

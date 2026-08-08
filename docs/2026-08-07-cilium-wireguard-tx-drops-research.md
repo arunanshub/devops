@@ -312,3 +312,47 @@ Still open, and not blocking:
   per-peer split needs a kernel probe. It is not needed after the fix.
 - Whether the installed Ubuntu kernel has the CVE fix despite the current
   Canonical package-family status.
+
+## Addendum 2026-08-08: the drops do not track the symptom
+
+This section supersedes the remediation advice above. Read it first.
+
+The co-location fix treated the counter, not a service problem. Measurement on
+2026-08-08 shows no relation between `cilium_wg0` staged-queue drops and TCP
+retransmits.
+
+| Node | Drops per 30m | TCP retransmit ratio |
+|------|---------------|----------------------|
+| cp-2 | 175-223       | 0.0045-0.021%        |
+| cp-3 | 12-32         | 0.006-0.0094%        |
+
+cp-2 drops about 10 times more than cp-3. Both nodes retransmit the same
+amount. The 2026-08-03 event moved retransmits from 0.0087% to 0.0100%. That is
+flat.
+
+The old alert also flapped. It fired at 16:52 UTC on 2026-08-08 and cleared by
+itself about 1 hour later. No pod moved. No operator acted. An alert that fires
+and clears with no matching symptom measures a kernel queue detail.
+
+`CiliumWireGuardTransmitDrops` now fires at the level where TCP throughput
+suffers. The ratio went from 0.05% to 0.5%. The absolute floor went from 150 to
+1500 drops per 30m. The `for` clause went from 30m to 1h. An event at the
+2026-08-03 scale (194-362 drops per 30m) does not fire the new rule. That is
+the intent.
+
+Do not lower the threshold to catch such an episode. Check the TCP retransmit
+ratio first. Flat retransmits mean a healthy datapath.
+
+The soft podAffinity on the ArgoCD repo-server and redis is now unjustified. It
+is also unreliable. At the 2026-08-07 reschedule redis landed on cp-2 while the
+controller and repo-server went to cp-3. The affinity was live. Its selector
+matched the controller pod labels. redis scheduled after the controller, so the
+anchor existed. The affinity lost the scheduler score contest.
+
+Removal is optional cleanup. Keeping the affinity is harmless. Removal must
+change both the ArgoCD values file and the bootstrap copy. `just
+verify-adoption` enforces that parity.
+
+One effect stays real. Non-TCP overlay traffic gets no retransmit. A cross-node
+DNS query in a burst window can lose a retry timeout. At 175 drops per 30m this
+is negligible. It does not justify a scheduler constraint.
