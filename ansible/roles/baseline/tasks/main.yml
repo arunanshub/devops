@@ -22,3 +22,50 @@
     owner: root
     group: root
     mode: "0644"
+
+- name: Tune the kernel for Kubernetes and QUIC
+  ansible.builtin.copy:
+    src: 90-k8s-node-tuning.conf
+    dest: /etc/sysctl.d/90-k8s-node-tuning.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Load the tuned kernel values
+
+- name: Load the tuned kernel values before the verification
+  ansible.builtin.meta: flush_handlers
+
+# The kernel is the authority, not the file. A drop-in can load and still lose
+# to a later file. Read the live values back.
+- name: Read the live kernel values
+  ansible.builtin.command:
+    argv:
+      - sysctl
+      - --values
+      - net.core.rmem_max
+      - net.core.wmem_max
+      - fs.inotify.max_user_instances
+      - fs.inotify.max_user_watches
+  register: baseline_live_sysctl
+  changed_when: false
+  when: not ansible_check_mode
+
+# Keep this list equal to files/90-k8s-node-tuning.conf.
+- name: Prove the live kernel values match the declared values
+  ansible.builtin.assert:
+    that:
+      - baseline_live_sysctl.stdout_lines == ["7500000", "7500000", "512", "524288"]
+    fail_msg: >-
+      The live kernel values do not match /etc/sysctl.d/90-k8s-node-tuning.conf. Read {{ baseline_live_sysctl.stdout_lines | default([]) }}.
+    success_msg: The live kernel values match the declared values.
+  when: not ansible_check_mode
+
+# The file holds the k3s server token. A token holder can join a new server and
+# take control of the cluster. Mode 0644 lets any local user and any container
+# with a host root mount read the token.
+- name: Restrict the k3s config file to root
+  ansible.builtin.file:
+    path: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: "0600"

@@ -37,15 +37,19 @@ spec:
             # flag exists on this version (--output, env TUNNEL_LOG_OUTPUT).
             - --output
             - json
-            # TEMPORARY EXPERIMENT (2026-07-16): isolate the Cloudflare
-            # edge-to-connector leg after synchronized QUIC "no recent network
-            # activity" timeouts, long asset stalls, and a 520 before origin.
-            # Browser-facing HTTP/3 is unchanged. Evidence, attribution, and
-            # rollback: docs/cloudflare-tunnel-transport.md
+            # QUIC RETEST (2026-08-08). The 2026-07-16 http2 pin ends here.
+            # The nodes gave quic-go only 416 KiB of UDP receive buffer, so the
+            # kernel dropped packets and QUIC collapsed the congestion window.
+            # The Ansible baseline role now sets net.core.rmem_max to 7500000.
+            # This container drops all capabilities, so quic-go cannot raise the
+            # limit itself. Watch the logs after a roll. The buffer warning must
+            # be absent and the connections must register with protocol quic.
+            # Revert to "http2" if the tunnel gets worse.
+            # Evidence and rollback: docs/cloudflare-tunnel-transport.md
             # Cloudflare: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/run-parameters/#protocol
             # Related upstream report: https://github.com/cloudflare/cloudflared/issues/895
             - --protocol
-            - http2
+            - auto
             - run
           ports:
             - name: metrics

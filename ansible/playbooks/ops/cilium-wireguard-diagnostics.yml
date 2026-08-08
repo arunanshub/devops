@@ -1,0 +1,321 @@
+- name: Require a healthy cluster before WireGuard diagnostics
+  ansible.builtin.import_playbook: ../k3s-preflight.yml
+
+- name: Prepare local WireGuard capture
+  hosts: localhost
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    wireguard_capture_root: >-
+      {{ (playbook_dir | dirname | dirname | dirname) + '/.artifacts/wireguard' }}
+  tasks:
+    - name: Generate capture identifier
+      ansible.builtin.command: date -u +%Y%m%dT%H%M%SZ
+      register: wireguard_capture_timestamp
+      changed_when: false
+
+    - name: Publish capture paths
+      ansible.builtin.set_fact:
+        wireguard_capture_local_dir: >-
+          {{
+            wireguard_capture_root
+            ~ '/' ~ wireguard_capture_timestamp.stdout
+            ~ '-' ~ ((ansible_limit | default('node')) | regex_replace('[^A-Za-z0-9_.-]', '_'))
+          }}
+
+    - name: Create local artifact directory
+      ansible.builtin.file:
+        path: "{{ wireguard_capture_local_dir }}"
+        state: directory
+        mode: "0700"
+
+- name: Capture one node's WireGuard failure evidence
+  hosts: k3s_nodes
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  vars:
+    wireguard_capture_duration: 900
+    wireguard_capture_local_dir: "{{ hostvars['localhost']['wireguard_capture_local_dir'] }}"
+  pre_tasks:
+    - name: Validate capture scope and duration
+      ansible.builtin.assert:
+        that:
+          - ansible_play_hosts_all | length == 1
+          - wireguard_capture_duration | int >= 60
+          - wireguard_capture_duration | int <= 1800
+        fail_msg: "Target exactly one k3s node and set duration between 60 and 1800 seconds."
+
+    - name: Verify WireGuard interface exists
+      ansible.builtin.stat:
+        path: /sys/class/net/cilium_wg0/statistics/tx_dropped
+      register: wireguard_interface
+      failed_when: not wireguard_interface.stat.exists
+
+    - name: Record capture start time
+      ansible.builtin.command: date --iso-8601=seconds
+      register: wireguard_capture_started
+      changed_when: false
+
+    - name: Capture initial interface state
+      ansible.builtin.command: ip -s -d link show cilium_wg0
+      register: wireguard_link_before
+      changed_when: false
+
+    - name: Find the Cilium pod on the target node
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --namespace=kube-system
+          - get
+          - pods
+          - --selector=k8s-app=cilium
+          - --field-selector=spec.nodeName={{ inventory_hostname }}
+          - --output=jsonpath={.items[0].metadata.name}
+      delegate_to: localhost
+      register: wireguard_cilium_pod
+      changed_when: false
+      failed_when: wireguard_cilium_pod.stdout | length == 0
+
+    - name: Capture initial WireGuard encryption state
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --namespace=kube-system
+          - exec
+          - "{{ wireguard_cilium_pod.stdout }}"
+          - -c
+          - cilium-agent
+          - --
+          - cilium-dbg
+          - encrypt
+          - status
+          - --output=json
+      delegate_to: localhost
+      register: wireguard_encryption_before
+      changed_when: false
+
+    - name: Save initial peer and CiliumNode state
+      ansible.builtin.copy:
+        dest: "{{ wireguard_capture_local_dir }}/{{ item.name }}"
+        content: "{{ item.content }}\n"
+        mode: "0600"
+      delegate_to: localhost
+      loop:
+        - name: encryption-before.json
+          content: "{{ wireguard_encryption_before.stdout }}"
+        - name: capture-metadata.txt
+          content: "node={{ inventory_hostname }}\nduration={{ wireguard_capture_duration }}\nstarted={{ wireguard_capture_started.stdout }}"
+        - name: link-before.txt
+          content: "{{ wireguard_link_before.stdout }}"
+
+    - name: Capture initial CiliumNode resources
+      ansible.builtin.command: kubectl get ciliumnodes.cilium.io --output=json
+      delegate_to: localhost
+      register: wireguard_ciliumnodes_before
+      changed_when: false
+
+    - name: Save initial CiliumNode resources
+      ansible.builtin.copy:
+        dest: "{{ wireguard_capture_local_dir }}/ciliumnodes-before.json"
+        content: "{{ wireguard_ciliumnodes_before.stdout }}\n"
+        mode: "0600"
+      delegate_to: localhost
+
+  tasks:
+    - name: Capture WireGuard evidence with fail-safe cleanup
+      block:
+        - name: Check whether debugfs is mounted
+          ansible.builtin.command: findmnt --mountpoint /sys/kernel/debug
+          register: wireguard_debugfs_before
+          changed_when: false
+          failed_when: wireguard_debugfs_before.rc not in [0, 1]
+
+        - name: Mount debugfs for the bounded capture # noqa command-instead-of-module
+          ansible.builtin.command: mount -t debugfs debugfs /sys/kernel/debug
+          when: wireguard_debugfs_before.rc == 1
+          register: wireguard_debugfs_mount
+          changed_when: true
+
+        - name: Check for pre-existing WireGuard dynamic debug
+          ansible.builtin.shell: |
+            set -o pipefail
+            grep '\[wireguard\]' /sys/kernel/debug/dynamic_debug/control | grep -E '=[^ ]*p' || true
+          args:
+            executable: /bin/bash
+          register: wireguard_debug_before
+          changed_when: false
+
+        - name: Refuse to overwrite pre-existing WireGuard debug state
+          ansible.builtin.assert:
+            that:
+              - wireguard_debug_before.stdout | length == 0
+            fail_msg: "WireGuard dynamic debug is already enabled; preserve and inspect that state manually."
+
+        - name: Create remote capture directory
+          ansible.builtin.tempfile:
+            state: directory
+            prefix: cilium-wireguard-capture-
+          register: wireguard_remote_capture
+
+        - name: Start bounded WireGuard debug and interface counter sampler
+          ansible.builtin.shell: |
+            set -euo pipefail
+            capture_dir={{ wireguard_remote_capture.path | quote }}
+            capture_started={{ wireguard_capture_started.stdout | quote }}
+            unmount_debugfs={{ (wireguard_debugfs_before.rc == 1) | ternary('true', 'false') }}
+            cleanup() {
+              printf '%s\n' 'module wireguard -p' > /sys/kernel/debug/dynamic_debug/control || true
+              journalctl --dmesg --since "${capture_started}" --no-pager \
+                | grep -i wireguard > "${capture_dir}/kernel-wireguard.log" || true
+              ip -s -d link show cilium_wg0 > "${capture_dir}/link-after.txt" || true
+              rm -f "${capture_dir}/sampler.pid"
+              if [[ "${unmount_debugfs}" == "true" ]]; then
+                umount /sys/kernel/debug || true
+              fi
+            }
+            trap cleanup EXIT
+            printf '%s\n' "$$" > "${capture_dir}/sampler.pid"
+            printf 'timestamp_utc\ttx_packets\ttx_dropped\ttx_errors\n' > "${capture_dir}/counters.tsv"
+            printf '%s\n' 'module wireguard +p' > /sys/kernel/debug/dynamic_debug/control
+            end=$((SECONDS + {{ wireguard_capture_duration | int }}))
+            while (( SECONDS < end )); do
+              printf '%s\t%s\t%s\t%s\n' \
+                "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
+                "$(cat /sys/class/net/cilium_wg0/statistics/tx_packets)" \
+                "$(cat /sys/class/net/cilium_wg0/statistics/tx_dropped)" \
+                "$(cat /sys/class/net/cilium_wg0/statistics/tx_errors)" \
+                >> "${capture_dir}/counters.tsv"
+              sleep 1
+            done
+          args:
+            executable: /bin/bash
+          async: "{{ wireguard_capture_duration | int + 120 }}"
+          poll: 0
+          register: wireguard_sampler_job
+
+        - name: Watch CiliumNode changes for the capture window
+          ansible.builtin.shell: |
+            set -o pipefail
+            timeout --signal=TERM {{ wireguard_capture_duration | int }}s \
+              kubectl get ciliumnodes.cilium.io --watch-only --output=json --output-watch-events \
+              | jq --compact-output '
+                {
+                  type: .type,
+                  name: .object.metadata.name,
+                  resourceVersion: .object.metadata.resourceVersion,
+                  wireguardPublicKey: .object.metadata.annotations["network.cilium.io/wg-pub-key"]
+                }' \
+              > {{ (wireguard_capture_local_dir + '/ciliumnodes-watch.jsonl') | quote }}
+          args:
+            executable: /bin/bash
+          delegate_to: localhost
+          register: wireguard_ciliumnode_watch
+          changed_when: false
+          failed_when: wireguard_ciliumnode_watch.rc not in [0, 124]
+
+        - name: Wait for interface sampler
+          ansible.builtin.async_status:
+            jid: "{{ wireguard_sampler_job.ansible_job_id }}"
+          register: wireguard_sampler_result
+          until: wireguard_sampler_result.finished
+          retries: "{{ (wireguard_capture_duration | int / 5) | round(0, 'ceil') | int + 12 }}"
+          delay: 5
+
+        - name: Fetch remote capture files
+          ansible.builtin.fetch:
+            src: "{{ item }}"
+            dest: "{{ wireguard_capture_local_dir }}/"
+            flat: true
+          loop:
+            - "{{ wireguard_remote_capture.path }}/counters.tsv"
+            - "{{ wireguard_remote_capture.path }}/kernel-wireguard.log"
+            - "{{ wireguard_remote_capture.path }}/link-after.txt"
+
+        - name: Capture final WireGuard encryption state
+          ansible.builtin.command:
+            argv:
+              - kubectl
+              - --namespace=kube-system
+              - exec
+              - "{{ wireguard_cilium_pod.stdout }}"
+              - -c
+              - cilium-agent
+              - --
+              - cilium-dbg
+              - encrypt
+              - status
+              - --output=json
+          delegate_to: localhost
+          register: wireguard_encryption_after
+          changed_when: false
+
+        - name: Capture final CiliumNode resources and Cilium logs
+          ansible.builtin.shell: "{{ item.command }} > {{ item.destination | quote }}"
+          args:
+            executable: /bin/bash
+          delegate_to: localhost
+          changed_when: false
+          loop:
+            - command: kubectl get ciliumnodes.cilium.io --output=json
+              destination: "{{ wireguard_capture_local_dir }}/ciliumnodes-after.json"
+            - command: |-
+                kubectl --namespace=kube-system logs \
+                  {{ wireguard_cilium_pod.stdout | quote }} \
+                  -c cilium-agent \
+                  --since-time={{ wireguard_capture_started.stdout | quote }}
+              destination: "{{ wireguard_capture_local_dir }}/cilium-agent.log"
+
+        - name: Save final WireGuard encryption state
+          ansible.builtin.copy:
+            dest: "{{ wireguard_capture_local_dir }}/encryption-after.json"
+            content: "{{ wireguard_encryption_after.stdout }}\n"
+            mode: "0600"
+          delegate_to: localhost
+
+      always:
+        - name: Disable WireGuard dynamic debug
+          ansible.builtin.shell: "printf '%s\\n' 'module wireguard -p' > /sys/kernel/debug/dynamic_debug/control"
+          args:
+            executable: /bin/bash
+          when: wireguard_sampler_job is defined
+          changed_when: true
+          failed_when: false
+
+        - name: Stop counter sampler if it is still running
+          ansible.builtin.shell: |
+            pid_file={{ (wireguard_remote_capture.path + '/sampler.pid') | quote }}
+            if [[ -f "${pid_file}" ]]; then
+              sampler_pid="$(cat "${pid_file}")"
+              kill "${sampler_pid}" 2>/dev/null || true
+              timeout 10s tail --pid="${sampler_pid}" --follow=/dev/null || true
+            fi
+          args:
+            executable: /bin/bash
+          when: wireguard_remote_capture is defined
+          changed_when: false
+          failed_when: false
+
+        - name: Remove remote capture directory
+          ansible.builtin.file:
+            path: "{{ wireguard_remote_capture.path }}"
+            state: absent
+          when: wireguard_remote_capture is defined
+          failed_when: false
+
+        - name: Unmount debugfs only when mounted by this playbook
+          ansible.builtin.command: umount /sys/kernel/debug
+          when: wireguard_debugfs_mount is defined and wireguard_debugfs_mount is changed
+          changed_when: true
+          failed_when: false
+
+        - name: Verify WireGuard dynamic debug is disabled
+          ansible.builtin.shell: |
+            set -o pipefail
+            if mountpoint -q /sys/kernel/debug; then
+              ! grep '\[wireguard\]' /sys/kernel/debug/dynamic_debug/control | grep -Eq '=[^ ]*p'
+            fi
+          args:
+            executable: /bin/bash
+          changed_when: false

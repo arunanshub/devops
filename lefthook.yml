@@ -52,7 +52,7 @@ pre-commit:
 
     ansible-lint:
       run: >-
-        uv run ansible-lint ansible/playbooks/site.yml ansible/playbooks/baseline.yml ansible/playbooks/k3s-preflight.yml ansible/playbooks/k3s-config.yml
+        uv run ansible-lint ansible/playbooks/site.yml ansible/playbooks/baseline.yml ansible/playbooks/k3s-preflight.yml ansible/playbooks/k3s-config.yml ansible/playbooks/ops/cilium-wireguard-diagnostics.yml
       glob: ["ansible/**/*.yml", "ansible.cfg", "pyproject.toml", "uv.lock"]
 
     node-config-schema:

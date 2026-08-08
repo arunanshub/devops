@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: network-drops-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  network-drops.json: |
+    {
+      "editable": true,
+      "panels": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "fieldConfig": {"defaults": {"custom": {"fillOpacity": 10, "showPoints": "never", "spanNulls": true}, "unit": "pps"}},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "id": 1,
+          "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi"}},
+          "targets": [
+            {
+              "expr": "sum by(instance) (rate(node_network_transmit_drop_total{cluster=~\"$cluster\",job=\"node-exporter\",device=\"cilium_wg0\"}[$__rate_interval]))",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "title": "WireGuard TX drops",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "fieldConfig": {"defaults": {"custom": {"fillOpacity": 10, "showPoints": "never", "spanNulls": true}, "min": 0, "unit": "percent"}},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "id": 2,
+          "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi"}},
+          "targets": [
+            {
+              "expr": "100 * sum by(instance) (rate(node_network_transmit_drop_total{cluster=~\"$cluster\",job=\"node-exporter\",device=\"cilium_wg0\"}[$__rate_interval])) / clamp_min(sum by(instance) (rate(node_network_transmit_packets_total{cluster=~\"$cluster\",job=\"node-exporter\",device=\"cilium_wg0\"}[$__rate_interval])), 1)",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "title": "WireGuard TX drop percentage",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "fieldConfig": {"defaults": {"custom": {"fillOpacity": 10, "showPoints": "never", "spanNulls": true}, "unit": "pps"}},
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
+          "id": 3,
+          "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi"}},
+          "targets": [
+            {
+              "expr": "sum by(instance) (rate(node_network_receive_drop_total{cluster=~\"$cluster\",job=\"node-exporter\",device=\"enp7s0\"}[$__rate_interval]))",
+              "legendFormat": "RX {{instance}}"
+            },
+            {
+              "expr": "sum by(instance) (rate(node_network_transmit_drop_total{cluster=~\"$cluster\",job=\"node-exporter\",device=\"enp7s0\"}[$__rate_interval]))",
+              "legendFormat": "TX {{instance}}"
+            }
+          ],
+          "title": "Physical NIC drops (enp7s0)",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "tags": ["cilium", "network", "wireguard"],
+      "templating": {
+        "list": [
+          {"current": {"selected": true, "text": "default", "value": "default"}, "label": "Data source", "name": "datasource", "query": "prometheus", "type": "datasource"},
+          {"datasource": {"type": "prometheus", "uid": "${datasource}"}, "includeAll": true, "label": "Cluster", "name": "cluster", "query": "label_values(node_uname_info{job=\"node-exporter\"}, cluster)", "refresh": 2, "sort": 1, "type": "query", "allValue": ".*"}
+        ]
+      },
+      "time": {"from": "now-24h", "to": "now"},
+      "timezone": "utc",
+      "title": "Network Drops: WireGuard and Physical NIC",
+      "uid": "network-drops-wireguard-nic"
+    }

@@ -4,6 +4,11 @@ This runbook documents the temporary HTTP/2 experiment on the connection between
 Cloudflare's network and the cluster's cloudflared connectors. It is an
 observation exercise, not a conclusion that QUIC caused the incident.
 
+> **Status: the experiment closed on 2026-08-08.** The connector runs
+> `--protocol auto` again. Read "Resolution and QUIC retest (2026-08-08)" at the
+> end of this document first. The sections between here and there describe the
+> experiment as it ran from 2026-07-16 to 2026-08-08.
+
 ## Scope
 
 The request path has three independently negotiated legs:
@@ -150,3 +155,80 @@ selection. Remove these arguments from the Deployment:
 Commit and push the rollback through GitOps, wait for both replicas, and verify
 that new registrations report `"protocol":"quic"`. Keeping HTTP/2 beyond the
 experiment requires a separate evidence-backed decision.
+
+## Resolution and QUIC retest (2026-08-08)
+
+The experiment ran far past its observation window. It also lost its image pin:
+the connector now runs 2026.7.3, not the 2026.5.2 that the experiment assumed.
+
+### Root cause of the QUIC failures
+
+The nodes gave quic-go far too little UDP receive buffer. Every cloudflared pod
+printed this line at start, including on 2026-08-08:
+
+```text
+failed to sufficiently increase receive buffer size (was: 208 kiB, wanted: 7168 kiB, got: 416 kiB).
+```
+
+All 3 nodes carried the kernel default `net.core.rmem_max = 212992`. The kernel
+drops each packet that arrives on a full socket queue. quic-go reads a drop as
+congestion and collapses the congestion window. TCP does not fail this way,
+because the kernel auto-tunes the TCP buffers.
+
+Two facts complete the picture:
+
+- The cloudflared container drops all capabilities. quic-go needs
+  `CAP_NET_ADMIN` for the `SO_RCVBUFFORCE` override. Only a host value works.
+- The nodes run kernel 6.8, where `net.core.rmem_max` is global. The key does
+  not exist inside a pod network namespace. A host value therefore reaches every
+  pod. Kernel commit `19249c0724f2` exposes the key read-only in a namespace
+  from kernel 6.10, still reading the init-namespace value.
+
+`--protocol auto` did not save the tunnel, because `auto` falls back to HTTP/2
+only when the QUIC handshake fails. A collapsed but established QUIC session
+stays on QUIC. That matches the `no recent network activity` timeouts.
+
+### The fix
+
+The Ansible baseline role writes `/etc/sysctl.d/90-k8s-node-tuning.conf`. It
+sets `net.core.rmem_max` and `net.core.wmem_max` to 7500000, the value that the
+[quic-go wiki](https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes)
+recommends. Apply it with `just ansible-converge baseline`.
+
+A sysctl change reaches only new sockets. cloudflared must restart to get the
+larger buffer.
+
+### Retest checks
+
+Run these after ArgoCD rolls the Deployment:
+
+```bash
+kubectl rollout status deployment/cloudflared -n cloudflared --timeout=5m
+kubectl logs -n cloudflared -l app=cloudflared --since=10m \
+  | rg 'receive buffer size|Initial protocol|"protocol":"'
+```
+
+Both conditions must hold:
+
+1. The `failed to sufficiently increase receive buffer size` line is absent.
+2. Each new registration reports `"protocol":"quic"`.
+
+Watch for 60 minutes. Compare `min_over_time(cloudflared_tunnel_ha_connections[5m])`
+and `increase(cloudflared_tunnel_request_errors[5m])` against the HTTP/2 period.
+
+### Known residual risk
+
+An operator report of 2026-07-28 in cloudflared issue #895 shows QUIC collapsing
+again after that operator corrected the buffers. Their connector held near
+22 MB/s while HTTP/2 reached 94 MB/s on the same pods. The buffer fix is
+necessary. It may not be sufficient at high throughput.
+
+The same report measured equal latency for both protocols at low and moderate
+rates. This cluster serves about 0.03 requests per second.
+
+### Revert
+
+Set the argument back to `http2` in
+`kubernetes/components/cloudflared/resources/deployment.yaml`, then commit.
+Revert if connector readiness drops, tunnel errors increase, or the stalls
+return.

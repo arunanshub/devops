@@ -2,6 +2,7 @@ package mtu
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -231,7 +232,7 @@ func TestCheckCrossNodePing(t *testing.T) {
 			execOut: map[string]string{
 				key: "3 packets transmitted, 0 packets received, 100% packet loss",
 			},
-			execErr: map[string]error{key: fmt.Errorf("command terminated with exit code 1")},
+			execErr: map[string]error{key: errors.New("command terminated with exit code 1")},
 		}
 		res := newTestVerifier(
 			fake,
@@ -307,7 +308,7 @@ func TestCheckCloudflaredQUIC(t *testing.T) {
 	t.Run("port-forward failure degrades to warning", func(t *testing.T) {
 		fake := &fakeCluster{
 			podsByLabel: map[string][]k8s.PodInfo{labelKey: cloudflaredPods},
-			forwardErr:  fmt.Errorf("connection refused"),
+			forwardErr:  errors.New("connection refused"),
 		}
 		res := newTestVerifier(fake).checkCloudflaredQUIC(t.Context())
 		assert.True(t, res.Pass)

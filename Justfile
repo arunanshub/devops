@@ -304,6 +304,25 @@ ops-migrate-prometheus:
 verify-mtu *flags:
     go run ./cmd/opsctl verify-mtu {{ flags }}
 
+# Capture bounded WireGuard handshake and tx_dropped evidence from exactly one node.
+# Dynamic debug is restored in an Ansible always block. No service is restarted.
+diagnose-wireguard node="hetzner-k3s-cp-2" duration="900":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    node='{{ node }}'
+    duration='{{ duration }}'
+    [[ "$duration" =~ ^[0-9]+$ ]] && (( duration >= 60 && duration <= 1800 )) || {
+        printf 'Duration must be an integer from 60 to 1800 seconds.\n' >&2
+        exit 2
+    }
+    mapfile -t valid_nodes < <(just _ansible-hosts)
+    printf '%s\n' "${valid_nodes[@]}" | grep -Fxq -- "$node" || {
+        printf 'Unknown k3s node: %s\n' "$node" >&2
+        exit 2
+    }
+    just _ansible-playbook "ops/cilium-wireguard-diagnostics" \
+        "--limit {{ node }},localhost --extra-vars wireguard_capture_duration={{ duration }}"
+
 # Run the operations toolkit from source (see `just opsctl --help`).
 opsctl *args:
     go run ./cmd/opsctl {{ args }}

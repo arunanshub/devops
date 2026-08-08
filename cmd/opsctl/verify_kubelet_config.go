@@ -18,11 +18,11 @@ import (
 // directly, because the node Ready condition can stay stale-True for the
 // ~40s node-monitor grace period after a kubelet dies (2026-07-25 game day).
 type verifyKubeletConfigCmd struct {
-	Node       string        `arg:"" help:"Node name (e.g. hetzner-k3s-cp-1)."`
-	Role       string        `arg:"" enum:"cp_only,cp_worker,worker" help:"Declared node role."`
-	Dir        string        `default:"nodes" type:"existingdir" help:"Root of the declarative node config tree."`
-	Kubeconfig string        `env:"KUBECONFIG" required:"" type:"existingfile" help:"Path to kubeconfig."`
-	Timeout    time.Duration `default:"30s" help:"Overall timeout."`
+	Node       string        `arg:""           help:"Node name (e.g. hetzner-k3s-cp-1)."`
+	Role       string        `arg:""           enum:"cp_only,cp_worker,worker"                  help:"Declared node role."`
+	Dir        string        `default:"nodes"  help:"Root of the declarative node config tree." type:"existingdir"`
+	Kubeconfig string        `env:"KUBECONFIG" help:"Path to kubeconfig."                       required:""                type:"existingfile"`
+	Timeout    time.Duration `default:"30s"    help:"Overall timeout."`
 }
 
 func (c *verifyKubeletConfigCmd) Run(ctx context.Context) error {

@@ -33,8 +33,8 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "Cilium eBPF datapath drops on {{ $labels.node }}"
-            description: "{{ $value }} eBPF drops in 5m on {{ $labels.node }}. Reason: {{ $labels.reason }}, direction: {{ $labels.direction }}. Run: hubble observe --verdict DROPPED --follow"
+            summary: "Cilium {{ $labels.reason }}: {{ $labels.source_namespace }}/{{ $labels.source_workload }} ({{ $labels.source_ip }}) -> {{ $labels.destination_namespace }}/{{ $labels.destination_workload }} ({{ $labels.destination_ip }})"
+            description: "{{ $value }} eBPF drops in 5m on {{ $labels.node }}. Source: namespace={{ $labels.source_namespace }}, workload={{ $labels.source_workload }}, IP={{ $labels.source_ip }}. Destination: namespace={{ $labels.destination_namespace }}, workload={{ $labels.destination_workload }}, IP={{ $labels.destination_ip }}. Reason={{ $labels.reason }}, protocol={{ $labels.protocol }}, direction={{ $labels.traffic_direction }}."
 
         # cilium-health marks a node unreachable when ICMP and HTTP probes both
         # fail. Primary cause: WireGuard session failed to establish after idle
@@ -58,6 +58,22 @@ spec:
           annotations:
             summary: "Cilium health endpoints unreachable from {{ $labels.instance }}"
             description: "{{ $value }} health endpoint(s) unreachable on {{ $labels.instance }}. Run: cilium-health status --probe (exec into the cilium pod on that node)"
+
+        # cilium_wg0 tx drops are kernel staged-queue overflow under GSO
+        # bursts. Hubble cannot see them. The queue is bounded on purpose.
+        # 0.5% is the level where TCP throughput suffers. The floor of 1500
+        # keeps the ratio honest when cross-node traffic falls.
+        # Do not lower these values. Check the TCP retransmit ratio first.
+        # See docs/2026-08-07-cilium-wireguard-tx-drops-research.md.
+        - alert: CiliumWireGuardTransmitDrops
+          expr: >-
+            increase(node_network_transmit_drop_total{job="node-exporter",device="cilium_wg0"}[30m]) / increase(node_network_transmit_packets_total{job="node-exporter",device="cilium_wg0"}[30m]) > 0.005 and increase(node_network_transmit_drop_total{job="node-exporter",device="cilium_wg0"}[30m]) > 1500
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "WireGuard transmit drop ratio high on {{ $labels.instance }}"
+            description: "cilium_wg0 dropped {{ $value | humanizePercentage }} of transmitted packets over 30m on {{ $labels.instance }}, and more than 1500 packets, for 1 hour. Check the TCP retransmit ratio first. If retransmits are flat, the datapath is healthy and this alert needs a higher threshold. Run: just diagnose-wireguard node=<kubernetes-node-name> duration=900"
 
     # cloudflared is the SOLE external ingress path into the cluster. Each replica
     # holds 4 HA connections to the Cloudflare edge; healthy steady state is 8

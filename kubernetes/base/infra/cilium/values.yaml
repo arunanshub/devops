@@ -16,6 +16,13 @@ ipam:
 routingMode: tunnel
 tunnelProtocol: vxlan
 
+# Preserve networking on two nodes while the Cilium DaemonSet rolls. The
+# chart default allows two agents to be unavailable at once.
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+
 # MTU is left at the default (0 = auto-detect from enp7s0 = 1450).
 # Cilium's MTU param is the physical device MTU, not the pod MTU.
 # Setting it lower shrinks cilium_wg0 too aggressively and breaks the VXLAN path.
@@ -148,11 +155,11 @@ hubble:
     auto:
       method: cronJob
   metrics:
-    # Drop visibility is the most important: surfaces MTU issues, policy
-    # violations, and any other silent packet loss via hubble_drop_total.
-    # Flow uses namespace-level context to keep cardinality manageable.
+    # Drop visibility includes endpoint context so alerts identify the denied
+    # path. Only dropped flows create these IP-labelled series. Flow uses
+    # namespace-level context to keep its higher-volume cardinality manageable.
     enabled:
-      - drop
+      - "drop:labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction"
       - tcp
       - "flow:sourceContext=namespace;destinationContext=namespace"
       - icmp
