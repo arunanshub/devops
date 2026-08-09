@@ -1,14 +1,32 @@
 # --------------------------------- Security ---------------------------------
 
 # Bot Fight Mode: challenges cloud-provider bots and headless browsers.
-# AI bots (GPTBot, ClaudeBot, etc.) are allowed — they're polite crawlers and
-# the CF edge serves them cached content, so the origin sees negligible load.
+# AI bots (GPTBot, ClaudeBot, etc.) are allowed at the edge — they're polite
+# crawlers and CF serves them cached content, so the origin sees negligible load.
 # Requires "Bot Management" permission on the API token.
+#
+# The two AI settings have two different jobs:
+#   - is_robots_txt_managed states a preference. It asks known AI trainers to
+#     stay away. Compliance is voluntary.
+#   - ai_bots_protection enforces the preference. It stays "disabled". The edge
+#     serves AI bots from the cache. The origin cost is near zero.
 resource "cloudflare_bot_management" "main" {
   zone_id            = var.cloudflare_zone_id
   fight_mode         = true
   enable_js          = true
   ai_bots_protection = "disabled"
+
+  # Managed robots.txt. Cloudflare generates a block of Content-Signal
+  # directives (search=yes, ai-train=no, use=reference). The block also holds a
+  # Disallow rule for each known AI crawler. Cloudflare prepends the block to
+  # the robots.txt that Next.js serves.
+  #
+  # Keep this field declared. The provider sends a full PUT. A dashboard toggle
+  # with no matching line here plans back to false on the next apply.
+  #
+  # cf_robots_variant stays unset. That setting applies only when this one is
+  # false.
+  is_robots_txt_managed = true
 }
 
 # HSTS: browsers cache "HTTPS only" for 1 year zone-wide; nosniff adds
