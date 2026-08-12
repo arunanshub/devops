@@ -4,12 +4,16 @@ metadata:
   name: vmagent
   namespace: monitoring
 spec:
-  # The VM operator renders a Deployment for the VMAgent CR. The VPA
-  # targets that Deployment, same pattern as the vmalert VPA.
+  # VPA must target the topmost scalable controller. The VMAgent CRD has a
+  # scale subresource, so VPA refuses the operator-rendered Deployment
+  # (ConfigUnsupported) and accepts only the CR. The CR needs shardCount
+  # set for the scale path to resolve — see values.yaml. The vmalert and
+  # vmsingle VPAs can target Deployments because those CRDs have no scale
+  # subresource.
   targetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: vmagent-victoria-metrics-k8s-stack
+    apiVersion: operator.victoriametrics.com/v1beta1
+    kind: VMAgent
+    name: victoria-metrics-k8s-stack
   updatePolicy:
     updateMode: InPlaceOrRecreate
     minReplicas: 1

@@ -93,6 +93,10 @@ vmagent:
   spec:
     useStrictSecurity: true
     scrapeInterval: 30s
+    # Explicit 1 so .spec.shardCount exists on the live CR. The VMAgent CRD
+    # scale subresource points at that path. VPA needs it to resolve before
+    # it accepts the VMAgent CR as a target. Behavior stays single-shard.
+    shardCount: 1
     # vmagent buffers remote-write to an on-disk queue on EPHEMERAL pod storage (no PV).
     # If vmsingle is briefly unavailable the queue is unbounded by default and can fill
     # the node disk, harming co-located workloads. Cap it; overflow is dropped (metrics
@@ -108,7 +112,8 @@ vmagent:
         # largest such workload here. It scrapes every target, so RSS tracks series count and
         # the remote-write queue. 384Mi sits ~2.3x above the measured 164Mi RSS. No CPU
         # limit (matches vmsingle/vmalert): CPU is compressible, requests guarantee
-        # scheduling. There is no vmagent VPA, so this ceiling stays exactly as declared.
+        # scheduling. The vmagent VPA is RequestsOnly, so this ceiling stays exactly
+        # as declared.
         memory: 384Mi
     # The operator leaves config-reloader memory UNLIMITED by default — verified live with
     # `kubectl exec <operator-pod> -- /app --printDefaults | grep RELOADER`:
