@@ -9,10 +9,14 @@ spec:
     kind: DaemonSet
     name: kured
   updatePolicy:
-    updateMode: Off
+    # InPlaceOrRecreate: measured usage (52Mi) sat above the chart request
+    # (32Mi) with no actuation while Off. Every other VPA in this component
+    # actuates; Off here was drift, not policy.
+    updateMode: InPlaceOrRecreate
   resourcePolicy:
     containerPolicies:
       - containerName: kured
+        controlledValues: RequestsOnly
         minAllowed:
           cpu: 5m
           memory: 10Mi
