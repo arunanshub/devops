@@ -1,0 +1,35 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: vmagent
+  namespace: monitoring
+spec:
+  # The VM operator renders a Deployment for the VMAgent CR. The VPA
+  # targets that Deployment, same pattern as the vmalert VPA.
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vmagent-victoria-metrics-k8s-stack
+  updatePolicy:
+    updateMode: InPlaceOrRecreate
+    minReplicas: 1
+  resourcePolicy:
+    containerPolicies:
+      # vmagent measured at 185Mi against a 96Mi chart request. Scrapes
+      # were under-counted by 1.9x. maxAllowed matches the chart limit.
+      - containerName: vmagent
+        controlledValues: RequestsOnly
+        minAllowed:
+          cpu: 50m
+          memory: 96Mi
+        maxAllowed:
+          cpu: 500m
+          memory: 384Mi
+      - containerName: config-reloader
+        controlledValues: RequestsOnly
+        minAllowed:
+          cpu: 10m
+          memory: 25Mi
+        maxAllowed:
+          cpu: 50m
+          memory: 64Mi

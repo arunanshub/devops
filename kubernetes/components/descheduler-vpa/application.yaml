@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: descheduler-vpa
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  # infra project: the descheduler namespace is in its destinations.
+  project: infra
+
+  source:
+    repoURL: git@github.com:arunanshub/devops.git
+    targetRevision: master
+    path: kubernetes/components/descheduler-vpa/resources
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: descheduler
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

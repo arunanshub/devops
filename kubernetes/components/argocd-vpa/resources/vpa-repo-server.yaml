@@ -1,0 +1,25 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: argocd-repo-server
+  namespace: argocd
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: argocd-repo-server
+  updatePolicy:
+    updateMode: InPlaceOrRecreate
+    minReplicas: 1
+  resourcePolicy:
+    containerPolicies:
+      # repo-server spikes during git fetches and helm renders. The 1Gi
+      # chart limit is the cap; the request floats with real usage.
+      - containerName: repo-server
+        controlledValues: RequestsOnly
+        minAllowed:
+          cpu: 50m
+          memory: 128Mi
+        maxAllowed:
+          cpu: 1
+          memory: 1Gi

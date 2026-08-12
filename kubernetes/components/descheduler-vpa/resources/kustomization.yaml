@@ -3,6 +3,3 @@ kind: Kustomization
 
 resources:
   - vpa.yaml
-  - vpa-server.yaml
-  - vpa-repo-server.yaml
-  - vpa-redis.yaml

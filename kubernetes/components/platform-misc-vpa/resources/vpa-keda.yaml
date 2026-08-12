@@ -1,0 +1,74 @@
+# keda-operator measured at 136Mi against a 64Mi chart request. The
+# scheduler under-counted it by 2x. maxAllowed matches the chart limits
+# so a request can never outgrow the limit.
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: keda-operator
+  namespace: keda
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: keda-operator
+  updatePolicy:
+    updateMode: InPlaceOrRecreate
+    minReplicas: 1
+  resourcePolicy:
+    containerPolicies:
+      - containerName: keda-operator
+        controlledValues: RequestsOnly
+        minAllowed:
+          cpu: 10m
+          memory: 64Mi
+        maxAllowed:
+          cpu: 500m
+          memory: 256Mi
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: keda-admission-webhooks
+  namespace: keda
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: keda-admission-webhooks
+  updatePolicy:
+    updateMode: InPlaceOrRecreate
+    minReplicas: 1
+  resourcePolicy:
+    containerPolicies:
+      - containerName: keda-admission-webhooks
+        controlledValues: RequestsOnly
+        minAllowed:
+          cpu: 10m
+          memory: 32Mi
+        maxAllowed:
+          cpu: 500m
+          memory: 96Mi
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: keda-operator-metrics-apiserver
+  namespace: keda
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: keda-operator-metrics-apiserver
+  updatePolicy:
+    updateMode: InPlaceOrRecreate
+    minReplicas: 1
+  resourcePolicy:
+    containerPolicies:
+      - containerName: keda-operator-metrics-apiserver
+        controlledValues: RequestsOnly
+        minAllowed:
+          cpu: 10m
+          memory: 64Mi
+        maxAllowed:
+          cpu: 500m
+          memory: 256Mi
