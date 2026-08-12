@@ -1,1 +1,7 @@
 fullnameOverride: sealed-secrets-controller
+
+# Ceiling only. The VPA owns the request (RequestsOnly). The chart renders
+# no limit by default, which left the controller unbounded.
+resources:
+  limits:
+    memory: 256Mi

@@ -16,6 +16,25 @@ spec:
     # using the SHA prevents silent drift if the upstream tag is force-pushed.
     targetRevision: 38f3e11fd1dd19872f97565f8a75c39acc85d82b
     path: .
+    kustomize:
+      # The upstream Deployment declares no resources. The controller was
+      # BestEffort: the first eviction candidate on the node. Give it a
+      # floor and a ceiling. If upstream adds resources, this JSON patch
+      # fails the sync on purpose. Re-review then.
+      patches:
+        - target:
+            kind: Deployment
+            name: system-upgrade-controller
+          patch: |-
+            - op: add
+              path: /spec/template/spec/containers/0/resources
+              value:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
 
   destination:
     server: https://kubernetes.default.svc

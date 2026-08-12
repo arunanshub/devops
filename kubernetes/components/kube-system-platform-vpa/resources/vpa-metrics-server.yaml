@@ -11,6 +11,9 @@ spec:
   updatePolicy:
     updateMode: InPlaceOrRecreate
     minReplicas: 1
+  # Accepted risk: no memory limit. k3s ships metrics-server as a static
+  # manifest, so no chart values or HelmChartConfig can set one. Measured
+  # usage is 29Mi. A ceiling is not worth self-managing the addon.
   resourcePolicy:
     containerPolicies:
       - containerName: metrics-server

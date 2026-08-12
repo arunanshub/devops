@@ -111,6 +111,10 @@ operator:
     requests:
       cpu: 25m
       memory: 160Mi
+    # Ceiling only. The VPA owns the request (RequestsOnly).
+    # Matches the VPA maxAllowed.
+    limits:
+      memory: 256Mi
   prometheus:
     enabled: true
     serviceMonitor:
@@ -149,8 +153,21 @@ cgroup:
 hubble:
   relay:
     enabled: true
+    # Ceiling only. The VPA owns the request (RequestsOnly).
+    resources:
+      limits:
+        memory: 256Mi
   ui:
     enabled: true
+    # Ceilings only. The VPA owns the requests (RequestsOnly).
+    backend:
+      resources:
+        limits:
+          memory: 256Mi
+    frontend:
+      resources:
+        limits:
+          memory: 256Mi
   tls:
     auto:
       method: cronJob

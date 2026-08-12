@@ -29,13 +29,15 @@ config:
   kind: "ControllerConfiguration"
   enableGatewayAPI: true
 
-# Resource limits — cert-manager is not resource-intensive.
+# Resource limits — cert-manager is not resource-intensive, but measured
+# usage (92Mi) sat at 69% of the old 128Mi ceiling. 256Mi gives headroom
+# for renewal spikes. The VPA owns the request (RequestsOnly).
 resources:
   requests:
     cpu: 10m
     memory: 64Mi
   limits:
-    memory: 128Mi
+    memory: 256Mi
 
 webhook:
   resources:
