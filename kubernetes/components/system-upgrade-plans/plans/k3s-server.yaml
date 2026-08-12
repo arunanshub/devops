@@ -4,14 +4,19 @@ metadata:
   name: k3s-server
   namespace: system-upgrade
 spec:
-  # Pinned explicitly (was: channel: .../stable). The k3s stable channel
-  # flapped below the running version — it served v1.35.5 while the cluster
-  # ran v1.36.2 — so SUC kept creating downgrade Jobs that the k3s-upgrade
-  # downgrade-guard fails, leaving cp-3 cordoned (NodeCordonedTooLong,
-  # 2026-06-26). Pinning makes the target deterministic and immune to flap.
-  # Bump this in lockstep with infra/locals.tf k3s_version when upgrading.
-  # To track a channel again: remove `version` and set `channel: <url>`.
-  version: v1.36.2+k3s1
+  # Track the stable channel. SUC polls this URL. A newer resolved version
+  # starts a rolling upgrade Job (concurrency 1, cordon per node).
+  #
+  # History: on 2026-06-26 the upstream endpoint had a bug. It answered
+  # v1.36.2 or v1.35.5 at random. Each flap below the running version made
+  # SUC create a downgrade Job. The k3s-upgrade downgrade guard failed the
+  # Job, and cp-3 stayed cordoned (NodeCordonedTooLong). The pin that
+  # followed is removed: the endpoint answers consistently since.
+  #
+  # If the flap returns: remove `channel` and pin `version: <current>`.
+  # The NodeCordonedTooLong alert is the early warning.
+  # Keep infra/locals.tf k3s_version at or below the channel version.
+  channel: https://update.k3s.io/v1-release/channels/stable
   concurrency: 1
   cordon: true
   serviceAccountName: system-upgrade

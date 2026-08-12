@@ -1,6 +1,9 @@
 locals {
   cluster_name = "hetzner-k3s"
-  k3s_version  = "v1.36.2+k3s1"
+  # Fresh nodes install this version. The SUC k3s-server Plan tracks the
+  # stable channel and upgrades nodes after they join. Keep this value at
+  # or below the channel version. A higher value causes a downgrade loop.
+  k3s_version  = "v1.36.3+k3s1"
   network_cidr = "10.0.0.0/16"
   subnet_cidr  = cidrsubnet(local.network_cidr, 8, 0)
 
