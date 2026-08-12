@@ -13,6 +13,7 @@ spec:
   resourcePolicy:
     containerPolicies:
       - containerName: cilium-operator
+        controlledValues: RequestsOnly
         minAllowed:
           cpu: 10m
           memory: 32Mi

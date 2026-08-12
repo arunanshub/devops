@@ -14,6 +14,7 @@ spec:
   resourcePolicy:
     containerPolicies:
       - containerName: local-path-provisioner
+        controlledValues: RequestsOnly
         minAllowed:
           cpu: 5m
           memory: 16Mi

@@ -13,6 +13,7 @@ spec:
   resourcePolicy:
     containerPolicies:
       - containerName: cilium-agent
+        controlledValues: RequestsOnly
         minAllowed:
           cpu: 50m
           memory: 128Mi
