@@ -6,7 +6,7 @@ resources:
   - ../../base/apps
 
 components:
-  - ../../components/argocd-app-controller-vpa
+  - ../../components/argocd-vpa
   - ../../components/traefik-scaling
   - ../../components/monitoring-vpa
   - ../../components/platform-misc-vpa

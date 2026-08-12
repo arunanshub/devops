@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: argocd-app-controller-vpa
+  name: argocd-vpa
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: git@github.com:arunanshub/devops.git
     targetRevision: master
-    path: kubernetes/components/argocd-app-controller-vpa/resources
+    path: kubernetes/components/argocd-vpa/resources
 
   destination:
     server: https://kubernetes.default.svc

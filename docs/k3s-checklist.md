@@ -100,7 +100,7 @@ kubernetes/
 │           ├── application.yaml
 │           └── values.yaml
 ├── components/
-│   ├── argocd-app-controller-vpa/    ← kustomize component; included by overlays/prod
+│   ├── argocd-vpa/                   ← kustomize component; included by overlays/prod
 │   │   ├── application.yaml
 │   │   ├── kustomization.yaml        ← kind: Component
 │   │   └── resources/
@@ -348,7 +348,7 @@ Autoscaling and disruption budget patterns for cluster infrastructure and future
   - `base/infra/vpa/` — application.yaml + values.yaml
   - Fairwinds chosen over autoscaler community chart for better Helm ergonomics and more active maintenance
 - [x] VPA + PDB for ArgoCD application-controller (`InPlaceOrRecreate` mode, `maxUnavailable: 1`)
-  - Lives in `components/argocd-app-controller-vpa/` — kustomize component included by `overlays/prod`
+  - Lives in `components/argocd-vpa/` — kustomize component included by `overlays/prod`
   - Bounds: 50m–2 CPU / 128Mi–2Gi
   - `maxUnavailable: 1` is correct for a 1-replica StatefulSet — `minAvailable: 1` on a singleton permanently blocks node drains, kured reboots, and VPA Recreate fallback
 - [x] VPA + PDB for Prometheus — enabled via chart values, **not** a raw VPA manifest
