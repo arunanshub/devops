@@ -76,15 +76,15 @@ spec:
             description: "cilium_wg0 dropped {{ $value | humanizePercentage }} of transmitted packets over 30m on {{ $labels.instance }}, and more than 1500 packets, for 1 hour. Check the TCP retransmit ratio first. If retransmits are flat, the datapath is healthy and this alert needs a higher threshold. Run: just diagnose-wireguard node=<kubernetes-node-name> duration=900"
 
     # cloudflared is the SOLE external ingress path into the cluster. Each replica
-    # holds 4 HA connections to the Cloudflare edge; healthy steady state is 8
-    # (2 replicas x 4). This group watches that the tunnel stays connected.
+    # holds 4 HA connections to the Cloudflare edge; healthy steady state is 12
+    # (3 replicas x 4). This group watches that the tunnel stays connected.
     - name: cloudflared-tunnel
       interval: 1m
       rules:
         # Below one full replica's worth of edge connections sustained for 5m means
-        # redundancy is lost and ingress is at risk (a rolling restart dips to 4, not
-        # below, and the 5m window rides that out). The /ready probe + KEDA min 2
-        # normally self-heal; this fires when they don't.
+        # redundancy is lost and ingress is at risk (a rolling restart dips briefly,
+        # and the 5m window rides that out). The /ready probe normally self-heals;
+        # this fires when it does not.
         - alert: CloudflaredTunnelRedundancyLost
           expr: sum(cloudflared_tunnel_ha_connections) < 4
           for: 5m
@@ -92,4 +92,37 @@ spec:
             severity: critical
           annotations:
             summary: "Cloudflare tunnel edge connections degraded"
-            description: "Total cloudflared edge HA connections is {{ $value }} (healthy = 8 = 2 replicas x 4). Below 4 means less than one fully-connected replica — external ingress is at risk. Check: kubectl -n cloudflared get pods; kubectl -n cloudflared logs -l app=cloudflared (now JSON-formatted)"
+            description: "Total cloudflared edge HA connections is {{ $value }} (healthy = 12 = 3 replicas x 4). Below 4 means less than one fully-connected replica — external ingress is at risk. Check: kubectl -n cloudflared get pods; kubectl -n cloudflared logs -l app=cloudflared (now JSON-formatted)"
+
+        # One or more edge connections stayed down for 10m. The expression compares
+        # the connection total against 4 x the ready replica count, so a replica
+        # scale change does not need an alert edit. Rollout dips re-register in
+        # about 20s; the 10m window rides them out. Sustained deficit means a
+        # connection died and did not come back.
+        - alert: CloudflaredTunnelConnectionsDegraded
+          expr: >-
+            sum(cloudflared_tunnel_ha_connections) < 4 * sum(kube_deployment_status_replicas_ready{namespace="cloudflared",deployment=~"cloudflared(-http2)?"})
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Cloudflare tunnel is missing edge connections"
+            description: "cloudflared holds {{ $value }} edge HA connections; healthy is 4 per ready replica. A connection dropped and did not re-register. Check: kubectl -n cloudflared logs -l app=cloudflared --since=1h | grep -E 'Connection terminated|Registered tunnel'"
+
+        # Flap-storm detector for the 2026-08-13 incident signature: the external
+        # path between Hetzner and the Cloudflare edge drops packets, QUIC times
+        # out on every pod in the same second, and users see intermittent 520s
+        # for ~20s per event. Each event re-registers 4-11 connections, so the
+        # register counter is the only signal that survives the 30s scrape
+        # interval. The pod-age clause suppresses the 12 registrations that a
+        # normal rollout produces. This alert is diagnostic: the fix is to wait,
+        # not to restart anything (see cloudflared-anchor-colo-drift memory).
+        - alert: CloudflaredTunnelReconnectStorm
+          expr: >-
+            sum(increase(cloudflared_tunnel_tunnel_register_success[30m])) > 4 and on() (min(time() - kube_pod_start_time{namespace="cloudflared"}) > 1800)
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Cloudflare tunnel connections are flapping"
+            description: "{{ $value }} tunnel re-registrations in 30m with no recent pod starts. This is the external-path flap signature: same-second drops across all pods, ~20s of 520s per event. The cluster is not the cause. Verify: kubectl -n cloudflared logs -l app=cloudflared --since=1h | grep 'Connection terminated'"

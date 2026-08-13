@@ -232,3 +232,48 @@ Set the argument back to `http2` in
 `kubernetes/components/cloudflared/resources/deployment.yaml`, then commit.
 Revert if connector readiness drops, tunnel errors increase, or the stalls
 return.
+
+## 2026-08-13 — Transport-diversity split (2 QUIC + 1 http2)
+
+Cloudflare ran scheduled maintenance on the HEL colo from 2026-08-12 23:00
+to 2026-08-13 04:00 UTC. The drain dropped every QUIC connection on all
+pods in the same second, three times. Each event served intermittent 520s
+for about 20 seconds while cloudflared re-registered. Two more unattributed
+flap events followed at 05:52 and 15:01 UTC. See the incident notes in the
+`cloudflared-anchor-colo-drift` memory and the `CloudflaredTunnelReconnectStorm`
+alert.
+
+QUIC amplifies a brief loss window into a full teardown plus re-registration.
+TCP stalls and resumes without a teardown. The fix is transport diversity,
+not a protocol change:
+
+- `deployment.yaml` — 2 replicas, `--protocol auto` (QUIC).
+- `deployment-http2.yaml` — 1 replica, `--protocol http2` (TCP).
+
+Both Deployments run the same tunnel token. Cloudflare registers each pod
+as a tunnel replica and distributes requests across all of them. During a
+UDP-only path event the http2 replica keeps serving. A colo drain can also
+reset TCP connections. The protection against a drain is therefore not
+proven yet. The AMS maintenance window on 2026-08-18 00:00-06:00 UTC is
+the test: check whether the http2 connections survive while QUIC drops.
+
+The total stays 12 edge connections (3 pods x 4). The `cloudflared` netpol
+selects both Deployments and already allows 7844 UDP and TCP. The PDB spans
+both groups with `maxUnavailable: 1`.
+
+### Verify after sync
+
+```bash
+kubectl get pods -n cloudflared
+kubectl logs -n cloudflared -l app=cloudflared-http2 --since=10m \
+  | rg '"protocol":"http2".*Registered tunnel connection|Registered tunnel connection'
+```
+
+The http2 pod must register 4 connections with `"protocol":"http2"`. The
+QUIC pods must keep `"protocol":"quic"`.
+
+### Revert
+
+Delete `deployment-http2.yaml` and `vpa-http2.yaml` from the kustomization,
+set `replicas: 3` in `deployment.yaml`, and commit. The netpol and PDB
+selectors tolerate the absent `cloudflared-http2` label.

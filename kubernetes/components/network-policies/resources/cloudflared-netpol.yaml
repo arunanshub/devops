@@ -4,9 +4,16 @@ metadata:
   name: cloudflared
   namespace: cloudflared
 spec:
+  # Covers the QUIC Deployment (app: cloudflared) and the http2 Deployment
+  # (app: cloudflared-http2). Both need identical ingress and egress. The
+  # egress rule below already allows 7844 on UDP (QUIC) and TCP (http2).
   endpointSelector:
-    matchLabels:
-      app: cloudflared
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - cloudflared
+          - cloudflared-http2
   ingress:
     # Kubelet readiness probe — observed: host:* -> cloudflared:2000 TCP
     - fromEntities:

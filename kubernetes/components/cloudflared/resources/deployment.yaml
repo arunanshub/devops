@@ -7,11 +7,19 @@ spec:
   selector:
     matchLabels:
       app: cloudflared
-  replicas: 3
+  # 2 QUIC replicas. deployment-http2.yaml adds 1 http2 replica on the same
+  # tunnel token. Cloudflare spreads requests across every connected replica,
+  # so the tunnel keeps TCP connections when a path event kills QUIC (UDP).
+  # The 2026-08-13 HEL colo maintenance dropped all QUIC connections in the
+  # same second and served 520s for ~20s per event.
+  replicas: 2
   template:
     metadata:
       labels:
         app: cloudflared
+        # Shared label. The metrics Service selects the QUIC and http2 pods
+        # through this label.
+        app.kubernetes.io/part-of: cloudflared
     spec:
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 60
