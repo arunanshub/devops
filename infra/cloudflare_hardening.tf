@@ -8,13 +8,13 @@
 # The two AI settings have two different jobs:
 #   - is_robots_txt_managed states a preference. It asks known AI trainers to
 #     stay away. Compliance is voluntary.
-#   - ai_bots_protection enforces the preference. It stays "disabled". The edge
-#     serves AI bots from the cache. The origin cost is near zero.
+#   - ai_bots_protection enforces the preference. The edge serves AI bots from
+#     the cache. The origin cost is near zero.
 resource "cloudflare_bot_management" "main" {
   zone_id            = var.cloudflare_zone_id
   fight_mode         = true
   enable_js          = true
-  ai_bots_protection = "disabled"
+  ai_bots_protection = "only_on_ad_pages"
 
   # Managed robots.txt. Cloudflare generates a block of Content-Signal
   # directives (search=yes, ai-train=no, use=reference). The block also holds a
