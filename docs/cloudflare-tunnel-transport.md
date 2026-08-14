@@ -261,6 +261,16 @@ The total stays 12 edge connections (3 pods x 4). The `cloudflared` netpol
 selects both Deployments and already allows 7844 UDP and TCP. The PDB spans
 both groups with `maxUnavailable: 1`.
 
+**Post-deploy defect (fixed the same day):** the `traefik` netpol ingress
+rule matched `app: cloudflared` exactly. Cilium dropped every dial from the
+http2 replica to Traefik (`POLICY_DENIED` in Hubble). Requests that
+Cloudflare routed to that replica failed with "Unable to reach the origin
+service". The fix keys the rule on the shared label
+`app.kubernetes.io/part-of: cloudflared`. Lesson: a new pod label set must
+pass BOTH sides of every Cilium policy pair — the egress policy on the
+source and the ingress policy on the destination. Check with:
+`hubble observe --verdict DROPPED --from-namespace cloudflared`.
+
 ### Verify after sync
 
 ```bash

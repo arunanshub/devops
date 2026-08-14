@@ -10,11 +10,13 @@ spec:
       app.kubernetes.io/instance: traefik-traefik
   ingress:
     # Main Gateway API entrypoint. cloudflared serves production traffic and k6
-    # serves the controlled in-cluster load test.
+    # serves the controlled in-cluster load test. The part-of label covers both
+    # cloudflared Deployments (app: cloudflared and app: cloudflared-http2).
+    # An exact app match here blocked the http2 replica on 2026-08-13.
     - fromEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: cloudflared
-            app: cloudflared
+            app.kubernetes.io/part-of: cloudflared
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: arunanshu-dev
             app.kubernetes.io/name: k6
