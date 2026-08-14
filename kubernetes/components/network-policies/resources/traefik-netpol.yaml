@@ -4,59 +4,16 @@ metadata:
   name: traefik
   namespace: traefik
 spec:
+  # Egress-only: Traefik parses hostile input from the internet, so this
+  # bounds a compromise to the namespaces the Gateway already routes to.
+  # No world egress; DNS exfil through CoreDNS remains an accepted gap.
+  # No ingress section — the backends carry no policies, so gating port
+  # 8000 adds nothing an in-cluster attacker cannot bypass, and Cilium
+  # default-deny is per direction, so ingress stays open.
   endpointSelector:
     matchLabels:
       app.kubernetes.io/name: traefik
       app.kubernetes.io/instance: traefik-traefik
-  ingress:
-    # Main Gateway API entrypoint. cloudflared serves production traffic and k6
-    # serves the controlled in-cluster load test. The part-of label covers both
-    # cloudflared Deployments (app: cloudflared and app: cloudflared-http2).
-    # An exact app match here blocked the http2 replica on 2026-08-13.
-    - fromEndpoints:
-        - matchLabels:
-            k8s:io.kubernetes.pod.namespace: cloudflared
-            app.kubernetes.io/part-of: cloudflared
-        - matchLabels:
-            k8s:io.kubernetes.pod.namespace: arunanshu-dev
-            app.kubernetes.io/name: k6
-      toPorts:
-        - ports:
-            - port: "8000"
-              protocol: TCP
-    # Host access preserves kubectl port-forward diagnostics. Cilium does not
-    # permit FromEntities and FromEndpoints in the same ingress rule.
-    - fromEntities:
-        - host
-      toPorts:
-        - ports:
-            - port: "8000"
-              protocol: TCP
-    # The chart health probes use port 8080. The public dashboard HTTPRoute
-    # also sends requests from a Traefik pod to api@internal on this port.
-    - fromEndpoints:
-        - matchLabels:
-            k8s:io.kubernetes.pod.namespace: traefik
-            app.kubernetes.io/name: traefik
-            app.kubernetes.io/instance: traefik-traefik
-      toPorts:
-        - ports:
-            - port: "8080"
-              protocol: TCP
-    - fromEntities:
-        - host
-      toPorts:
-        - ports:
-            - port: "8080"
-              protocol: TCP
-    # Only monitoring can scrape the dedicated Prometheus entrypoint.
-    - fromEndpoints:
-        - matchLabels:
-            k8s:io.kubernetes.pod.namespace: monitoring
-      toPorts:
-        - ports:
-            - port: "9100"
-              protocol: TCP
   egress:
     # Kubernetes API — required by the Gateway/CRD providers. Cilium's service
     # load balancing redirects the Service VIP to API backends, so match the

@@ -4,9 +4,10 @@ metadata:
   name: cloudflared
   namespace: cloudflared
 spec:
-  # Covers the QUIC Deployment (app: cloudflared) and the http2 Deployment
-  # (app: cloudflared-http2). Both need identical ingress and egress. The
-  # egress rule below already allows 7844 on UDP (QUIC) and TCP (http2).
+  # Egress-only: cloudflared holds the tunnel token, so its egress is locked
+  # down. No ingress section — Cilium default-deny is per direction, so
+  # ingress stays open and probes/scrapes need no carve-outs.
+  # Covers both Deployments (app: cloudflared, app: cloudflared-http2).
   endpointSelector:
     matchExpressions:
       - key: app
@@ -14,22 +15,6 @@ spec:
         values:
           - cloudflared
           - cloudflared-http2
-  ingress:
-    # Kubelet readiness probe — observed: host:* -> cloudflared:2000 TCP
-    - fromEntities:
-        - host
-      toPorts:
-        - ports:
-            - port: "2000"
-              protocol: TCP
-    # Prometheus scrape — observed: monitoring/prometheus:* -> cloudflared:2000 TCP
-    - fromEndpoints:
-        - matchLabels:
-            k8s:io.kubernetes.pod.namespace: monitoring
-      toPorts:
-        - ports:
-            - port: "2000"
-              protocol: TCP
   egress:
     # CoreDNS — required for traefik.traefik.svc.cluster.local and edge DNS resolution
     - toEndpoints:
@@ -42,16 +27,17 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    # Cloudflare tunnel DATA PLANE — locked to Cloudflare's published edge ranges
-    # instead of the whole internet. Port 7844 carries BOTH the QUIC (UDP) primary
-    # and the http2 (TCP) fallback (cloudflared runs default auto-protocol, so it
-    # falls back to http2/TCP:7844 when QUIC degrades — and QUIC/UDP is MTU-sensitive
-    # on this WireGuard+VXLAN overlay, path MTU 1305). Cloudflare officially supports
-    # IP-based firewalling of the tunnel, and cloudflared caches/uses edge IPs
-    # directly, so toCIDRSet is more robust here than toFQDNs (no DNS-proxy needed).
-    # These are the GLOBAL regions (region1/region2). If cloudflared ever logs a
-    # us-region/fed edge, add those ranges from the doc below.
+    # Tunnel data plane. Port 7844 carries QUIC (UDP) and http2 (TCP).
+    # toCIDRSet, not toFQDNs: cloudflared dials cached edge IPs directly,
+    # and CIDRs need no DNS proxy. These are the global regions
+    # (region1/region2); if cloudflared ever logs a us-region/fed edge, add
+    # those ranges from the doc below.
     # https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/configure-tunnels/tunnel-with-firewall/
+    #
+    # No world:443 rule. The doc above marks api.cloudflare.com as optional
+    # for token-run tunnels, and it would let a compromised pod exfiltrate
+    # the token. If a future version fails registration at cold start,
+    # re-add 443/TCP to world and record the version here.
     - toCIDRSet:
         - cidr: 198.41.192.0/24 # region1.v2.argotunnel.com
         - cidr: 198.41.200.0/24 # region2.v2.argotunnel.com
@@ -62,17 +48,6 @@ spec:
             - port: "7844"
               protocol: UDP
             - port: "7844"
-              protocol: TCP
-    # Cloudflare OPTIONAL control-plane — api.cloudflare.com registration + PQ error
-    # reporting on 443/TCP. Optional per the firewall doc ("cloudflared will still run
-    # correctly" without it) and --no-autoupdate disables update checks; these span
-    # Cloudflare's large general anycast ranges rather than the edge /24s, so kept as
-    # world:443. Candidate to drop entirely once Hubble confirms it's unused.
-    - toEntities:
-        - world
-      toPorts:
-        - ports:
-            - port: "443"
               protocol: TCP
     # Traefik reverse proxy — observed: cloudflared:* -> traefik pod:8000 TCP
     - toEndpoints:
