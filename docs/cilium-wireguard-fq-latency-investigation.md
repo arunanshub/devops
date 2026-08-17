@@ -476,6 +476,52 @@ The chart omits the ConfigMap keys when the manager is disabled.
 
 Use `extraConfig` to render all three agent keys as false.
 
+### E10: Verify the deployed fix
+
+**Status:** Complete on 2026-08-17.
+
+Argo CD applied all three bandwidth-manager keys as false.
+
+Ansible rebooted one control-plane node at a time.
+
+Every pre-reboot and post-reboot quorum gate passed.
+
+Every node now uses `fq_codel` on `enp7s0` and CUBIC for TCP.
+
+Two repeated 100 MiB cross-node TCP transfers produced these results:
+
+| Run | WireGuard drops | Physical qdisc drops | TCP retransmissions |
+| --- | ---: | ---: | ---: |
+| Before the fix | 89 | 89 | 107 |
+| After the fix, run 1 | 0 | 0 | 5 |
+| After the fix, run 2 | 0 | 0 | 1 |
+
+The post-fix runs remove the correlated WireGuard and qdisc loss.
+
+Cloudflared also passed its post-rollout checks.
+
+All three pods are Ready and run on separate nodes.
+
+Each pod has four HTTP/2 edge connections.
+
+The two-minute request-error increase was zero for every pod.
+
+The startup pre-check reports failed UDP and API tests.
+
+The UDP failure is expected because the policy permits only HTTP/2 TCP traffic.
+
+Cloudflare documents this TCP-only state as valid for forced HTTP/2.
+
+The API test is optional, and `--no-autoupdate` disables software updates.
+
+See the [Cloudflare firewall requirements](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/tunnel-with-firewall/).
+
+Ten public site requests returned HTTP 200 in 0.523 to 1.183 seconds.
+
+Ten public Grafana requests returned the expected HTTP 302 in 0.224 to 0.534 seconds.
+
+These checks prove service availability. They do not prove a stable uncached latency target.
+
 ## Rejected shortcuts
 
 | Shortcut | Rejection reason | Required evidence before reconsideration |
@@ -522,13 +568,13 @@ Force the three generated ConfigMap keys to false through `extraConfig`.
 
 Apply the same values to the bootstrap and Argo CD files.
 
-After Argo CD syncs the ConfigMap, restart one Cilium agent at a time.
+Argo CD applied the ConfigMap before the node changes.
 
-The old qdisc and congestion-control sysctl can remain until a node reboot.
+Ansible rebooted one node at a time and preserved the etcd quorum.
 
-Reboot one node at a time to preserve the etcd quorum.
+Each node passed Cilium health, qdisc, and congestion-control gates.
 
-After each node, verify Cilium health, the MTU chain, the qdisc, and cross-node retransmissions.
+The full cluster and MTU checks passed after all three reboots.
 
 The desired post-reboot qdisc must not be Cilium-managed `fq`.
 
@@ -554,3 +600,6 @@ Do not use a manual qdisc override as the fix.
 | 16:46 | WireGuard endpoint capture | UDP port 51871 used private IPv4 on `enp7s0`. | Disprove the public-IPv6 assumption. |
 | 16:52 | E8 reconciliation check | Cilium replaced both temporary qdisc settings and restored 100 packets. | Reject a manual limit change. |
 | Current | E9 Helm audit | Only the bandwidth manager and BBR create the faulty qdisc. | Disable both features in both values files. |
+| 17:30 to 17:42 | E10 rolling reboots | All three nodes returned with `fq_codel`, CUBIC, and healthy Cilium. | Confirm the configured fix reached every node. |
+| 17:46 | Cloudflared health | Twelve HTTP/2 connections and zero two-minute request errors. | Accept the TCP-only tunnel state. |
+| 17:47 | E10 repeated transfers | Both 100 MiB runs added zero WireGuard and qdisc drops. | Confirm removal of the proved loss path. |
