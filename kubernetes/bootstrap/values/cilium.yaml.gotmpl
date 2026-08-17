@@ -52,15 +52,14 @@ encryption:
 bpf:
   masquerade: true
 
-# BandwidthManager (MQ/FQ qdiscs + EDT pacing) + BBR congestion control for pods.
-# BBR helps the high-RTT internet egress path (cloudflared/traefik/webapp); requires
-# eBPF host-routing (on) + kernel >=5.18 (6.8). Applies to NEW sockets only — existing
-# pods flip on their next restart. Orthogonal to VXLAN+WireGuard. Revert = both keys
-# false + rolling per-node `kubectl -n kube-system delete pod -l k8s-app=cilium`
-# (qdisc/sysctl persist until node reboot, benign). Verify: `just verify-mtu` + cilium status.
+# Disable the bandwidth manager and BBR. This cluster has no pod bandwidth
+# annotations. The manager installs an fq qdisc with a 100-packet flow limit.
+# WireGuard sends each peer through one UDP flow. Bursts fill that flow and
+# cause qdisc drops before the physical interface transmits the packets.
 bandwidthManager:
-  enabled: true
-  bbr: true
+  enabled: false
+  bbr: false
+  bbrHostNamespaceOnly: false
 
 pmtuDiscovery:
   enabled: true
@@ -69,6 +68,11 @@ pmtuDiscovery:
 extraConfig:
   enable-gateway-api: "false"
   enable-gateway-api-secrets-sync: "false"
+  # Force these keys to false. The chart omits the keys when the manager is
+  # disabled. Server-side apply can retain omitted ConfigMap keys.
+  enable-bandwidth-manager: "false"
+  enable-bbr: "false"
+  enable-bbr-hostns-only: "false"
 
 resources:
   requests:

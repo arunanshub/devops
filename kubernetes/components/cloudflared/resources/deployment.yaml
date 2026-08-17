@@ -7,28 +7,26 @@ spec:
   selector:
     matchLabels:
       app: cloudflared
-  # 2 QUIC replicas. deployment-http2.yaml adds 1 http2 replica on the same
-  # tunnel token. Cloudflare spreads requests across every connected replica,
-  # so the tunnel keeps TCP connections when a path event kills QUIC (UDP).
-  # The 2026-08-13 HEL colo maintenance dropped all QUIC connections in the
-  # same second and served 520s for ~20s per event.
-  replicas: 2
+  # Use HTTP/2 for every connector. QUIC lost all eight connections during
+  # the edge event at 13:17 UTC on 2026-08-17.
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
   template:
     metadata:
       labels:
         app: cloudflared
-        # Shared label. The metrics Service selects the QUIC and http2 pods
-        # through this label.
-        app.kubernetes.io/part-of: cloudflared
     spec:
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 60
-      # Prefer spreading across nodes so a single node failure doesn't drop both
-      # tunnel connections, but allow co-location rather than block scheduling.
+      # One connector per node limits a node failure to one connector.
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: ScheduleAnyway
+          whenUnsatisfiable: DoNotSchedule
           labelSelector:
             matchLabels:
               app: cloudflared
@@ -45,19 +43,11 @@ spec:
             # flag exists on this version (--output, env TUNNEL_LOG_OUTPUT).
             - --output
             - json
-            # QUIC RETEST (2026-08-08). The 2026-07-16 http2 pin ends here.
-            # The nodes gave quic-go only 416 KiB of UDP receive buffer, so the
-            # kernel dropped packets and QUIC collapsed the congestion window.
-            # The Ansible baseline role now sets net.core.rmem_max to 7500000.
-            # This container drops all capabilities, so quic-go cannot raise the
-            # limit itself. Watch the logs after a roll. The buffer warning must
-            # be absent and the connections must register with protocol quic.
-            # Revert to "http2" if the tunnel gets worse.
-            # Evidence and rollback: docs/cloudflare-tunnel-transport.md
-            # Cloudflare: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/run-parameters/#protocol
-            # Related upstream report: https://github.com/cloudflare/cloudflared/issues/895
+            # HTTP/2 is a static transport selection. The Cloudflare edge can
+            # still disconnect a TCP connector, but it avoided request errors
+            # during the observed QUIC connection collapse.
             - --protocol
-            - auto
+            - http2
             - run
           ports:
             - name: metrics

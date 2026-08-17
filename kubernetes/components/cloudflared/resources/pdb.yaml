@@ -4,14 +4,7 @@ metadata:
   name: cloudflared
   namespace: cloudflared
 spec:
-  # One budget for the whole tunnel fleet: never evict more than 1 of the
-  # 3 pods (2 QUIC + 1 http2) at a time. matchExpressions covers both
-  # Deployments without a shared-label dependency on rollout order.
   maxUnavailable: 1
   selector:
-    matchExpressions:
-      - key: app
-        operator: In
-        values:
-          - cloudflared
-          - cloudflared-http2
+    matchLabels:
+      app: cloudflared

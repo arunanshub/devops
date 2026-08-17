@@ -6,10 +6,8 @@ metadata:
   labels:
     app: cloudflared
 spec:
-  # part-of selects the QUIC pods and the http2 pods with one Service.
-  # A Service selector cannot use matchExpressions.
   selector:
-    app.kubernetes.io/part-of: cloudflared
+    app: cloudflared
   ports:
     - name: metrics
       port: 2000

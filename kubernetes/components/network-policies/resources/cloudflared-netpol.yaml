@@ -7,14 +7,9 @@ spec:
   # Egress-only: cloudflared holds the tunnel token, so its egress is locked
   # down. No ingress section — Cilium default-deny is per direction, so
   # ingress stays open and probes/scrapes need no carve-outs.
-  # Covers both Deployments (app: cloudflared, app: cloudflared-http2).
   endpointSelector:
-    matchExpressions:
-      - key: app
-        operator: In
-        values:
-          - cloudflared
-          - cloudflared-http2
+    matchLabels:
+      app: cloudflared
   egress:
     # CoreDNS — required for traefik.traefik.svc.cluster.local and edge DNS resolution
     - toEndpoints:
@@ -27,7 +22,7 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    # Tunnel data plane. Port 7844 carries QUIC (UDP) and http2 (TCP).
+    # Tunnel data plane. HTTP/2 uses TCP port 7844.
     # toCIDRSet, not toFQDNs: cloudflared dials cached edge IPs directly,
     # and CIDRs need no DNS proxy. These are the global regions
     # (region1/region2); if cloudflared ever logs a us-region/fed edge, add
@@ -45,8 +40,6 @@ spec:
         - cidr: "2606:4700:a8::/48" # region2 (IPv6)
       toPorts:
         - ports:
-            - port: "7844"
-              protocol: UDP
             - port: "7844"
               protocol: TCP
     # Traefik reverse proxy — observed: cloudflared:* -> traefik pod:8000 TCP

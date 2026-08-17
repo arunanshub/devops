@@ -101,7 +101,7 @@ spec:
         # connection died and did not come back.
         - alert: CloudflaredTunnelConnectionsDegraded
           expr: >-
-            sum(cloudflared_tunnel_ha_connections) < 4 * sum(kube_deployment_status_replicas_ready{namespace="cloudflared",deployment=~"cloudflared(-http2)?"})
+            sum(cloudflared_tunnel_ha_connections) < 4 * sum(kube_deployment_status_replicas_ready{namespace="cloudflared",deployment="cloudflared"})
           for: 10m
           labels:
             severity: warning

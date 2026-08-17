@@ -4,11 +4,9 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - deployment.yaml
-  - deployment-http2.yaml
   - metrics-service.yaml
   - servicemonitor.yaml
   - vpa.yaml
-  - vpa-http2.yaml
   - pdb.yaml
   - sealed-tunnel-token.yaml
 
