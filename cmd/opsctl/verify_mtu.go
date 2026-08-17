@@ -22,7 +22,6 @@ type verifyMTUCmd struct {
 	ExpectedPodMTU int           `default:"1450"         help:"Pod eth0 MTU (Cilium uses the native device MTU)."`
 	CeilingPayload int           `default:"1276"         help:"ICMP payload at the VXLAN+WG path ceiling: overlay clamp 1305 - 28 header - 1 slack."`
 	PassPayload    int           `default:"1200"         help:"ICMP payload comfortably below the ceiling."`
-	MinQuicMTU     int           `default:"1300"         help:"Minimum acceptable cloudflared quic_client_mtu (expected ~1344 at pod MTU 1450)."`
 	ReadyTimeout   time.Duration `default:"90s"          help:"How long the test pods may take to become Ready."`
 	Timeout        time.Duration `default:"5m"           help:"Overall timeout."`
 }
@@ -46,7 +45,6 @@ func (c *verifyMTUCmd) Run(ctx context.Context) error {
 		ExpectedPodMTU: c.ExpectedPodMTU,
 		CeilingPayload: c.CeilingPayload,
 		PassPayload:    c.PassPayload,
-		MinQuicMTU:     c.MinQuicMTU,
 		ReadyTimeout:   c.ReadyTimeout,
 	})
 

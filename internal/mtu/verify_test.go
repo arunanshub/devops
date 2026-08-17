@@ -5,9 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"strconv"
 	"strings"
@@ -27,11 +24,8 @@ type fakeCluster struct {
 	configMaps  map[string]map[string]string
 	podsByLabel map[string][]k8s.PodInfo
 	podIPs      map[string]string
-	forwardPort uint16
-	forwardErr  error
-
-	created []k8s.PodSpec
-	deleted []string
+	created     []k8s.PodSpec
+	deleted     []string
 }
 
 func execKey(pod string, command []string) string {
@@ -95,13 +89,6 @@ func (f *fakeCluster) Exec(
 	return out, "", nil
 }
 
-func (f *fakeCluster) PortForward(context.Context, string, string, uint16) (uint16, func(), error) {
-	if f.forwardErr != nil {
-		return 0, nil, f.forwardErr
-	}
-	return f.forwardPort, func() {}, nil
-}
-
 func testConfig() Config {
 	return Config{
 		Namespace:      "default",
@@ -110,7 +97,6 @@ func testConfig() Config {
 		ExpectedPodMTU: 1450,
 		CeilingPayload: 1276,
 		PassPayload:    1200,
-		MinQuicMTU:     1300,
 		ReadyTimeout:   time.Second,
 	}
 }
@@ -261,62 +247,6 @@ func TestCheckPodMTU(t *testing.T) {
 	})
 }
 
-func TestCheckCloudflaredQUIC(t *testing.T) {
-	labelKey := cloudflaredNamespace + "/" + cloudflaredSelector
-	cloudflaredPods := []k8s.PodInfo{{Name: "cloudflared-xyz", NodeName: "cp-1"}}
-
-	metricsServer := func(t *testing.T, body string) uint16 {
-		t.Helper()
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			fmt.Fprint(w, body)
-		}))
-		t.Cleanup(server.Close)
-
-		_, portStr, err := net.SplitHostPort(strings.TrimPrefix(server.URL, "http://"))
-		require.NoError(t, err)
-		port, err := strconv.ParseUint(portStr, 10, 16)
-		require.NoError(t, err)
-		return uint16(port)
-	}
-
-	t.Run("healthy MTU passes", func(t *testing.T) {
-		port := metricsServer(t, "quic_client_mtu{conn_index=\"0\"} 1344\n")
-		fake := &fakeCluster{
-			podsByLabel: map[string][]k8s.PodInfo{labelKey: cloudflaredPods},
-			forwardPort: port,
-		}
-		res := newTestVerifier(fake).checkCloudflaredQUIC(t.Context())
-		assert.True(t, res.Pass, "lines: %v", res.Lines)
-	})
-
-	t.Run("clamped MTU fails", func(t *testing.T) {
-		port := metricsServer(t, "quic_client_mtu{conn_index=\"0\"} 1250\n")
-		fake := &fakeCluster{
-			podsByLabel: map[string][]k8s.PodInfo{labelKey: cloudflaredPods},
-			forwardPort: port,
-		}
-		res := newTestVerifier(fake).checkCloudflaredQUIC(t.Context())
-		assert.False(t, res.Pass)
-	})
-
-	t.Run("cloudflared absent skips", func(t *testing.T) {
-		fake := &fakeCluster{}
-		res := newTestVerifier(fake).checkCloudflaredQUIC(t.Context())
-		assert.True(t, res.Pass)
-	})
-
-	t.Run("port-forward failure degrades to warning", func(t *testing.T) {
-		fake := &fakeCluster{
-			podsByLabel: map[string][]k8s.PodInfo{labelKey: cloudflaredPods},
-			forwardErr:  errors.New("connection refused"),
-		}
-		res := newTestVerifier(fake).checkCloudflaredQUIC(t.Context())
-		assert.True(t, res.Pass)
-		require.Len(t, res.Lines, 1)
-		assert.Contains(t, res.Lines[0], "WARN")
-	})
-}
-
 func TestRunHappyPath(t *testing.T) {
 	linkOut := "2: eth0@if42: <UP> mtu 1450 qdisc noqueue"
 	wgOut := "3: cilium_wg0: <UP> mtu 1355 qdisc noqueue"
@@ -343,7 +273,10 @@ func TestRunHappyPath(t *testing.T) {
 	report, err := newTestVerifier(fake).Run(t.Context())
 	require.NoError(t, err)
 	assert.True(t, report.Passed())
-	assert.Len(t, report.Results, 6)
+	assert.Len(t, report.Results, 5)
+	for _, result := range report.Results {
+		assert.NotContains(t, result.Name, "cloudflared")
+	}
 
 	require.Len(t, fake.created, 2)
 	assert.Equal(t, "cp-1", fake.created[0].NodeName)

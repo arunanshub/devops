@@ -1,7 +1,6 @@
 package mtu
 
 import (
-	"bufio"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -41,32 +40,4 @@ func packetLossPercent(out string) int {
 		return 100
 	}
 	return loss
-}
-
-// minQuicClientMTU scans Prometheus metrics text for quic_client_mtu samples
-// and returns the smallest value. found is false when no sample is present.
-func minQuicClientMTU(metrics string) (minMTU int, found bool) {
-	scanner := bufio.NewScanner(strings.NewReader(metrics))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if !strings.HasPrefix(line, "quic_client_mtu{") {
-			continue
-		}
-
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
-		}
-
-		value, err := strconv.ParseFloat(fields[len(fields)-1], 64)
-		if err != nil {
-			continue
-		}
-
-		if mtu := int(value); !found || mtu < minMTU {
-			minMTU = mtu
-			found = true
-		}
-	}
-	return minMTU, found
 }

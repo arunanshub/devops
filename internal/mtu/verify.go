@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -34,14 +33,8 @@ const (
 	ciliumContainer = "cilium-agent"
 	ciliumConfigMap = "cilium-config"
 
-	cloudflaredNamespace   = "cloudflared"
-	cloudflaredSelector    = "app=cloudflared"
-	cloudflaredMetricsPort = 2000
-
 	// icmpHeaderOverhead is the IP + ICMP header size added to a ping payload.
 	icmpHeaderOverhead = 28
-
-	metricsFetchTimeout = 3 * time.Second
 )
 
 // Cluster is the set of cluster operations the verifier needs. It is
@@ -64,11 +57,6 @@ type Cluster interface {
 		namespace, pod, container string,
 		command []string,
 	) (stdout, stderr string, err error)
-	PortForward(
-		ctx context.Context,
-		namespace, pod string,
-		remotePort uint16,
-	) (localPort uint16, stop func(), err error)
 }
 
 // Config carries the expected values for every check. The defaults live on
@@ -87,10 +75,6 @@ type Config struct {
 	CeilingPayload int
 	// PassPayload is an ICMP payload comfortably below the ceiling.
 	PassPayload int
-	// MinQuicMTU is the minimum acceptable cloudflared quic_client_mtu.
-	// Expected ~1344 when pod MTU=1450; below 1300 means the pod egress path
-	// is clamped too aggressively somewhere in the stack.
-	MinQuicMTU int
 	// ReadyTimeout bounds how long the verification pods may take to start.
 	ReadyTimeout time.Duration
 }
@@ -106,7 +90,6 @@ func DefaultConfig() Config {
 		ExpectedPodMTU: 1450,
 		CeilingPayload: 1276,
 		PassPayload:    1200,
-		MinQuicMTU:     1300,
 		ReadyTimeout:   90 * time.Second,
 	}
 }
@@ -154,17 +137,15 @@ func (r Report) Render(w io.Writer) {
 // through the span-scoped logger carried by the context (see
 // internal/logging).
 type Verifier struct {
-	cluster    Cluster
-	cfg        Config
-	httpClient *http.Client
+	cluster Cluster
+	cfg     Config
 }
 
 // NewVerifier builds a Verifier.
 func NewVerifier(cluster Cluster, cfg *Config) *Verifier {
 	return &Verifier{
-		cluster:    cluster,
-		cfg:        *cfg,
-		httpClient: &http.Client{Timeout: metricsFetchTimeout},
+		cluster: cluster,
+		cfg:     *cfg,
 	}
 }
 
@@ -255,7 +236,6 @@ func (v *Verifier) runChecks(ctx context.Context, podBIP string) []CheckResult {
 		}),
 		runCheck(ctx, "wireguard-mtu", v.checkWireguardMTU),
 		runCheck(ctx, "pmtud", v.checkPMTUD),
-		runCheck(ctx, "cloudflared-quic", v.checkCloudflaredQUIC),
 	}
 }
 
@@ -383,74 +363,6 @@ func (v *Verifier) checkPMTUD(ctx context.Context) CheckResult {
 		return failf(res, "FAIL: PMTUD not active (enabled=%q, mode=%q) ✗", enabled, mode)
 	}
 	return passf(res, "enable-pmtu-discovery=true, mode=always ✓")
-}
-
-// checkCloudflaredQUIC verifies the egress path MTU seen by cloudflared's
-// QUIC client. Missing cloudflared or unreadable metrics degrade to a
-// warning, matching the shell implementation.
-func (v *Verifier) checkCloudflaredQUIC(ctx context.Context) CheckResult {
-	res := CheckResult{Name: "cloudflared quic_client_mtu (egress path sanity check)"}
-
-	pods, err := v.cluster.PodsByLabel(ctx, cloudflaredNamespace, cloudflaredSelector)
-	if err != nil || len(pods) == 0 {
-		return passf(res, "cloudflared not found — skipping")
-	}
-	pod := pods[0].Name
-
-	localPort, stop, err := v.cluster.PortForward(
-		ctx,
-		cloudflaredNamespace,
-		pod,
-		cloudflaredMetricsPort,
-	)
-	if err != nil {
-		return passf(res, "WARN: port-forward to %s failed: %v", pod, err)
-	}
-	defer stop()
-
-	metrics, err := v.fetchMetrics(ctx, localPort)
-	if err != nil {
-		return passf(res, "WARN: could not read cloudflared metrics: %v", err)
-	}
-
-	minMTU, found := minQuicClientMTU(metrics)
-	if !found {
-		return passf(res, "WARN: could not read quic_client_mtu from cloudflared metrics")
-	}
-
-	if minMTU < v.cfg.MinQuicMTU {
-		return failf(
-			res,
-			"FAIL: quic_client_mtu min=%d < %d — pod egress MTU clamped too low ✗",
-			minMTU,
-			v.cfg.MinQuicMTU,
-		)
-	}
-	return passf(res, "quic_client_mtu min=%d (threshold >=%d) ✓", minMTU, v.cfg.MinQuicMTU)
-}
-
-func (v *Verifier) fetchMetrics(ctx context.Context, port uint16) (string, error) {
-	url := fmt.Sprintf("http://127.0.0.1:%d/metrics", port)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
-	if err != nil {
-		return "", fmt.Errorf("build metrics request: %w", err)
-	}
-
-	resp, err := v.httpClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("fetch metrics: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("metrics endpoint returned %s", resp.Status)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("read metrics body: %w", err)
-	}
-	return string(body), nil
 }
 
 func passf(res CheckResult, format string, args ...any) CheckResult {
