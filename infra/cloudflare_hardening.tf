@@ -119,3 +119,15 @@ resource "cloudflare_zone_setting" "early_hints" {
   setting_id = "early_hints"
   value      = "on"
 }
+
+# Speed Brain: Cloudflare adds Speculation-Rules headers and prefetches the
+# likely next navigation before the user clicks. Chromium-only. It prefetches
+# cache-eligible HTML pages only, and it never touches routes behind Workers.
+# Default-on for Free zones only; declaring it here keeps paid plans covered
+# and prevents a dashboard toggle from drifting.
+# https://developers.cloudflare.com/speed/optimization/content/speed-brain/
+resource "cloudflare_zone_setting" "speed_brain" {
+  zone_id    = var.cloudflare_zone_id
+  setting_id = "speed_brain"
+  value      = "on"
+}
