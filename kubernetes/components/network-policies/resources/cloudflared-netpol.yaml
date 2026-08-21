@@ -22,14 +22,15 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    # Tunnel data plane. Allow the public internet on the ports cloudflared
-    # uses (7844 TCP+UDP for QUIC/HTTP/2, 443 TCP for updates). The except
-    # list blocks the control plane and lateral movement: 10.0.0.0/8 covers
+    # Tunnel data plane. Allow the public internet on all ports (TCP and UDP),
+    # so QUIC (UDP 7844), HTTP/2 (TCP 7844), and updates (TCP 443) all work
+    # and no future port is a foot-gun. The connector is trusted egress-only
+    # and holds no ServiceAccount token, so no port restriction adds value.
+    # The except list keeps the connector off the cluster: 10.0.0.0/8 covers
     # the API server, etcd, and the pod and service CIDRs; 169.254.0.0/16
-    # blocks cloud metadata. The connector is trusted egress-only and holds no
-    # ServiceAccount token, so it needs nothing inside the cluster but DNS and
-    # Traefik (both allowed by the toEndpoints rules; the except only narrows
-    # this CIDR rule, it does not deny them).
+    # blocks cloud metadata. DNS and Traefik stay reachable through the
+    # toEndpoints rules (the except only narrows this CIDR rule; it does not
+    # deny the pod rules).
     - toCIDRSet:
         - cidr: 0.0.0.0/0
           except:
@@ -37,14 +38,6 @@ spec:
             - 172.16.0.0/12
             - 192.168.0.0/16
             - 169.254.0.0/16
-      toPorts:
-        - ports:
-            - port: "7844"
-              protocol: TCP
-            - port: "7844"
-              protocol: UDP
-            - port: "443"
-              protocol: TCP
     # Traefik reverse proxy — observed: cloudflared:* -> traefik pod:8000 TCP
     - toEndpoints:
         - matchLabels:
