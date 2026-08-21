@@ -12,7 +12,8 @@ resources:
 
 images:
   - name: cloudflare/cloudflared
-    # 2026.8.1, not 2026.8.0: the .0 release strips trailing slashes on HTTP
-    # origins and causes redirect loops (cloudflared issue #1717).
-    newTag: 2026.8.1
-    digest: sha256:d9ff527dc19799e24d3689058161fb01e752a24be1823577bae54c9c2489275f
+    # Do not use 2026.8.0: the .0 release strips trailing slashes on HTTP
+    # origins and causes redirect loops (cloudflared issue #1717). 2026.8.1
+    # fixed it and 2026.8.2 keeps the fix. digest = the index (manifest list).
+    newTag: 2026.8.2
+    digest: sha256:0aa26e284f05e6c77ae375b8c9c11d9eb6a448fb7bcd8d40f31cb6176189eb38
