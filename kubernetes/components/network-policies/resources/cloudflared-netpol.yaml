@@ -22,25 +22,28 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    # Tunnel data plane. HTTP/2 uses TCP port 7844.
-    # toCIDRSet, not toFQDNs: cloudflared dials cached edge IPs directly,
-    # and CIDRs need no DNS proxy. These are the global regions
-    # (region1/region2); if cloudflared ever logs a us-region/fed edge, add
-    # those ranges from the doc below.
-    # https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/configure-tunnels/tunnel-with-firewall/
-    #
-    # No world:443 rule. The doc above marks api.cloudflare.com as optional
-    # for token-run tunnels, and it would let a compromised pod exfiltrate
-    # the token. If a future version fails registration at cold start,
-    # re-add 443/TCP to world and record the version here.
+    # Tunnel data plane. Allow the public internet on the ports cloudflared
+    # uses (7844 TCP+UDP for QUIC/HTTP/2, 443 TCP for updates). The except
+    # list blocks the control plane and lateral movement: 10.0.0.0/8 covers
+    # the API server, etcd, and the pod and service CIDRs; 169.254.0.0/16
+    # blocks cloud metadata. The connector is trusted egress-only and holds no
+    # ServiceAccount token, so it needs nothing inside the cluster but DNS and
+    # Traefik (both allowed by the toEndpoints rules; the except only narrows
+    # this CIDR rule, it does not deny them).
     - toCIDRSet:
-        - cidr: 198.41.192.0/24 # region1.v2.argotunnel.com
-        - cidr: 198.41.200.0/24 # region2.v2.argotunnel.com
-        - cidr: "2606:4700:a0::/48" # region1 (IPv6)
-        - cidr: "2606:4700:a8::/48" # region2 (IPv6)
+        - cidr: 0.0.0.0/0
+          except:
+            - 10.0.0.0/8
+            - 172.16.0.0/12
+            - 192.168.0.0/16
+            - 169.254.0.0/16
       toPorts:
         - ports:
             - port: "7844"
+              protocol: TCP
+            - port: "7844"
+              protocol: UDP
+            - port: "443"
               protocol: TCP
     # Traefik reverse proxy — observed: cloudflared:* -> traefik pod:8000 TCP
     - toEndpoints:
