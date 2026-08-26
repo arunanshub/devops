@@ -3,7 +3,7 @@ module github.com/arunanshub/devops
 go 1.26.5
 
 require (
-	github.com/alecthomas/kong v1.16.0
+	github.com/alecthomas/kong v1.16.1
 	github.com/charmbracelet/log v1.0.0
 	github.com/google/go-cmp v0.7.0
 	k8s.io/api v0.36.3
