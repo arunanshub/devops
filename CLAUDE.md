@@ -113,15 +113,7 @@ CI and the lefthook `kustomize-validate` hook run the same command. Keep the two
 
 ### Commits
 
-The user signs commits with an SSH key. The key has a passphrase. The agent has no TTY and no askpass. **The agent cannot commit.**
-
-Give the command to the user instead. Use this form:
-
-```
-! git commit -F <path-to-message-file>
-```
-
-Never use `--no-gpg-sign`.
+The user signs commits with an SSH key. The key has a passphrase. If you see you cannot commit, let the user know. Never use `--no-gpg-sign`.
 
 ## Bootstrap order
 
