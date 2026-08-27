@@ -30,10 +30,8 @@ type PodSpec struct {
 // WaitPodsReady for that.
 func (c *Client) CreatePod(ctx context.Context, spec *PodSpec) error {
 	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      spec.Name,
-			Namespace: spec.Namespace,
-		},
+		Name:      spec.Name,
+		Namespace: spec.Namespace,
 		Spec: corev1.PodSpec{
 			NodeName:      spec.NodeName,
 			RestartPolicy: corev1.RestartPolicyNever,

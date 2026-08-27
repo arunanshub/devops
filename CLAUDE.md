@@ -72,7 +72,7 @@ go test -race -run TestName ./internal/mtu/   # run one test
 ./custom-gcl fmt --diff       # check format
 ```
 
-The linter is a **custom** golangci-lint build. It includes the nilaway plugin. `.custom-gcl.yaml` declares it. Build it with `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2` and then `golangci-lint custom`. Git ignores the `custom-gcl` binary. Stock golangci-lint does not give the same result.
+The linter is a **custom** golangci-lint build. It includes the nilaway plugin. `.custom-gcl.yaml` declares it. Build it with `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1` and then `golangci-lint custom`. Git ignores the `custom-gcl` binary. Stock golangci-lint does not give the same result.
 
 ### Verification
 
