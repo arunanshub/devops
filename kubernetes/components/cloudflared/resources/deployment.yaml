@@ -7,9 +7,7 @@ spec:
   selector:
     matchLabels:
       app: cloudflared
-  # Use HTTP/2 for every connector. QUIC lost all eight connections during
-  # the edge event at 13:17 UTC on 2026-08-17.
-  replicas: 3
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
