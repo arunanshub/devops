@@ -44,8 +44,8 @@ spec:
             # HTTP/2 is a static transport selection. The Cloudflare edge can
             # still disconnect a TCP connector, but it avoided request errors
             # during the observed QUIC connection collapse.
-            - --protocol
-            - http2
+            # - --protocol
+            # - http2
             - run
           ports:
             - name: metrics
