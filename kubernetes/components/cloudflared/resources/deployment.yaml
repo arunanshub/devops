@@ -18,9 +18,13 @@ spec:
       labels:
         app: cloudflared
     spec:
+      securityContext:
+        sysctls:
+          # Allows ICMP traffic (ping, traceroute) to resources behind cloudflared.
+          - name: net.ipv4.ping_group_range
+            value: "65532 65532"
       automountServiceAccountToken: false
-      terminationGracePeriodSeconds: 60
-      # One connector per node limits a node failure to one connector.
+      # terminationGracePeriodSeconds: 60
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
@@ -28,6 +32,7 @@ spec:
           labelSelector:
             matchLabels:
               app: cloudflared
+
       containers:
         - name: cloudflared
           image: cloudflare/cloudflared
@@ -44,21 +49,21 @@ spec:
             # HTTP/2 is a static transport selection. The Cloudflare edge can
             # still disconnect a TCP connector, but it avoided request errors
             # during the observed QUIC connection collapse.
-            # - --protocol
-            # - http2
+            - --protocol
+            - http2
             - run
           ports:
             - name: metrics
               containerPort: 2000
               protocol: TCP
           env:
+            # - name: TUNNEL_GRACE_PERIOD
+            # value: 50s
             - name: TUNNEL_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: cloudflared-tunnel-token
                   key: token
-            - name: TUNNEL_GRACE_PERIOD
-              value: 50s
           # cloudflared exits cleanly (code 0) when it cannot maintain tunnel
           # connections, so no liveness probe is needed — Kubernetes restarts
           # it automatically. /ready returns 503 until connections are up;
