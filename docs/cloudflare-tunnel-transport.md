@@ -287,3 +287,139 @@ QUIC pods must keep `"protocol":"quic"`.
 Delete `deployment-http2.yaml` and `vpa-http2.yaml` from the kustomization,
 set `replicas: 3` in `deployment.yaml`, and commit. The netpol and PDB
 selectors tolerate the absent `cloudflared-http2` label.
+
+## 2026-09-05 — End the transport changes. `auto` is the default.
+
+The manifest changed the connector transport repeatedly between 2026-07-16 and
+2026-09-05 (`5037471`, `a743cc2`, `4c1fdfd`, `73bd35e`). Each change followed a
+report that the site felt slow. No change used a measurement. This section ends
+the changes and gives the rule.
+
+### The rule
+
+The connector runs with no `--protocol` flag. cloudflared then uses `auto`.
+Change this only with a measurement that separates the two transports. A
+feeling is not a measurement.
+
+### Why the http2 pin has no reason
+
+The key fact is symmetry. Both transports failed the same way:
+
+- QUIC lost all 8 connections in the edge event on 2026-08-17. That event came
+  **after** the `net.core.rmem_max` fix of 2026-08-08. The buffer fix is
+  therefore not the reason to leave http2.
+- http2 lost all connections in the edge event on 2026-08-21. Total connections
+  reached 0. See `docs/2026-08-21-cloudflare-tunnel-flap-incident.md`.
+
+The transport does not prevent an edge event. Neither transport survived one.
+The pin buys nothing and it has a cost:
+
+- `auto` is the documented default. It selects QUIC. It falls back to http2
+  when the connector cannot establish a UDP connection. See the
+  [protocol run parameter](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/run-parameters/#protocol).
+- The pin blocks post-quantum key agreement. The docs state: "Post-quantum key
+  agreements are not supported when using `http2` protocol." See the
+  [post-quantum run parameter](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/run-parameters/#post-quantum).
+
+The same symmetry closes the transport-diversity split of 2026-08-13. That
+split ran 2 QUIC pods and 1 http2 pod. The section above ends with "the
+protection against a drain is therefore not proven yet". The split was removed
+on 2026-08-17 for an all-http2 fleet. The 2026-08-21 event then showed that TCP
+does not survive a drain either. The premise of the split is disproven. Do not
+rebuild the split without new evidence.
+
+### What the colo anchors do and do not explain
+
+The tunnel connections anchor at mixed Cloudflare colos. The state on
+2026-09-05 was 4 connections at `dme05` (Moscow) and 4 at `hel01`/`hel02`
+(Helsinki). The origin nodes sit in Helsinki. Cloudflare picks a connection for
+each request. Half the requests therefore detour through Moscow.
+
+**This explains a per-request split. It does not explain a slow period.** The
+anchors give two latency values, about 0.51 s and 0.88 s, and each request
+takes one of them at random. A period where every request is slow, on more than
+one device, for many minutes, does not fit this model. Do not use the anchors
+to close such a report.
+
+No run parameter changes the anchors. `--region` accepts only `us`.
+`--edge-ip-version 6` cannot work, because the pod network is IPv4 only. A pod
+restart makes Cloudflare pick new anchors. The new anchors can be worse.
+
+Run this check on every report, to include or exclude the anchors:
+
+```bash
+kubectl logs -n cloudflared -l app=cloudflared | grep -o '"location":"[a-z0-9]*"' | sort | uniq -c
+```
+
+### Open gap: a slow period has no evidence source
+
+A sustained slow period on more than one device stays unexplained today. The
+cluster cannot measure it. Every metric here is in-cluster and covers only the
+origin leg, which runs at a p99 of about 25 ms. The Cloudflare zone is on the
+free plan, so the GraphQL API gives no latency quantile and no colo field. No
+API token unlocks them.
+
+The candidates below all produce a sustained slow period. None of them is
+observable from this repository today:
+
+- The eyeball colo. The client network can anycast to a far Cloudflare PoP and
+  hold that path for hours. Every device on that network then sees the same
+  slow path. A tunnel change cannot affect it.
+- The cache state. A deploy purges the whole zone cache and rotates the Next.js
+  deployment ID. Uncacheable HTML and RSC responses cannot use Smart Tiered
+  Cache at all. Check `kubectl get rs -n arunanshu-dev` first on a "slow since
+  a few hours ago" report.
+- A Cloudflare edge event. Check both feeds, not one:
+  `https://www.cloudflarestatus.com/api/v2/incidents.json` and
+  `.../scheduled-maintenances.json`.
+
+**The next real step is an external probe, not another config change.** A
+blackbox probe that measures the full client path from outside the cluster
+turns "it felt slow" into a series. Without that series, every transport change
+is a guess, and this document records 4 such guesses.
+
+### Removed: the `ping_group_range` sysctl
+
+The Deployment carried this pod sysctl between 2026-09-04 and 2026-09-05:
+
+```yaml
+securityContext:
+  sysctls:
+    - name: net.ipv4.ping_group_range
+      value: "65532 65532"
+```
+
+The sysctl never worked. The container sets `runAsUser: 65534` and sets no
+`runAsGroup`. cloudflared logged this on every start:
+
+```text
+Group ID 65534 is not between ping group 65532 to 65532
+cannot create ICMPv4 proxy ... ICMP proxy feature is disabled
+```
+
+The value 65532 comes from the
+[ICMP proxy docs](https://developers.cloudflare.com/cloudflare-one/traffic-policies/proxy/#icmp).
+That page states the Docker image group ID is 65532. It does not match this
+Deployment.
+
+The block is removed instead of corrected. The ICMP proxy serves `ping` and
+`traceroute` to private network resources through WARP. This tunnel publishes
+HTTP hostnames to Traefik. `infra/` declares no WARP route and no private
+network route. The feature has no user here.
+
+### Verify after ArgoCD syncs
+
+```bash
+kubectl rollout status deployment/cloudflared -n cloudflared --timeout=5m
+kubectl logs -n cloudflared -l app=cloudflared --since=10m \
+  | rg 'receive buffer size|"protocol":"|"location":"'
+```
+
+Three conditions must hold:
+
+1. Each registration reports `"protocol":"quic"`.
+2. The `failed to sufficiently increase receive buffer size` line is absent.
+   Its return means the node sysctl drop-in is gone.
+3. The colo list holds Helsinki entries. Record the list. Compare it against
+   the list before the change, and before you attribute any latency change to
+   the transport.
