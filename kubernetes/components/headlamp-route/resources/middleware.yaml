@@ -2,7 +2,7 @@ apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: compress
-  namespace: argocd
+  namespace: headlamp
 spec:
   compress:
     # Traefik uses only an encoding that the client advertises. The order sets

@@ -26,3 +26,12 @@ spec:
           name: vmsingle-victoria-metrics-k8s-stack
           port: 8428
           weight: 1
+      # The `compress` Middleware lives in base/monitoring/grafana-route.
+      # A Gateway API `extensionRef` cannot name a namespace, so both monitoring
+      # routes share the one Middleware in the `monitoring` namespace.
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: traefik.io
+            kind: Middleware
+            name: compress

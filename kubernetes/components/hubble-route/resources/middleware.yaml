@@ -5,11 +5,11 @@ metadata:
   namespace: kube-system
 spec:
   compress:
-    # Cloudflare normalizes origin requests to `Accept-Encoding: br, gzip`.
-    # Compress that hop with the best mutually supported encoding; Cloudflare may
-    # preserve it or transcode it for the external client.
-    encodings: [br, gzip]
-    minResponseBodyBytes: 1024
+    # Traefik uses only an encoding that the client advertises. The order sets
+    # the priority. Cloudflare sends `Accept-Encoding: br, gzip` today, so
+    # brotli wins and zstd stays inert. zstd leads the list for the day
+    # Cloudflare adds it.
+    encodings: [zstd, br, gzip]
     includedContentTypes:
       - text/html
       - text/css
