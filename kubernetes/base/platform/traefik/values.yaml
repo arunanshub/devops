@@ -2,32 +2,11 @@ global:
   # Renovate and GitOps own upgrades. Disable Traefik's daily outbound version
   # check so the enforced egress policy does not generate expected drops.
   checkNewVersion: false
-  sendAnonymousUsage: false
 
 ingressRoute:
   dashboard:
     enabled: true
     matchRule: Host(`traefik.arunanshu.dev`)
-    entryPoints: ["traefik"]
-
-# Expose the Traefik API/dashboard port (8080) as a ClusterIP Service so
-# an HTTPRoute can route external traffic through the Access-gated tunnel.
-extraObjects:
-  - apiVersion: v1
-    kind: Service
-    metadata:
-      name: traefik-dashboard
-      namespace: traefik
-    spec:
-      type: ClusterIP
-      selector:
-        app.kubernetes.io/name: traefik
-        app.kubernetes.io/instance: traefik-traefik
-      ports:
-        - port: 8080
-          name: traefik
-          targetPort: 8080
-          protocol: TCP
 
 providers:
   kubernetesGateway:
@@ -69,13 +48,23 @@ service:
 # memory that the Go runtime does not control.
 deployment:
   replicas: null
-  goMemLimitPercentage: 0.9
+
+# KEDA holds a minimum of 2 replicas. Let a node drain remove one pod.
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
 
 # Keep accepting on the web entry point for 5s after SIGTERM while routing
 # components stop selecting the pod. Then give active requests 50s to finish.
 # The chart renders a 60s pod termination period, which leaves 5s for exit.
 # web (:8000) is the live traffic entry point behind cloudflared.
 ports:
+  # Publish the API and dashboard port on the chart Service. An HTTPRoute then
+  # routes external traffic through the Access-gated tunnel. The Service is
+  # ClusterIP, so the port stays inside the cluster.
+  traefik:
+    expose:
+      default: true
   web:
     transport:
       lifeCycle:
@@ -130,10 +119,12 @@ tracing:
 
 metrics:
   prometheus:
-    entryPoint: metrics
-    addEntryPointsLabels: true
-    addServicesLabels: true # Helps isolate backend-specific middleware drops
-    addRoutersLabels: true # per-route metrics, useful for KEDA query
+    # Chart default, but load-bearing. The traefik-scaling KEDA trigger reads
+    # traefik_service_requests_total, which this label set produces.
+    addServicesLabels: true
+    # Not a chart default. The arunanshu-dev KEDA trigger reads
+    # traefik_router_request_duration_seconds_sum, which needs router metrics.
+    addRoutersLabels: true
     # Chart default buckets are "0.1,0.3,1.2,5.0" — our request durations are
     # single-digit ms, so p50/p95 collapse into the first bucket and latency SLO
     # dashboards are blind below 100ms. Add sub-100ms resolution.
