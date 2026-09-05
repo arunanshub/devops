@@ -17,3 +17,4 @@ spec:
       - application/javascript
       - application/json
       - image/svg+xml
+      - text/event-stream
