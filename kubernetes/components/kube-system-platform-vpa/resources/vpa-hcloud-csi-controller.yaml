@@ -9,7 +9,7 @@ spec:
     kind: Deployment
     name: hcloud-csi-controller
   updatePolicy:
-    updateMode: Off
+    updateMode: "Off"
   resourcePolicy:
     containerPolicies:
       - containerName: "*"
