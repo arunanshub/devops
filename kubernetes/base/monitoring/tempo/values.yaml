@@ -2,11 +2,6 @@ fullnameOverride: tempo
 
 tempo:
   reportingEnabled: false
-  # 0 disables the legacy Go memory ballast (obsolete since Go 1.19 GOMEMLIMIT;
-  # removed entirely in Tempo 3.0, #6403). MUST be explicit 0 — the chart default
-  # is 1024, so omitting the key would raise it. Frees the secondary GC-headroom
-  # garbage (~50% of idle RSS per Grafana Cloud), not the ballast itself (it was virtual).
-  memBallastSizeMbs: 0
   retention: 48h
 
   # Container-level hardening (the chart's pod-level securityContext already runs tempo as
@@ -68,21 +63,14 @@ tempo:
       service_graphs:
         wait: 10s
         max_items: 10000
-      local_blocks:
-        flush_to_storage: true
-        filter_server_spans: false
-        max_block_duration: 5m
     storage:
       path: /var/tempo/metrics
-    traces_storage:
-      path: /var/tempo/metrics-wal
 
   overrides:
     defaults:
       metrics_generator:
         processors:
           - service-graphs
-          - local-blocks
 
 # Disabled: the tempo chart's ServiceMonitor hardcodes a second endpoint for a
 # "jaeger-metrics" port that this OTLP-only Tempo doesn't expose, producing a scrape pool

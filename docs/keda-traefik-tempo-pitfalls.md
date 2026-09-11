@@ -82,6 +82,9 @@ kubectl exec -n monitoring tempo-0 -- wget -qO- "http://localhost:3200/api/searc
 
 **Fix.** Set `memBallastSizeMbs: 64` for a small single-binary deployment.
 
+**Obsolete since chart 3.0.0 (Tempo 3.0).** Tempo 3.0 removes the `mem-ballast-size-mbs`
+flag. The chart removes the `tempo.memBallastSizeMbs` value. Use `GOMEMLIMIT` instead.
+
 ---
 
 ## Tempo: metricsGenerator storage paths default to `/tmp`
@@ -105,6 +108,10 @@ tempo:
     traces_storage:
       path: /var/tempo/metrics-wal
 ```
+
+**Changed in chart 3.0.0 (Tempo 3.0).** The chart removes
+`metricsGenerator.traces_storage`. That path went with the `local_blocks` processor.
+Set the other 3 paths only.
 
 ---
 
@@ -132,6 +139,11 @@ tempo:
 ```
 
 `metricsGenerator.enabled: true` activates the component; the `overrides.defaults` list is what tells Tempo which processors to actually run for incoming spans. Both are required.
+
+**Applies to Tempo 2.x only.** Tempo 3.0 removes the `local_blocks` processor. The new
+live-store serves the TraceQL metrics queries on recent data. Remove `local_blocks` from
+`metricsGenerator.processor`. Remove `local-blocks` from the `overrides.defaults` list.
+Tempo 3.0 refuses to start if you keep either one.
 
 ---
 
