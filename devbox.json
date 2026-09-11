@@ -24,7 +24,8 @@
     "talosctl@latest",
     "talhelper@latest",
     "kubectl@latest",
-    "argocd@latest"
+    "argocd@latest",
+    "kubernetes-helm@4.2.4"
   ],
   "env": {
     "LC_ALL": "C.UTF-8",
