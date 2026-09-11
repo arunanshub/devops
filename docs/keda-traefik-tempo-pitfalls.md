@@ -1,99 +1,105 @@
 # KEDA, Traefik Tracing, and Grafana Tempo Pitfalls
 
-Lessons from adding KEDA, wiring Traefik OpenTelemetry, and deploying Grafana Tempo single binary.
+Failures from KEDA, the Traefik OpenTelemetry wiring, and the Tempo single binary.
+Tempo runs chart 3.0.0 (Tempo 3.0.3) since 2026-09-11.
 
 ---
 
-## KEDA: chart name is `keda`, not `kedacore`
+## KEDA: the chart name is `keda`, not `kedacore`
 
-**Symptom.** ArgoCD fails to resolve the chart; "chart not found" error.
+**Symptom.** ArgoCD reports "chart not found".
 
-**Cause.** The Helm repo is named `kedacore` but the chart inside it is named `keda`.
+**Cause.** The Helm repo is `kedacore`. The chart inside it is `keda`.
 
 **Fix.**
+
 ```yaml
 sources:
   - repoURL: https://kedacore.github.io/charts
-    chart: keda          # not kedacore
+    chart: keda # not kedacore
 ```
 
-**Checklist when adding any new ArgoCD Application.** Four places that must all agree — missing any one causes a silent reject or sync failure:
-1. `base/infra/kustomization.yaml` — add `<app>/application.yaml`
-2. `appproject.yaml` `sourceRepos` — add the chart's `repoURL`
-3. `appproject.yaml` `destinations` — add the target namespace
-4. `syncOptions: [CreateNamespace=true]` — if the namespace doesn't already exist
+**4 places must agree for any new Application.** Miss one and the sync fails silently.
+
+1. `base/<group>/kustomization.yaml` — add `<app>/application.yaml`.
+2. `appproject.yaml` `sourceRepos` — add the chart `repoURL`.
+3. `appproject.yaml` `destinations` — add the namespace.
+4. `syncOptions: [CreateNamespace=true]` — only if the namespace is new.
 
 ---
 
-## KEDA + Traefik HPA conflict
+## KEDA and Traefik make 2 HPAs
 
-**Symptom.** Two HPAs exist for the Traefik Deployment; scaling fights itself.
+**Symptom.** Two HPAs target the Traefik Deployment. They fight.
 
-**Cause.** KEDA creates its own HPA internally when a `ScaledObject` targets a Deployment. If `autoscaling.enabled: true` is also set in the Traefik Helm values, two HPAs are created for the same target.
+**Cause.** KEDA creates its own HPA for a `ScaledObject`. `autoscaling.enabled: true` in
+the Traefik values creates a second one.
 
-**Fix.** Remove `autoscaling` from Traefik values entirely when using a `ScaledObject`.
+**Fix.** Remove `autoscaling` from the Traefik values. Keep the `ScaledObject`.
 
 ---
 
-## Traefik OTLP: two `enabled` flags are required
+## Traefik OTLP needs 2 `enabled` flags
 
-**Symptom.** Traefik has `--tracing.otlp=true` in its args but sends no traces. Tempo receives nothing. No errors logged anywhere.
+**Symptom.** Traefik runs with `--tracing.otlp=true` and sends no traces. No component
+logs an error.
 
-**Cause.** `tracing.otlp.enabled: true` activates the OTLP backend but defaults to **gRPC on `localhost:4317`**. The HTTP transport is a separate sub-flag. Without `tracing.otlp.http.enabled: true`, the endpoint value is ignored.
+**Cause.** `tracing.otlp.enabled: true` selects the backend, which defaults to gRPC on
+`localhost:4317`. Traefik ignores `endpoint` until `tracing.otlp.http.enabled: true` is set.
 
 **Fix.**
+
 ```yaml
 tracing:
   otlp:
     enabled: true
     http:
-      enabled: true      # required — without this, gRPC localhost:4317 is used
+      enabled: true # required, or Traefik uses gRPC localhost:4317
       endpoint: http://tempo.monitoring.svc.cluster.local:4318/v1/traces
 ```
 
-Verify via `kubectl get deployment -n traefik traefik -o jsonpath='{...args}'` — all three flags must be present:
-```
---tracing.otlp=true
---tracing.otlp.http=true
---tracing.otlp.http.endpoint=http://tempo...
-```
+Verify all 3 args are present:
 
----
-
-## No traces despite healthy pipeline
-
-**Symptom.** Tempo is running, Traefik has correct args, Grafana datasource works, but Explore shows zero traces.
-
-**Cause.** Traefik only generates spans for actual HTTP requests it proxies. A freshly deployed cluster with no inbound traffic and only the dashboard IngressRoute produces no spans.
-
-**Fix.** Generate a real request through a Traefik entrypoint. Verify Tempo received it:
 ```bash
-kubectl exec -n monitoring tempo-0 -- wget -qO- "http://localhost:3200/api/search?limit=5"
+kubectl get deployment -n traefik traefik -o jsonpath='{..args}'
+# --tracing.otlp=true
+# --tracing.otlp.http=true
+# --tracing.otlp.http.endpoint=http://tempo...
 ```
-`inspectedTraces > 0` confirms the pipeline is working.
 
 ---
 
-## Tempo: `memBallastSizeMbs` default is 1 GiB
+## No traces, but every component is healthy
 
-**Symptom.** Tempo pod consumes ~1.1 GiB of memory at idle on a small cluster.
+**Symptom.** Every component is healthy, but Explore shows 0 traces.
 
-**Cause.** The chart default is `memBallastSizeMbs: 1024` — a Go GC tuning knob that pre-allocates a 1 GiB inert byte slice. This is sized for large deployments.
+**Cause.** Traefik emits a span only for a request that it proxies. A cluster with no
+inbound traffic produces no spans.
 
-**Fix.** Set `memBallastSizeMbs: 64` for a small single-binary deployment.
+**Fix.** Send a real request through a Traefik entrypoint. Then query Tempo.
 
-**Obsolete since chart 3.0.0 (Tempo 3.0).** Tempo 3.0 removes the `mem-ballast-size-mbs`
-flag. The chart removes the `tempo.memBallastSizeMbs` value. Use `GOMEMLIMIT` instead.
+**The Tempo 3.0.3 image has no `wget` and no `curl`.** `kubectl exec` cannot query the
+API. Use a port-forward.
+
+```bash
+kubectl port-forward -n monitoring tempo-0 3200:3200 &
+curl -s 'localhost:3200/api/search?limit=5'
+```
+
+A non-empty `traces` array confirms the pipeline.
 
 ---
 
-## Tempo: metricsGenerator storage paths default to `/tmp`
+## Tempo: the metricsGenerator path defaults to `/tmp`
 
-**Symptom.** Metrics generator data is lost on pod restart. Service graph never builds.
+**Symptom.** The metrics-generator loses its data on a pod restart. The service graph
+never builds.
 
-**Cause.** The chart defaults `metricsGenerator.storage.path` to `/tmp/tempo` and `traces_storage.path` to `/tmp/traces` — both ephemeral. The main trace storage (`/var/tempo/traces`, `/var/tempo/wal`) correctly lands on the PVC by default, but the metrics generator paths do not.
+**Cause.** The chart defaults `metricsGenerator.storage.path` to the ephemeral
+`/tmp/tempo`. The trace paths land on the PVC by default. This one does not.
 
-**Fix.** Explicitly override all four to the PVC mount:
+**Fix.** Point all 3 paths at the PVC mount.
+
 ```yaml
 tempo:
   storage:
@@ -105,48 +111,99 @@ tempo:
   metricsGenerator:
     storage:
       path: /var/tempo/metrics
-    traces_storage:
-      path: /var/tempo/metrics-wal
 ```
 
-**Changed in chart 3.0.0 (Tempo 3.0).** The chart removes
-`metricsGenerator.traces_storage`. That path went with the `local_blocks` processor.
-Set the other 3 paths only.
+Chart 3.0.0 removed a 4th path, `metricsGenerator.traces_storage`. It belonged to the
+`local_blocks` processor. Do not set it.
 
 ---
 
-## Tempo: `local_blocks` processor required for Traces Drilldown
+## Tempo 3.0 removed 4 values that this repository used to set
 
-**Symptom.** Grafana Traces Drilldown shows: *"localblocks processor not found"*. TraceQL metrics queries fail.
+**Symptom.** After the chart 2.3.0 to 3.0.0 bump the pod crash-loops:
 
-**Cause.** The `local_blocks` processor maintains a live in-memory+WAL window of recent spans queryable via TraceQL in real time. It is separate from `service_graphs` and is not enabled by default. The error means the processor component exists but was not activated.
-
-**Fix.** Two places must both be set — processor config AND the overrides list:
-```yaml
-tempo:
-  metricsGenerator:
-    processor:
-      local_blocks:
-        flush_to_storage: true
-        filter_server_spans: false
-        max_block_duration: 5m
-  overrides:
-    defaults:
-      metrics_generator:
-        processors:
-          - service-graphs   # service map in Grafana
-          - local-blocks     # TraceQL metrics + Drilldown
+```
+failed parsing config: field local_blocks not found in type generator.ProcessorConfig
 ```
 
-`metricsGenerator.enabled: true` activates the component; the `overrides.defaults` list is what tells Tempo which processors to actually run for incoming spans. Both are required.
+**Cause.** Chart 3.0.0 runs Tempo 3.0.3, not 2.10.8. Tempo 3.0 rebuilt the write path.
+The live-store replaces the ingester. The backend-scheduler replaces the compactor.
 
-**Applies to Tempo 2.x only.** Tempo 3.0 removes the `local_blocks` processor. The new
-live-store serves the TraceQL metrics queries on recent data. Remove `local_blocks` from
-`metricsGenerator.processor`. Remove `local-blocks` from the `overrides.defaults` list.
-Tempo 3.0 refuses to start if you keep either one.
+**Fix.** Remove all 4 items. Tempo 3.0 refuses to start while either of the first 2
+remains.
+
+| Removed | Reason |
+|---|---|
+| `metricsGenerator.processor.local_blocks` | Tempo 3.0 deleted the processor. |
+| `local-blocks` in `overrides.defaults...processors` | The name is no longer valid. |
+| `metricsGenerator.traces_storage` | The chart no longer renders it. |
+| `memBallastSizeMbs` | Tempo 3.0 dropped the `-mem-ballast-size-mbs` flag. |
+
+**Traces Drilldown keeps working.** The live-store now serves the TraceQL metrics queries
+on recent data. This is the direct replacement for `local_blocks`. No values key turns it
+on. Prove it with a `{}|rate()` query over the last 5 minutes.
+
+Two renames come with the bump. `tempo.ingester` becomes `tempo.liveStore`.
+`tempo.retention` renders into
+`backend_scheduler.provider.compaction.compaction.block_retention`.
+
+The live-store `max_block_duration` default is 30s. The old ingester default was 30m, so
+Tempo 3.0 writes more and smaller blocks. Watch `tempodb_blocklist_length`. Raise
+`tempo.liveStore.max_block_duration` if it climbs.
+
+`backend-worker` logs `level=error ... no jobs found` when no compaction job exists.
+Backoff settles the rate near 1.2 lines per minute. This noise is benign.
 
 ---
 
-## ServiceMonitor `additionalLabels` not needed in this cluster
+## Tempo: you cannot close the 4 jaeger receivers on chart 3.0.0
 
-`kube-prometheus-stack` is configured with `serviceMonitorSelectorNilUsesHelmValues: false`, which means Prometheus selects **all** ServiceMonitors and PodMonitors cluster-wide regardless of labels. Do not add `additionalLabels: release: kube-prometheus-stack` to any ServiceMonitor — it implies a label requirement that does not exist here.
+**Symptom.** The values file sets only `receivers.otlp`, but the rendered config still
+opens 4 jaeger ports.
+
+**Cause.** The chart default adds jaeger. A Helm map merge keeps a default that you only
+omit. All 3 workarounds fail:
+
+- `jaeger: null` and `protocols: {}` both break the render. `_ports.tpl` reads
+  `receivers.jaeger.protocols.thrift_compact` with no nil guard.
+- An empty protocol map renders, but the receiver then uses its own default endpoint. The
+  port still listens and the Service hides it. That result is worse.
+
+**Fix.** None exists. The ports stay inside the cluster and the Gateway does not expose
+Tempo. Do not claim in a comment that the values file drops them.
+
+---
+
+## Verify a chart major bump before you push it
+
+A `helm template` render is not proof. The config parser stops at the **first** unknown
+key, so only a boot test finds every removed value.
+
+1. Read the chart `README.md` "Upgrading" section. Get it with
+   `helm pull <chart> --version <v> --untar`.
+2. Render the config, then start the real image against it.
+
+```bash
+helm template tempo grafana-community/tempo --version 3.0.0 -f values.yaml \
+  | yq 'select(.kind=="ConfigMap" and .metadata.name=="tempo") | .data."tempo.yaml"' \
+  > /tmp/t/tempo.yaml
+# Copy overrides.yaml beside it. The overrides module fails without that file.
+docker run --rm -v /tmp/t:/conf grafana/tempo:3.0.3 -config.file=/conf/tempo.yaml
+```
+
+Look for `Tempo started`.
+
+3. Read a live default from the binary, never from memory:
+   `curl localhost:3200/status/config`.
+
+---
+
+## ServiceMonitor `additionalLabels` is not needed in this cluster
+
+`vmagent` runs with `selectAllByDefault: true`, so it selects every scrape object whatever
+the labels. The VictoriaMetrics operator converts each ServiceMonitor and PodMonitor into
+a VM-native scrape.
+
+Do not add `additionalLabels: release: kube-prometheus-stack` to a ServiceMonitor. That
+label implies a requirement that does not exist. The `kube-prometheus-stack` chart is
+neutered here and runs no Prometheus. It supplies only the CRDs.
