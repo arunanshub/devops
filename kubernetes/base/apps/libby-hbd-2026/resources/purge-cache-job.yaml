@@ -1,0 +1,85 @@
+# Argo CD PostSync hook: purge Cloudflare HTML/document cache for libby-hbd-2026.arunanshu.dev
+# after a successful Application sync (Deployment healthy).
+#
+# Why not a Deployment initContainer:
+# - init runs before the new pod is Ready while old pods still serve traffic
+# - fires once per pod (rollout, restart), not once per deploy
+#
+# The page ships s-maxage=31536000, so without this a redeploy stays invisible
+# at the edge for a year.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: purge-cloudflare-cache
+  namespace: libby-hbd-2026
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    # Delete previous hook Job before creating a new one so re-syncs work.
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  # Bound the PostSync hook so a network or Cloudflare API fault cannot leave
+  # the Argo CD sync running without a deadline.
+  activeDeadlineSeconds: 120
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: purge-cloudflare-cache
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: purge
+          # Pin the multi-platform image index. Keep the tag for readability.
+          image: curlimages/curl:8.14.1@sha256:9a1ed35addb45476afa911696297f8e115993df459278ed036182dd2cd22b67b
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: CLOUDFLARE_ZONE_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflare-cache-purge
+                  key: zone_id
+            - name: CLOUDFLARE_CACHE_PURGE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflare-cache-purge
+                  key: api_token
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              response="$(curl -sS -w '\n%{http_code}' -X POST \
+                --connect-timeout 10 \
+                --max-time 30 \
+                --retry 2 \
+                --retry-all-errors \
+                --retry-delay 1 \
+                --retry-max-time 75 \
+                "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache" \
+                -H "Authorization: Bearer ${CLOUDFLARE_CACHE_PURGE_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data '{"hosts":["libby-hbd-2026.arunanshu.dev"]}')"
+              body="$(printf '%s\n' "$response" | sed '$d')"
+              code="$(printf '%s\n' "$response" | tail -n 1)"
+              printf 'cloudflare purge http_status=%s body=%s\n' "$code" "$body"
+              test "$code" -ge 200 -a "$code" -lt 300
+              printf '%s\n' "$body" | grep -q '"success":true\|"success": true'
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi

@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - appproject.yaml
   - arunanshu-dev/application.yaml
+  - libby-hbd-2026/application.yaml

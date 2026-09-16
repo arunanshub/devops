@@ -38,6 +38,7 @@ gateway:
               operator: In
               values:
                 - arunanshu-dev
+                - libby-hbd-2026
                 - argocd
                 - headlamp
                 - kube-system

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: libby-hbd-2026
+  namespace: libby-hbd-2026
+  labels:
+    app: libby-hbd-2026 # VMServiceScrape selector target
+spec:
+  type: ClusterIP
+  selector:
+    app: libby-hbd-2026
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: http
+      protocol: TCP
+    - port: 9091
+      targetPort: 9091
+      name: metrics
+      protocol: TCP

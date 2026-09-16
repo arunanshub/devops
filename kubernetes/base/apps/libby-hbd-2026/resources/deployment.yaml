@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: libby-hbd-2026
+  namespace: libby-hbd-2026
+spec:
+  # One replica by design. No KEDA/VPA/PDB — at one replica a PDB either
+  # no-ops or blocks drains.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: libby-hbd-2026
+  # maxUnavailable 0 + maxSurge 1: one replica still rolls without a gap.
+  # minReadySeconds lets the CF edge warm new /_next/static/ chunk hashes.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  minReadySeconds: 30
+  template:
+    metadata:
+      labels:
+        app: libby-hbd-2026
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: libby-hbd-2026
+          image: libby-hbd-2026
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+            # prom-client port. Absent from httproute.yaml: in-cluster only.
+            - containerPort: 9091
+              name: metrics
+              protocol: TCP
+          env:
+            # Keep origin connections open longer than Traefik's 90s backend
+            # idle timeout so Traefik closes an idle connection first.
+            - name: KEEP_ALIVE_TIMEOUT
+              value: "95000"
+          lifecycle:
+            # Let EndpointSlice removal land before SIGTERM starts the drain.
+            preStop:
+              sleep:
+                seconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            # sharp and the image optimiser write here; root fs is read-only.
+            - name: next-cache
+              mountPath: /app/.next/cache
+          # Lenient probes: don't kill a busy-but-alive pod.
+          livenessProbe:
+            httpGet:
+              path: /favicon.ico
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /favicon.ico
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              # Measured: ~65Mi idle, ~71Mi after 30 image optimisations.
+              memory: 256Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: next-cache
+          emptyDir:
+            # Bounds the optimiser's avif/webp variants on node disk.
+            sizeLimit: 256Mi

@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: libby-hbd-2026
+  namespace: argocd
+  annotations:
+    # Wave 1: workloads, after wave 0 platform CRDs.
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: apps
+
+  source:
+    repoURL: git@github.com:arunanshub/devops.git
+    targetRevision: HEAD
+    path: kubernetes/base/apps/libby-hbd-2026/resources
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: libby-hbd-2026
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

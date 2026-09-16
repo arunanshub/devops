@@ -19,6 +19,25 @@ resource "cloudflare_zero_trust_access_application" "www_bypass" {
   ]
 }
 
+# Public bypass for Libby's birthday page — the wildcard OTP policy below must
+# not gate it. Most specific hostname wins, same as the www bypass above.
+resource "cloudflare_zero_trust_access_application" "libby_hbd_2026_bypass" {
+  account_id       = var.cloudflare_account_id
+  name             = "libby-hbd-2026.arunanshu.dev — public bypass"
+  domain           = "libby-hbd-2026.arunanshu.dev"
+  type             = "self_hosted"
+  session_duration = "24h"
+
+  policies = [
+    {
+      name       = "bypass"
+      decision   = "bypass"
+      precedence = 1
+      include    = [{ everyone = {} }]
+    },
+  ]
+}
+
 # Cloudflare Access — single wildcard app gates all *.arunanshu.dev traffic.
 # New services only need an HTTPRoute; no Terraform change required unless
 # per-app access control is needed (different users, different session length).

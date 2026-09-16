@@ -14,6 +14,8 @@ spec:
   destinations:
     - server: https://kubernetes.default.svc
       namespace: arunanshu-dev
+    - server: https://kubernetes.default.svc
+      namespace: libby-hbd-2026
 
   orphanedResources:
     warn: true

@@ -44,3 +44,14 @@ output "cache_purge_token_id" {
   description = "Cloudflare account token id for the cache-purge token (safe to log)."
   value       = cloudflare_account_token.cache_purge.id
 }
+
+output "libby_hbd_2026_cache_purge_token" {
+  description = "Least-privilege Cloudflare Cache Purge token for libby-hbd-2026.arunanshu.dev. Seal into the libby-hbd-2026 namespace."
+  value       = cloudflare_account_token.libby_hbd_2026_cache_purge.value
+  sensitive   = true
+}
+
+output "libby_hbd_2026_cache_purge_token_id" {
+  description = "Cloudflare account token id for the libby-hbd-2026 cache-purge token (safe to log)."
+  value       = cloudflare_account_token.libby_hbd_2026_cache_purge.id
+}

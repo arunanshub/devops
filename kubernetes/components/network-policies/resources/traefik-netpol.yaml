@@ -32,6 +32,8 @@ spec:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: arunanshu-dev
         - matchLabels:
+            k8s:io.kubernetes.pod.namespace: libby-hbd-2026
+        - matchLabels:
             k8s:io.kubernetes.pod.namespace: argocd
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: headlamp

@@ -16,8 +16,8 @@ resource "cloudflare_tiered_cache" "smart" {
 }
 
 # --- Cache Rules (http_request_cache_settings phase) --------------------------
-# A zone has exactly ONE entry-point ruleset per phase, so the Grafana static
-# rule and the arunanshu.dev document rule live in the same ruleset.
+# A zone has exactly ONE entry-point ruleset per phase, so the zone-wide document
+# rule and the Grafana static rule live in the same ruleset. Order matters.
 #
 # Renamed from cloudflare_ruleset.grafana_static_cache (see moved block) now that
 # it carries more than the Grafana rule.
@@ -28,12 +28,39 @@ resource "cloudflare_ruleset" "cache_rules" {
   phase   = "http_request_cache_settings"
 
   rules = [
-    # Grafana (/public/build/): cold dashboard load is ~3.3MB of JS across ~34
-    # files. The wildcard ZT app attaches CF_Authorization/Set-Cookie, which
-    # makes CF skip caching by default — override_origin bypasses that so bundles
-    # serve from the user's local edge (not Hetzner DE every time).
+    # Zone-wide eligibility. edge_ttl.bypass_by_default keeps the origin as the
+    # policy authority: s-maxage / public → store; private / no-store → bypass.
     #
-    # Safety invariant: NEVER widen to /api, /d, /avatar, or any dynamic path —
+    # No host or path allowlist — a new subdomain needs no change here. Anything
+    # that must not be cached simply says so in its own Cache-Control, and
+    # Access-gated hosts bypass anyway (Set-Cookie without an edge_ttl override).
+    # Defense-in-depth still excludes /api and /rpc.
+    #
+    # RSC parity: the rsc header and _rsc query parameter must be both present or
+    # both absent, or the two representations share a cache key.
+    {
+      description = "Edge-cache any origin on this zone when its Cache-Control allows"
+      expression  = "(http.request.method in {\"GET\" \"HEAD\"} and not starts_with(http.request.uri.path, \"/api/\") and not starts_with(http.request.uri.path, \"/rpc/\") and not (has_key(http.request.headers, \"rsc\") and not has_key(http.request.uri.args, \"_rsc\")) and not (has_key(http.request.uri.args, \"_rsc\") and not has_key(http.request.headers, \"rsc\")))"
+      action      = "set_cache_settings"
+      enabled     = true
+      action_parameters = {
+        cache = true
+        browser_ttl = {
+          mode = "respect_origin"
+        }
+        edge_ttl = {
+          mode = "bypass_by_default"
+        }
+      }
+    },
+
+    # Grafana (/public/build/): ~3.3MB of hashed JS on a cold load. The ZT app
+    # attaches Set-Cookie, so only override_origin gets these cached.
+    #
+    # MUST stay last: within a phase the last matching rule wins, so this has to
+    # follow the zone-wide rule above to keep its TTL.
+    #
+    # Safety invariant: NEVER widen to /api, /d, /avatar or any dynamic path —
     # that would risk cache deception. Content-hashed paths only.
     {
       description = "Edge-cache Grafana hashed JS/CSS bundles (/public/build/)"
@@ -45,40 +72,6 @@ resource "cloudflare_ruleset" "cache_rules" {
         edge_ttl = {
           mode    = "override_origin"
           default = 604800 # 7d conservative; bump to 2592000 (30d) after checking Cache Analytics
-        }
-      }
-    },
-
-    # Host-wide cache eligibility for arunanshu.dev. Cloudflare does not cache
-    # HTML or text/x-component by default even when Next.js sends a shared
-    # Cache-Control policy. This rule only makes responses *eligible*;
-    # edge_ttl.mode = bypass_by_default keeps Next.js as the policy authority:
-    # s-maxage / public → store; private / no-store / missing → bypass.
-    #
-    # No path allowlist: new public routes inherit edge caching from origin
-    # headers. Defense-in-depth excludes /api and /rpc.
-    #
-    # RSC flights for static / use-cache routes send the same s-maxage as HTML.
-    # Next.js keys variants via the _rsc query parameter (CDN cache key must
-    # include the query string — Cloudflare default does). Include those
-    # requests so soft navigation can HIT the edge.
-    #
-    # Require RSC request parity: the rsc header and _rsc query parameter must
-    # be both present or both absent. Either one alone can return a different
-    # representation under a cache key that Cloudflare would otherwise share.
-    # Deploy-time host purge (PostSync Job) clears HTML + all _rsc variants.
-    {
-      description = "Edge-cache arunanshu.dev when Next.js Cache-Control allows"
-      expression  = "(http.host eq \"arunanshu.dev\" and http.request.method in {\"GET\" \"HEAD\"} and not starts_with(http.request.uri.path, \"/api/\") and not starts_with(http.request.uri.path, \"/rpc/\") and not (has_key(http.request.headers, \"rsc\") and not has_key(http.request.uri.args, \"_rsc\")) and not (has_key(http.request.uri.args, \"_rsc\") and not has_key(http.request.headers, \"rsc\")))"
-      action      = "set_cache_settings"
-      enabled     = true
-      action_parameters = {
-        cache = true
-        browser_ttl = {
-          mode = "respect_origin"
-        }
-        edge_ttl = {
-          mode = "bypass_by_default"
         }
       }
     },
