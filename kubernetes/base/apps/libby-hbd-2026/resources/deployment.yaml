@@ -83,10 +83,12 @@ spec:
           resources:
             requests:
               cpu: 50m
-              memory: 96Mi
+              memory: 128Mi
             limits:
-              # Measured: ~65Mi idle, ~71Mi after 30 image optimisations.
-              memory: 256Mi
+              # Idle ~57Mi; the ceiling is concurrent AVIF encodes. The page has
+              # 32 distinct variants and Next coalesces duplicate in-flight
+              # requests, so that is the true worst case: 1Gi dies, 1280Mi passes.
+              memory: 1536Mi
       volumes:
         - name: tmp
           emptyDir: {}

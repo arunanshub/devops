@@ -14,4 +14,4 @@ resources:
 images:
   - name: libby-hbd-2026
     newName: ghcr.io/arunanshub/libby-hbd-2026.arunanshu.dev
-    newTag: 20260916011048-4e61777
+    newTag: 20260916024209-538e452
