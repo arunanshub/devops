@@ -51,7 +51,7 @@
     },
     "apacheHttpd@latest": {
       "last_modified": "2026-08-27T07:16:00Z",
-      "plugin_version": "0.0.2",
+      "plugin_version": "0.0.3",
       "resolved": "github:NixOS/nixpkgs/c27cdad491a991b11ed731760aa2ef8db0cb0410#apacheHttpd",
       "source": "devbox-search",
       "version": "2.4.68",
@@ -227,8 +227,8 @@
       }
     },
     "github:NixOS/nixpkgs/nixpkgs-unstable": {
-      "last_modified": "2026-09-03T02:01:15Z",
-      "resolved": "github:NixOS/nixpkgs/5545adfad2e98de106a5544ca7067e03010410bd?lastModified=1788400875"
+      "last_modified": "2026-09-22T05:33:51Z",
+      "resolved": "github:NixOS/nixpkgs/b6c98e9e6633ee64753b594ff4a5febf0367fc00?lastModified=1790055231"
     },
     "gitleaks@latest": {
       "last_modified": "2026-08-27T07:16:00Z",
