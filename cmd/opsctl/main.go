@@ -39,8 +39,11 @@ func run() error {
 	kctx := kong.Parse(&cli,
 		kong.Description("The operations toolkit :)"),
 		kong.UsageOnError(),
+		kong.DefaultEnvars("OPSCTL"),
 		kong.ConfigureHelp(kong.HelpOptions{
-			Compact: true,
+			Compact:  true,
+			Tree:     true,
+			Indenter: kong.TreeIndenter,
 		}),
 		kong.BindTo(ctx, (*context.Context)(nil)),
 	)
