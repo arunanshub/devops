@@ -37,8 +37,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: purge
-          # Pin the multi-platform image index. Keep the tag for readability.
-          image: curlimages/curl:8.14.1@sha256:9a1ed35addb45476afa911696297f8e115993df459278ed036182dd2cd22b67b
+          # kustomization.yaml pins the tag and the multi-platform index digest.
+          image: curlimages/curl
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false

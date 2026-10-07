@@ -9,5 +9,4 @@ resources:
 
 images:
   - name: alpine/k8s
-    newTag: 1.35.5
-    digest: sha256:ce634ae3b0847186d4e28dc5b2893ba098b69d8c59c67f796930177d4cf10738
+    newTag: "1.35.5@sha256:ce634ae3b0847186d4e28dc5b2893ba098b69d8c59c67f796930177d4cf10738"
