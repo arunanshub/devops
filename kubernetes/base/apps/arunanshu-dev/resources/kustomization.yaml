@@ -19,4 +19,4 @@ images:
     newName: ghcr.io/arunanshub/arunanshu.dev
     newTag: 20261007084518-481ff00
   - name: curlimages/curl
-    newTag: "8.14.1@sha256:9a1ed35addb45476afa911696297f8e115993df459278ed036182dd2cd22b67b"
+    newTag: "8.22.0@sha256:58adaa4e8dca9c988bae2aba4ab3434a0bb2da16bbe3f92dec39ec7785166777"
