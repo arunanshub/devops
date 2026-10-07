@@ -51,11 +51,14 @@
       "schedule": []
     },
     {
-      "description": "Own GHCR images with YYYYMMDDHHMMSS-sha tags. One PR per image, automerge.",
+      "description": "Own GHCR images with YYYYMMDDHHMMSS-sha tags. One PR per image, automerge. The PR limits do not apply, and these PRs go first.",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["ghcr.io/arunanshub/**"],
       "versioning": "regex:^(?<major>\\d{4})(?<minor>\\d{4})(?<patch>\\d{6})-(?<build>[a-f0-9]+)$",
-      "automerge": true
+      "automerge": true,
+      "prHourlyLimit": 0,
+      "prConcurrentLimit": 0,
+      "prPriority": 10
     }
   ]
 }
