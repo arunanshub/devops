@@ -26,7 +26,7 @@ releases:
   - name: hccm
     namespace: kube-system
     chart: hcloud/hcloud-cloud-controller-manager
-    version: "1.38.0"
+    version: "1.39.0"
     wait: true
     values:
       - values/ccm.yaml
@@ -35,7 +35,7 @@ releases:
     chart: argo/argo-cd
     needs:
       - kube-system/hccm
-    version: 10.9.6
+    version: 10.10.2
     namespace: argocd
     cleanupOnFail: true
     createNamespace: true
