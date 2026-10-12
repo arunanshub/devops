@@ -9,7 +9,7 @@ spec:
     kind: DaemonSet
     name: hcloud-csi-node
   updatePolicy:
-    updateMode: "Off"
+    updateMode: InPlaceOrRecreate
   resourcePolicy:
     containerPolicies:
       - containerName: "*"
