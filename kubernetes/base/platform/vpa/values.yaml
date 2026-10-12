@@ -1,26 +1,43 @@
 recommender:
   enabled: true
+
+  extraArgs:
+    v: "2"
+
+    # Don't recommend absurdly tiny pods.
+    pod-recommendation-min-cpu-millicores: "25"
+    pod-recommendation-min-memory-mb: "64"
+
+    # Optional: nicer granularity for memory recommendations.
+    round-memory-bytes: "33554432" # 32 MiB
+
   resources:
     requests:
-      cpu: 10m
-      memory: 64Mi
+      cpu: 25m
+      memory: 128Mi
     limits:
       memory: 256Mi
 
 updater:
   enabled: true
+
+  extraArgs:
+    # Useful with InPlaceOrRecreate when the resize really is non-disruptive.
+    in-place-skip-disruption-budget: "true"
+
   resources:
     requests:
-      cpu: 10m
+      cpu: 25m
       memory: 64Mi
     limits:
       memory: 128Mi
 
 admissionController:
   enabled: true
+
   resources:
     requests:
-      cpu: 10m
+      cpu: 25m
       memory: 64Mi
     limits:
       memory: 128Mi
