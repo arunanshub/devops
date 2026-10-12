@@ -17,6 +17,6 @@ resources:
 images:
   - name: arunanshu-dev
     newName: ghcr.io/arunanshub/arunanshu.dev
-    newTag: 20261008125205-e9afc97
+    newTag: 20261012042916-89598d1
   - name: curlimages/curl
     newTag: "8.22.0@sha256:58adaa4e8dca9c988bae2aba4ab3434a0bb2da16bbe3f92dec39ec7785166777"
