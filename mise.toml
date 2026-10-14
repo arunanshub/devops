@@ -1,0 +1,9 @@
+[tools]
+"github:robusta-dev/krr" = "latest"
+go = "latest"
+python = "3"
+uv = "latest"
+
+[settings]
+lockfile = true
+lockfile_auto_prune = true
