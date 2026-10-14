@@ -9,7 +9,7 @@ Ansible    -> host OS convergence
 ArgoCD     -> Kubernetes workloads
 ```
 
-Work from `devbox shell` so the pinned tool versions in `devbox.json` are used.
+Run `mise install` one time. mise then puts the pinned tool versions from `mise.lock` on `PATH`.
 
 ## Daily Commands
 

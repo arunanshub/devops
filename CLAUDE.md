@@ -57,7 +57,7 @@ The git remote is `git@github.com:arunanshub/devops.git`. ArgoCD reads the same 
 
 ## Commands
 
-Run all commands inside `devbox shell`. `devbox.json` pins every CLI. `kubeseal@0.36.0` must match the sealed-secrets controller in the cluster.
+Run `mise install` one time. `mise.toml` declares every CLI, and `mise.lock` pins the versions. mise also sets `KUBECONFIG`. `kubeseal` 0.36.0 must match the sealed-secrets controller in the cluster.
 
 The `Justfile` is the operator entrypoint. Run `just --list` to see every recipe. The Justfile exports `KUBECONFIG` and `K8S_API_ENDPOINT` to all recipes.
 

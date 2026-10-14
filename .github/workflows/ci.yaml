@@ -216,7 +216,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       YAMLFMT_VERSION: 0.21.0
-      # Pinned to the devbox version — the runner's preinstalled shellcheck is
+      # Pinned to the mise version — the runner's preinstalled shellcheck is
       # older and emits SC2317 false-positives on trap-invoked cleanup code.
       SHELLCHECK_VERSION: v0.11.0
     steps:

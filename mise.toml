@@ -1,8 +1,32 @@
 [tools]
+age = "latest"
+"aqua:cilium/hubble" = "latest"
+argocd = "latest"
+cilium-cli = "latest"
+gitleaks = "latest"
 "github:robusta-dev/krr" = "latest"
 go = "latest"
+hcloud = "latest"
+helm = "4.2.4"
+helmfile = "latest"
+just = "latest"
+kubeconform = "latest"
+kubectl = "latest"
+# kubeseal must match the sealed-secrets controller in the cluster.
+kubeseal = "0.36.0"
+kustomize = "latest"
+lefthook = "latest"
+opentofu = "latest"
 python = "3"
+shellcheck = "latest"
+sops = "latest"
 uv = "latest"
+yamlfmt = "latest"
+
+[env]
+KUBECONFIG = "{{config_root}}/infra/kubeconfig.yaml"
+LANG = "C.UTF-8"
+LC_ALL = "C.UTF-8"
 
 [settings]
 lockfile = true

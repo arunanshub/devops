@@ -141,8 +141,8 @@ Key rules:
 
 ## Phase 0 — local prerequisites ✅
 
-- [x] OpenTofu, hcloud CLI, kubectl, sops, age, just, helmfile installed via devbox
-  - `devbox.json` captures these — no manual reinstall needed on new machines
+- [x] OpenTofu, hcloud CLI, kubectl, sops, age, just, helmfile installed via mise
+  - `mise.toml` and `mise.lock` capture these — no manual reinstall needed on new machines
 - [x] Age key generated at `~/.config/sops/age/keys.txt` and backed up
   - Losing this key = losing access to all encrypted secrets forever
 - [x] SOPS set up with `.sops.yaml` pointing to your age public key

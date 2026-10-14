@@ -5,9 +5,6 @@
   ],
   "schedule": ["before 9am on monday"],
   "postUpdateOptions": ["gomodTidy"],
-  "devbox": {
-    "enabled": false
-  },
   "argocd": {
     "managerFilePatterns": ["/^kubernetes/.+\\.ya?ml$/"]
   },

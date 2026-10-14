@@ -20,8 +20,6 @@ __pycache__/
 # Ignore SSH known hosts file to prevent conflicts with existing entries.
 .ssh_known_hosts
 
-devbox.d/
-
 # Implementation plans — local development aid, not for version control
 docs/plans/
 

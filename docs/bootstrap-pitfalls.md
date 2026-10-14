@@ -211,7 +211,7 @@ Failed to pull image "quay.io/cilium/cilium:v1.19.3@sha256:...":
 
 **Fix.** Already wired in: `kubernetes/bootstrap/gateway-api-crds/kustomization.yaml` references the upstream `standard-install.yaml`, helmfile wraps the kustomization as a synthetic chart, and the cilium release `needs: kube-system/gateway-api-crds` so install order is enforced. ArgoCD steady-state reconciliation is intentionally separate under `kubernetes/infra/gateway-api-crds/`. If bumping Cilium past 1.19 in the future, **validate Cilium's supported Gateway API version and bump both URLs intentionally**.
 
-**Note.** This setup requires the `kustomize` CLI on `PATH` — already in `devbox.json`. If running outside `devbox shell`, you'll get a less-helpful error from helmfile.
+**Note.** This setup requires the `kustomize` CLI on `PATH` — already in `mise.toml`. If mise is not active in your shell, you'll get a less-helpful error from helmfile.
 
 ---
 
@@ -219,9 +219,9 @@ Failed to pull image "quay.io/cilium/cilium:v1.19.3@sha256:...":
 
 **Symptom.** `just argocd-bootstrap` fails with helmfile complaining about kustomize being unavailable when processing the gateway-api-crds release.
 
-**Cause.** Running outside `devbox shell`. Devbox manages all CLIs; kustomize is one of them.
+**Cause.** mise is not active in the shell. mise manages all CLIs; kustomize is one of them.
 
-**Fix.** `devbox shell`, then re-run.
+**Fix.** Run `mise install` and activate mise in the shell. Then run the command again.
 
 ---
 
