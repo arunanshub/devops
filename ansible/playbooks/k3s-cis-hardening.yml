@@ -1,0 +1,127 @@
+# One-shot playbook — do NOT import into site.yml.
+# k3s CIS hardening flags folded into the secrets-encryption PR (all k3s node-config in one place).
+# Two low-risk, doc-recommended additions from the k3s CIS Hardening Guide
+# (https://docs.k3s.io/security/hardening-guide), both delivered as ONE config drop-in / ONE restart:
+#
+#   1. kube-apiserver `--enable-admission-plugins=NodeRestriction`
+#      NodeRestriction is NOT in the apiserver's default-enabled set and k3s does not add it. It
+#      limits each kubelet to mutating only its OWN Node object and the pods bound to it. On this
+#      cluster ALL three nodes are cp_worker, so every kubelet holds node credentials — this directly
+#      shrinks the blast radius of a single compromised node. hccm/Cilium/kured use their own
+#      ServiceAccounts (not kubelet identity), so they are unaffected. `--enable-admission-plugins`
+#      is ADDITIVE to the apiserver defaults (it does not disable the default plugins).
+#
+#   2. kubelet `--streaming-connection-idle-timeout=5m` + `--tls-cipher-suites=<strong AEAD set>`
+#      Bounds idle exec/attach/port-forward streams and restricts the kubelet server to strong AEAD
+#      ciphers (CIS kubelet items). BOTH are genuine kubelet CLI flags (the k3s hardening guide
+#      recommends them verbatim AS kubelet-arg — so, unlike `--max-parallel-image-pulls`, they will
+#      not crash-loop k3s with "unknown flag"). Still validated one node at a time below.
+#
+# SAFETY — a bad `kube-apiserver-arg` crash-loops the IN-PROCESS apiserver, but the kubelet keeps
+# reporting Ready (it reaches the API via the LB to a healthy peer), so a plain node-Ready gate would
+# MASK a broken apiserver and let the rollout march on to break all three. This play adds a
+# LOCAL-apiserver `/readyz` gate (on-node `k3s kubectl` uses 127.0.0.1:6443) so a bad flag fails the
+# host → serial:1 + max_fail_percentage:0 halts before the next node, etcd quorum (2/3) intact. A k3s
+# restart is non-disruptive to running pods (containerd re-attach).
+#
+# Reversibility: node-config — remove the drop-in + restart. Both changes are additive flags.
+#
+# Run:  just ansible-check    k3s-cis-hardening   # dry-run (--check --diff), no changes
+#       just ansible-converge k3s-cis-hardening   # apply (rolling, one node at a time)
+- name: k3s CIS hardening (NodeRestriction + kubelet stream/cipher)
+  hosts: control_planes
+  gather_facts: false
+  become: true
+  serial: 1
+  max_fail_percentage: 0
+  order: sorted
+  handlers:
+    - name: Restart k3s
+      ansible.builtin.systemd:
+        name: k3s
+        state: restarted
+  tasks:
+    - name: Create k3s config drop-in directory
+      ansible.builtin.file:
+        path: /etc/rancher/k3s/config.yaml.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy CIS hardening drop-in
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml.d/cis-hardening.yaml
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # k3s CIS Hardening Guide flags. `+` appends to k3s's own apiserver/kubelet args (and to the
+          # kubelet-arg lists set by the eviction/resolver drop-ins) — it does not replace them.
+          # NodeRestriction: additive admission plugin, caps each kubelet to its own Node + bound pods.
+          kube-apiserver-arg+:
+            - "enable-admission-plugins=NodeRestriction"
+          # Bound idle streaming sessions; restrict kubelet TLS to strong AEAD ciphers. Both are real
+          # kubelet CLI flags per https://docs.k3s.io/security/hardening-guide.
+          kubelet-arg+:
+            - "streaming-connection-idle-timeout=5m"
+            - "tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+      notify: Restart k3s
+
+    - name: Flush handlers (restart k3s before verifying)
+      ansible.builtin.meta: flush_handlers
+
+    - name: Wait for this node to be Ready again
+      kubernetes.core.k8s_info:
+        kind: Node
+        name: "{{ kubernetes_node_name }}"
+      register: node_info
+      delegate_to: localhost
+      become: false
+      # default([]) tolerates the API endpoint (cp-1) being briefly unreachable while it restarts.
+      until: >
+        (node_info.resources | default([]) | length > 0) and (node_info.resources[0].status.conditions | selectattr('type', 'equalto', 'Ready')
+         | map(attribute='status') | list | first | default('')) == 'True'
+      retries: 30
+      delay: 10
+      when: not ansible_check_mode
+
+    - name: Verify the LOCAL apiserver came back (catches a bad kube-apiserver-arg)
+      # On-node k3s.yaml points at 127.0.0.1:6443, so this probes THIS node's apiserver specifically —
+      # not a healthy peer via the LB. A rejected apiserver flag keeps it down → this fails → halt.
+      ansible.builtin.command:
+        cmd: k3s kubectl get --raw /readyz
+      register: local_readyz
+      changed_when: false
+      until: local_readyz.rc == 0 and (local_readyz.stdout | trim) == 'ok'
+      retries: 18
+      delay: 10
+      when: not ansible_check_mode
+
+    - name: Verify kubelet picked up the streaming-connection-idle-timeout
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          kubectl get --raw /api/v1/nodes/{{ kubernetes_node_name }}/proxy/configz | python3 -c "
+          import json, sys
+          cfg = json.load(sys.stdin)['kubeletconfig']
+          v = cfg.get('streamingConnectionIdleTimeout')
+          assert v == '5m0s', f'streamingConnectionIdleTimeout not applied: {v!r}'
+          print('streamingConnectionIdleTimeout: ' + v)
+          "
+        executable: /bin/bash
+      delegate_to: localhost
+      become: false
+      register: kubelet_verify
+      changed_when: false
+      until: kubelet_verify.rc == 0
+      retries: 12
+      delay: 5
+      when: not ansible_check_mode
+
+    - name: Summary (per node)
+      ansible.builtin.debug:
+        msg: >-
+          {{ kubernetes_node_name }}: NodeRestriction enabled (local apiserver healthy), kubelet
+          streaming-idle-timeout=5m + strong TLS ciphers applied.
+      when: not ansible_check_mode
