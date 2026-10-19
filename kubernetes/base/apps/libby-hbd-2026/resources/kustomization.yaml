@@ -14,6 +14,6 @@ resources:
 images:
   - name: libby-hbd-2026
     newName: ghcr.io/arunanshub/libby-hbd-2026.arunanshu.dev
-    newTag: 20261016170720-a1e080e
+    newTag: 20261019051723-37cf765
   - name: curlimages/curl
     newTag: "8.23.0@sha256:a134550be58ab783810e613ae96fd253c38f7bdd16d9bf9be350700c7a29ac06"
