@@ -42,7 +42,7 @@ data:
           "targets": [
             {
               "datasource": { "uid": "${DS_PROMETHEUS}" },
-              "expr": "sum(container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"$targetName(.+)\", container!=\"\", container!=\"POD\"}) by (container,pod)",
+              "expr": "sum(container_memory_working_set_bytes{metrics_path=\"/metrics/cadvisor\", namespace=\"$namespace\", pod=~\"$targetName(.+)\", container!=\"\", container!=\"POD\"}) by (container,pod)",
               "legendFormat": "{{pod}}-{{container}} actual",
               "refId": "D"
             },
@@ -116,7 +116,7 @@ data:
           "targets": [
             {
               "datasource": { "uid": "${DS_PROMETHEUS}" },
-              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$targetName-(.+)\", container!=\"\", container!=\"POD\"}[$__rate_interval])) by (container,pod) * 1000",
+              "expr": "sum(rate(container_cpu_usage_seconds_total{metrics_path=\"/metrics/cadvisor\", namespace=\"$namespace\", pod=~\"$targetName-(.+)\", container!=\"\", container!=\"POD\"}[$__rate_interval])) by (container,pod) * 1000",
               "legendFormat": "{{pod}}-{{container}} actual",
               "refId": "D"
             },
