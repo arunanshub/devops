@@ -16,3 +16,4 @@ resources:
   - cluster-alerts/application.yaml
   - vpa-dashboard/application.yaml
   - pv-dashboard/application.yaml
+  - arunanshu-dev-dashboard/application.yaml
