@@ -68,6 +68,13 @@ encryption:
 # Safe with kubeProxyReplacement: true; removes the iptables NAT fallback.
 bpf:
   masquerade: true
+  # netkit (Layer 3) replaces veth for the pod devices. The Cilium program runs
+  # inside the pod-side device, so a packet skips the per-CPU backlog queue.
+  # The 2026-10-23 spike test gave p50 -18%, +4% RPS, -6% CPU per request.
+  # Needs kernel >= 6.8 and eBPF host routing. A node cannot switch in place:
+  # drain and reboot it. Beta in Cilium 1.20.
+  # https://docs.cilium.io/en/stable/operations/performance/tuning/#netkit-device-mode
+  datapathMode: netkit
 
 # Disable the bandwidth manager and BBR. This cluster has no pod bandwidth
 # annotations. The manager installs an fq qdisc with a 100-packet flow limit.
