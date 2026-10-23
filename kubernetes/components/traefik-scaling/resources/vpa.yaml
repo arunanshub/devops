@@ -17,7 +17,9 @@ spec:
         # chart-declared value, so ratio preservation can no longer inflate the limit.
         controlledValues: RequestsOnly
         minAllowed:
-          cpu: 10m
+          # Traefik is idle most of the time, so VPA recommends about 25m. Under a
+          # spike it needs about 2 cores. The floor reserves CPU before the spike.
+          cpu: 500m
           memory: 32Mi
         maxAllowed:
           cpu: 1

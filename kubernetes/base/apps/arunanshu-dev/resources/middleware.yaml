@@ -6,10 +6,15 @@ metadata:
 spec:
   compress:
     # Traefik uses only an encoding that the client advertises. The order sets
-    # the priority. Cloudflare sends `Accept-Encoding: br, gzip` today, so
-    # brotli wins and zstd stays inert. zstd leads the list for the day
-    # Cloudflare adds it.
-    encodings: [zstd, br, gzip]
+    # the priority. Cloudflare sends `Accept-Encoding: br, gzip` to the origin
+    # on all plans, so gzip wins and zstd stays inert. zstd leads the list for
+    # the day Cloudflare adds it.
+    # gzip is before br: on the 409 KB blog page, gzip costs 4.2 ms of Traefik
+    # CPU and br costs 8.2 ms (2026-10-23 A/B test). gzip gives 64 KB, br 32 KB.
+    # The extra bytes cross the tunnel only on a cache miss. Cloudflare picks
+    # the encoding to the visitor.
+    # https://developers.cloudflare.com/speed/optimization/content/compression/
+    encodings: [zstd, gzip, br]
     includedContentTypes:
       - text/html
       - text/css

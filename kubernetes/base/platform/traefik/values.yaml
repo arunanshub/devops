@@ -76,6 +76,14 @@ ports:
       lifeCycle:
         requestAcceptGraceTimeout: "5s"
         graceTimeOut: "50s"
+      # Cilium socket-LB picks a backend only at connect time. Busy cloudflared
+      # keep-alive connections never go idle, so they stay on the old pods after
+      # a KEDA scale-up. Traefik sends `Connection: close` on the response after
+      # the limit, and the client reconnects to a new backend. The 2026-10-23
+      # load test showed 3 new pods at 0.5 RPS and 2 old pods at 190 RPS each.
+      # https://github.com/traefik/traefik/pull/10247
+      keepAliveMaxTime: "60s"
+      keepAliveMaxRequests: 1000 # the NGINX keepalive_requests default
   # No Gateway listener, tunnel origin, or Cilium allow rule uses HTTPS on
   # :8443. Keep the chart's listener default but do not publish dead Service
   # port 443 inside the cluster.
@@ -105,7 +113,9 @@ topologySpreadConstraints:
 
 resources:
   requests:
-    cpu: 10m
+    # Equal to the VPA minAllowed. The idle request (10m to 25m) let one pod use
+    # 2.4 cores under load and push its node to 97% CPU beside etcd.
+    cpu: 500m
     memory: 32Mi # conservative floor, slightly above idle 23Mi
   limits:
     # Honest fixed ceiling. VPA is RequestsOnly (traefik-scaling/resources/vpa.yaml), so it
