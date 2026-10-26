@@ -90,7 +90,7 @@ url = "https://github.com/cilium/hubble/releases/download/v1.20.2/hubble-windows
 url_api = "https://api.github.com/repos/cilium/hubble/releases/assets/616830263"
 
 [[tools.argocd]]
-version = "3.5.5"
+version = "3.5.6"
 backend = "aqua:argoproj/argo-cd"
 specifiers = ["latest"]
 
