@@ -15,4 +15,4 @@ images:
     # Do not use 2026.8.0: the .0 release strips trailing slashes on HTTP
     # origins and causes redirect loops (cloudflared issue #1717). 2026.8.1
     # fixed it and 2026.8.2 keeps the fix. digest = the index (manifest list).
-    newTag: "2026.10.4@sha256:c6c7ae1d5dfdcb094ad344ed68ccffc26635c9c6be80965664c33baf064b0515"
+    newTag: "2026.10.6@sha256:004d843fa5fdc3103983fd580ee19fab4a8fa98add31f87249c1659e848c98e0"
