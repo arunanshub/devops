@@ -676,7 +676,7 @@ url_api = "https://api.github.com/repos/evilmartians/lefthook/releases/assets/63
 provenance = "github-attestations"
 
 [[tools.opentofu]]
-version = "1.13.1"
+version = "1.13.2"
 backend = "aqua:opentofu/opentofu"
 specifiers = ["latest"]
 
