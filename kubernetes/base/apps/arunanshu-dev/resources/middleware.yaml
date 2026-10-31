@@ -14,7 +14,9 @@ spec:
     # The extra bytes cross the tunnel only on a cache miss. Cloudflare picks
     # the encoding to the visitor.
     # https://developers.cloudflare.com/speed/optimization/content/compression/
-    encodings: [zstd, gzip, br]
+    # 2026-10-31: switching to br
+    # TODO: consider br'ing only static data
+    encodings: [zstd, br, gzip]
     includedContentTypes:
       - text/html
       - text/css
