@@ -56,43 +56,36 @@ specifiers = ["latest"]
 
 [tools."aqua:cilium/hubble"."platforms.linux-arm64"]
 checksum = "sha256:cccecf20e204c0bcbb2635c5efc9672fea0e33a58d01f04e94324caddb572250"
-checksum_source = "mise-versions"
 url = "https://github.com/cilium/hubble/releases/download/v1.20.4/hubble-linux-arm64.tar.gz"
 url_api = "https://api.github.com/repos/cilium/hubble/releases/assets/718589132"
 
 [tools."aqua:cilium/hubble"."platforms.linux-arm64-musl"]
 checksum = "sha256:cccecf20e204c0bcbb2635c5efc9672fea0e33a58d01f04e94324caddb572250"
-checksum_source = "mise-versions"
 url = "https://github.com/cilium/hubble/releases/download/v1.20.4/hubble-linux-arm64.tar.gz"
 url_api = "https://api.github.com/repos/cilium/hubble/releases/assets/718589132"
 
 [tools."aqua:cilium/hubble"."platforms.linux-x64"]
 checksum = "sha256:78ed68bd56d244bf2691ae4ba186d78e87e6814df58573d6de6089d0e5d7ddd8"
-checksum_source = "mise-versions"
 url = "https://github.com/cilium/hubble/releases/download/v1.20.4/hubble-linux-amd64.tar.gz"
 url_api = "https://api.github.com/repos/cilium/hubble/releases/assets/718589147"
 
 [tools."aqua:cilium/hubble"."platforms.linux-x64-musl"]
 checksum = "sha256:78ed68bd56d244bf2691ae4ba186d78e87e6814df58573d6de6089d0e5d7ddd8"
-checksum_source = "mise-versions"
 url = "https://github.com/cilium/hubble/releases/download/v1.20.4/hubble-linux-amd64.tar.gz"
 url_api = "https://api.github.com/repos/cilium/hubble/releases/assets/718589147"
 
 [tools."aqua:cilium/hubble"."platforms.macos-arm64"]
 checksum = "sha256:f84c46cf861804b4269e5cc4b6aaf138c742c5bc09b06e49840fc99b58b72e25"
-checksum_source = "mise-versions"
 url = "https://github.com/cilium/hubble/releases/download/v1.20.4/hubble-darwin-arm64.tar.gz"
 url_api = "https://api.github.com/repos/cilium/hubble/releases/assets/718589140"
 
 [tools."aqua:cilium/hubble"."platforms.macos-x64"]
 checksum = "sha256:c921ac12e36efaaa87c47c48a01c3532ff34520d6c04671971e59d491009b42b"
-checksum_source = "mise-versions"
 url = "https://github.com/cilium/hubble/releases/download/v1.20.4/hubble-darwin-amd64.tar.gz"
 url_api = "https://api.github.com/repos/cilium/hubble/releases/assets/718589145"
 
 [tools."aqua:cilium/hubble"."platforms.windows-x64"]
 checksum = "sha256:edf1dd07944b472c83a428439c018901485d2f27c59587bda13da803dc4fa2af"
-checksum_source = "mise-versions"
 url = "https://github.com/cilium/hubble/releases/download/v1.20.4/hubble-windows-amd64.tar.gz"
 url_api = "https://api.github.com/repos/cilium/hubble/releases/assets/718589168"
 
@@ -102,39 +95,39 @@ backend = "aqua:argoproj/argo-cd"
 specifiers = ["latest"]
 
 [tools.argocd."platforms.linux-arm64"]
-checksum = "sha256:13f423b9014e212a3e0052b7826e1d6b95ee5ac156f2436fc856f2eb8c827537"
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.5/argocd-linux-arm64"
-url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/633520284"
+checksum = "sha256:281aea75a1eaea15e2839f12626e78684f76099f09ffb0b05d35f64344ed1256"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.6/argocd-linux-arm64"
+url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/660262203"
 
 [tools.argocd."platforms.linux-arm64-musl"]
-checksum = "sha256:13f423b9014e212a3e0052b7826e1d6b95ee5ac156f2436fc856f2eb8c827537"
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.5/argocd-linux-arm64"
-url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/633520284"
+checksum = "sha256:281aea75a1eaea15e2839f12626e78684f76099f09ffb0b05d35f64344ed1256"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.6/argocd-linux-arm64"
+url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/660262203"
 
 [tools.argocd."platforms.linux-x64"]
-checksum = "sha256:c3ddfa606fc3e89ab14f55bda6600b207c355b028f8eaabe69b817a4c4621aba"
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.5/argocd-linux-amd64"
-url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/633519800"
+checksum = "sha256:db9d17b70593d3f86a4dcf08d9ebbb85a42e995426ac5f928b737260656102d3"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.6/argocd-linux-amd64"
+url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/660261478"
 
 [tools.argocd."platforms.linux-x64-musl"]
-checksum = "sha256:c3ddfa606fc3e89ab14f55bda6600b207c355b028f8eaabe69b817a4c4621aba"
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.5/argocd-linux-amd64"
-url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/633519800"
+checksum = "sha256:db9d17b70593d3f86a4dcf08d9ebbb85a42e995426ac5f928b737260656102d3"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.6/argocd-linux-amd64"
+url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/660261478"
 
 [tools.argocd."platforms.macos-arm64"]
-checksum = "sha256:e1957a758d727f6e3efcdef44209f6bc0c41b98a77057eec9bb5cac5dbd0667f"
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.5/argocd-darwin-arm64"
-url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/633520286"
+checksum = "sha256:55dc94ed2f1e827090a0a32962e181bedcbd3a8277b4fc95de955366f465cc5e"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.6/argocd-darwin-arm64"
+url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/660261482"
 
 [tools.argocd."platforms.macos-x64"]
-checksum = "sha256:5ecec70354a79fe206f3b677c8784bd4f3e1d60ec8e7d794e1b84a4ff54935d1"
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.5/argocd-darwin-amd64"
-url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/633520276"
+checksum = "sha256:a19182fab1f8a80a0ae2562f12929b0a496bc4660780aafcf484b9a76538342e"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.6/argocd-darwin-amd64"
+url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/660261480"
 
 [tools.argocd."platforms.windows-x64"]
-checksum = "sha256:4b441aea390ff8526d69ccafa4e8b22d8b4701ae6612fbbed9a8095d6a914a2c"
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.5/argocd-windows-amd64.exe"
-url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/633519799"
+checksum = "sha256:bab989274b6ebcd1b182efef621353b386ea2d7278db6b4a3766c5cd0d136cf5"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.6/argocd-windows-amd64.exe"
+url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/660261486"
 
 [[tools.cilium-cli]]
 version = "0.20.2"
@@ -143,43 +136,36 @@ specifiers = ["latest"]
 
 [tools.cilium-cli."platforms.linux-arm64"]
 checksum = "sha256:922af9c977e781500eb96c51137e495409b1cdd248c9e1b7fffb863e6b6efdf8"
-checksum_source = "mise-versions"
 url = "https://github.com/cilium/cilium-cli/releases/download/v0.20.2/cilium-linux-arm64.tar.gz"
 url_api = "https://api.github.com/repos/cilium/cilium-cli/releases/assets/687888468"
 
 [tools.cilium-cli."platforms.linux-arm64-musl"]
 checksum = "sha256:922af9c977e781500eb96c51137e495409b1cdd248c9e1b7fffb863e6b6efdf8"
-checksum_source = "mise-versions"
 url = "https://github.com/cilium/cilium-cli/releases/download/v0.20.2/cilium-linux-arm64.tar.gz"
 url_api = "https://api.github.com/repos/cilium/cilium-cli/releases/assets/687888468"
 
 [tools.cilium-cli."platforms.linux-x64"]
 checksum = "sha256:b7224a62bfed0e84f1a84567d274fefc5017df76a936e067c42012bb7fc30856"
-checksum_source = "mise-versions"
 url = "https://github.com/cilium/cilium-cli/releases/download/v0.20.2/cilium-linux-amd64.tar.gz"
 url_api = "https://api.github.com/repos/cilium/cilium-cli/releases/assets/687888470"
 
 [tools.cilium-cli."platforms.linux-x64-musl"]
 checksum = "sha256:b7224a62bfed0e84f1a84567d274fefc5017df76a936e067c42012bb7fc30856"
-checksum_source = "mise-versions"
 url = "https://github.com/cilium/cilium-cli/releases/download/v0.20.2/cilium-linux-amd64.tar.gz"
 url_api = "https://api.github.com/repos/cilium/cilium-cli/releases/assets/687888470"
 
 [tools.cilium-cli."platforms.macos-arm64"]
 checksum = "sha256:944c388f71b939e0befa405422c93d5fcbd574e4dd12c4bf01244858961d79de"
-checksum_source = "mise-versions"
 url = "https://github.com/cilium/cilium-cli/releases/download/v0.20.2/cilium-darwin-arm64.tar.gz"
 url_api = "https://api.github.com/repos/cilium/cilium-cli/releases/assets/687888463"
 
 [tools.cilium-cli."platforms.macos-x64"]
 checksum = "sha256:64ab3dd2b37f99319e2e85342725fd66caf7701b9be735704dace3c4ff3bb9ea"
-checksum_source = "mise-versions"
 url = "https://github.com/cilium/cilium-cli/releases/download/v0.20.2/cilium-darwin-amd64.tar.gz"
 url_api = "https://api.github.com/repos/cilium/cilium-cli/releases/assets/687888466"
 
 [tools.cilium-cli."platforms.windows-x64"]
 checksum = "sha256:b72fe6bbef143d2ab5c308a3384c0e97a5e82242b209626721ee0a1e72dddd5d"
-checksum_source = "mise-versions"
 url = "https://github.com/cilium/cilium-cli/releases/download/v0.20.2/cilium-windows-amd64.zip"
 url_api = "https://api.github.com/repos/cilium/cilium-cli/releases/assets/687888457"
 
@@ -269,32 +255,32 @@ backend = "core:go"
 specifiers = ["latest"]
 
 [tools.go."platforms.linux-arm64"]
-checksum = "sha256:94f3e30b8e374bc285e7dadc11e0865726b9bc6e85b841ccceaabc0214c6b7c8"
-url = "https://dl.google.com/go/go1.27.2.linux-arm64.tar.gz"
+checksum = "sha256:a06e99309dbcbdca1a8ccd2282c3ee146e55930886e26b4f1193269587165f49"
+url = "https://dl.google.com/go/go1.27.3.linux-arm64.tar.gz"
 
 [tools.go."platforms.linux-arm64-musl"]
-checksum = "sha256:94f3e30b8e374bc285e7dadc11e0865726b9bc6e85b841ccceaabc0214c6b7c8"
-url = "https://dl.google.com/go/go1.27.2.linux-arm64.tar.gz"
+checksum = "sha256:a06e99309dbcbdca1a8ccd2282c3ee146e55930886e26b4f1193269587165f49"
+url = "https://dl.google.com/go/go1.27.3.linux-arm64.tar.gz"
 
 [tools.go."platforms.linux-x64"]
-checksum = "sha256:ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5"
-url = "https://dl.google.com/go/go1.27.2.linux-amd64.tar.gz"
+checksum = "sha256:65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40"
+url = "https://dl.google.com/go/go1.27.3.linux-amd64.tar.gz"
 
 [tools.go."platforms.linux-x64-musl"]
-checksum = "sha256:ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5"
-url = "https://dl.google.com/go/go1.27.2.linux-amd64.tar.gz"
+checksum = "sha256:65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40"
+url = "https://dl.google.com/go/go1.27.3.linux-amd64.tar.gz"
 
 [tools.go."platforms.macos-arm64"]
-checksum = "sha256:76812b213b1b2302c978d28fa52fa92d541704b9e7d9d5db8002c50e4018c4c5"
-url = "https://dl.google.com/go/go1.27.2.darwin-arm64.tar.gz"
+checksum = "sha256:dd3908cf20959d798c1e06ebe5b72213f0505ce01373b40ce3110975a6cd99c2"
+url = "https://dl.google.com/go/go1.27.3.darwin-arm64.tar.gz"
 
 [tools.go."platforms.macos-x64"]
-checksum = "sha256:587b59182488b23aa6e5fc25110405a3e0e5b38ed2f5b2f46ed13c32aee356fe"
-url = "https://dl.google.com/go/go1.27.2.darwin-amd64.tar.gz"
+checksum = "sha256:b6f8e931e4ab497fcde6da8ae4499a58f9d258e55c8a80824a516eae5950a750"
+url = "https://dl.google.com/go/go1.27.3.darwin-amd64.tar.gz"
 
 [tools.go."platforms.windows-x64"]
-checksum = "sha256:1314008898bd40df77af4b014f777f08873dbdfbcd3d92308728ee03304fe04f"
-url = "https://dl.google.com/go/go1.27.2.windows-amd64.zip"
+checksum = "sha256:f26081f438319757f8a1b46d7d0b2c5ec7583d4038e485e0aa725cfde7885fff"
+url = "https://dl.google.com/go/go1.27.3.windows-amd64.zip"
 
 [[tools.hcloud]]
 version = "1.70.1"
@@ -378,43 +364,36 @@ specifiers = ["latest"]
 checksum = "sha256:e035c0338e31e0a8054ae798280532d32edcfbb7d6c4993e3b2efa2dc40647ce"
 url = "https://github.com/helmfile/helmfile/releases/download/v1.8.3/helmfile_1.8.3_linux_arm64.tar.gz"
 signer = "sigstore-oidc:https://github.com/helmfile/helmfile/.github/workflows/releaser.yaml"
-repository_ids = { repository = "474521466" }
 
 [tools.helmfile."platforms.linux-arm64-musl"]
 checksum = "sha256:e035c0338e31e0a8054ae798280532d32edcfbb7d6c4993e3b2efa2dc40647ce"
 url = "https://github.com/helmfile/helmfile/releases/download/v1.8.3/helmfile_1.8.3_linux_arm64.tar.gz"
 signer = "sigstore-oidc:https://github.com/helmfile/helmfile/.github/workflows/releaser.yaml"
-repository_ids = { repository = "474521466" }
 
 [tools.helmfile."platforms.linux-x64"]
 checksum = "sha256:7d79c6d2099a4819213873164eda23bdbd32f1404fec7a7104d934e5d102596f"
 url = "https://github.com/helmfile/helmfile/releases/download/v1.8.3/helmfile_1.8.3_linux_amd64.tar.gz"
 signer = "sigstore-oidc:https://github.com/helmfile/helmfile/.github/workflows/releaser.yaml"
-repository_ids = { repository = "474521466" }
 
 [tools.helmfile."platforms.linux-x64-musl"]
 checksum = "sha256:7d79c6d2099a4819213873164eda23bdbd32f1404fec7a7104d934e5d102596f"
 url = "https://github.com/helmfile/helmfile/releases/download/v1.8.3/helmfile_1.8.3_linux_amd64.tar.gz"
 signer = "sigstore-oidc:https://github.com/helmfile/helmfile/.github/workflows/releaser.yaml"
-repository_ids = { repository = "474521466" }
 
 [tools.helmfile."platforms.macos-arm64"]
 checksum = "sha256:a80eda044f1b73adc9ca051d34c787444203f31c3b9d5328a6b27c3ff02520ff"
 url = "https://github.com/helmfile/helmfile/releases/download/v1.8.3/helmfile_1.8.3_darwin_arm64.tar.gz"
 signer = "sigstore-oidc:https://github.com/helmfile/helmfile/.github/workflows/releaser.yaml"
-repository_ids = { repository = "474521466" }
 
 [tools.helmfile."platforms.macos-x64"]
 checksum = "sha256:043c4139987ad0009416575a0d52480af45b651f4dc85a90133199e8f9d6a71c"
 url = "https://github.com/helmfile/helmfile/releases/download/v1.8.3/helmfile_1.8.3_darwin_amd64.tar.gz"
 signer = "sigstore-oidc:https://github.com/helmfile/helmfile/.github/workflows/releaser.yaml"
-repository_ids = { repository = "474521466" }
 
 [tools.helmfile."platforms.windows-x64"]
 checksum = "sha256:1f4209a22437596fafade7809b4d223e6f1aca41437f4511e45b7c2d3c97b5d3"
 url = "https://github.com/helmfile/helmfile/releases/download/v1.8.3/helmfile_1.8.3_windows_amd64.tar.gz"
 signer = "sigstore-oidc:https://github.com/helmfile/helmfile/.github/workflows/releaser.yaml"
-repository_ids = { repository = "474521466" }
 
 [[tools.just]]
 version = "1.58.0"
@@ -542,32 +521,32 @@ backend = "aqua:kubernetes/kubernetes/kubectl"
 specifiers = ["latest"]
 
 [tools.kubectl."platforms.linux-arm64"]
-checksum = "sha256:ff749f4b78d9c4f1ec87307df9b50119ed819e2094aa9810cb9acffc3286c8c7"
-url = "https://dl.k8s.io/v1.37.1/bin/linux/arm64/kubectl"
+checksum = "sha256:fcc16f63186659d9722014b7e02d5fdd2d4e669cb8c0ab66365d7d3b8ba03509"
+url = "https://dl.k8s.io/v1.37.2/bin/linux/arm64/kubectl"
 
 [tools.kubectl."platforms.linux-arm64-musl"]
-checksum = "sha256:ff749f4b78d9c4f1ec87307df9b50119ed819e2094aa9810cb9acffc3286c8c7"
-url = "https://dl.k8s.io/v1.37.1/bin/linux/arm64/kubectl"
+checksum = "sha256:fcc16f63186659d9722014b7e02d5fdd2d4e669cb8c0ab66365d7d3b8ba03509"
+url = "https://dl.k8s.io/v1.37.2/bin/linux/arm64/kubectl"
 
 [tools.kubectl."platforms.linux-x64"]
-checksum = "sha256:65691ff77eb6fa44c908b77a1082c9f092c3b9733b5cefabec0d1104890e21a8"
-url = "https://dl.k8s.io/v1.37.1/bin/linux/amd64/kubectl"
+checksum = "sha256:c04487523e7aa7d1493f7808174c899db93d7a9cf57531420cd76b9bd415f8f4"
+url = "https://dl.k8s.io/v1.37.2/bin/linux/amd64/kubectl"
 
 [tools.kubectl."platforms.linux-x64-musl"]
-checksum = "sha256:65691ff77eb6fa44c908b77a1082c9f092c3b9733b5cefabec0d1104890e21a8"
-url = "https://dl.k8s.io/v1.37.1/bin/linux/amd64/kubectl"
+checksum = "sha256:c04487523e7aa7d1493f7808174c899db93d7a9cf57531420cd76b9bd415f8f4"
+url = "https://dl.k8s.io/v1.37.2/bin/linux/amd64/kubectl"
 
 [tools.kubectl."platforms.macos-arm64"]
-checksum = "sha256:fd65982c97ddad3106754b69ffa196d0e543aa591930ae52aed1adfb92f8c77f"
-url = "https://dl.k8s.io/v1.37.1/bin/darwin/arm64/kubectl"
+checksum = "sha256:55701af0d51815ee335f240e48acf0959c3c23017ed3fa816e880c4a92bae581"
+url = "https://dl.k8s.io/v1.37.2/bin/darwin/arm64/kubectl"
 
 [tools.kubectl."platforms.macos-x64"]
-checksum = "sha256:6851381c486ff6edd691623e3d65c87cb9a5b02887ff8fbbb38d8a031b748387"
-url = "https://dl.k8s.io/v1.37.1/bin/darwin/amd64/kubectl"
+checksum = "sha256:88379aff5c8111de6be0a394adffba2819e44cde269f3ab23cef76de1a48eaa8"
+url = "https://dl.k8s.io/v1.37.2/bin/darwin/amd64/kubectl"
 
 [tools.kubectl."platforms.windows-x64"]
-checksum = "sha256:14b93c4916a6f37a06fbc1f46b0a1d2404c4f9741be09f00d6caf8af3b05f1d3"
-url = "https://dl.k8s.io/v1.37.1/bin/windows/amd64/kubectl.exe"
+checksum = "sha256:1691938f7de0e931969f9968c3601cf32d6b0d573573afb4ce471f3d28f51984"
+url = "https://dl.k8s.io/v1.37.2/bin/windows/amd64/kubectl.exe"
 
 [[tools.kubeseal]]
 version = "0.36.0"
@@ -702,39 +681,39 @@ backend = "aqua:opentofu/opentofu"
 specifiers = ["latest"]
 
 [tools.opentofu."platforms.linux-arm64"]
-checksum = "sha256:9c1ef375aa1852db0b2888aa921b640c71f8140d4682aa4fec99378a64fa7dc3"
-url = "https://github.com/opentofu/opentofu/releases/download/v1.13.1/tofu_1.13.1_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/603708055"
+checksum = "sha256:88e2d9e3f94f97b76ab2faf55ade87578f56aed19c5e45fa139d70e994366d1f"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.2_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742799"
 
 [tools.opentofu."platforms.linux-arm64-musl"]
-checksum = "sha256:9c1ef375aa1852db0b2888aa921b640c71f8140d4682aa4fec99378a64fa7dc3"
-url = "https://github.com/opentofu/opentofu/releases/download/v1.13.1/tofu_1.13.1_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/603708055"
+checksum = "sha256:88e2d9e3f94f97b76ab2faf55ade87578f56aed19c5e45fa139d70e994366d1f"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.2_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742799"
 
 [tools.opentofu."platforms.linux-x64"]
-checksum = "sha256:378ada19d4bc70c43732004e8159be771b23b9a5afdf059e5f8a2b3fa2c70a69"
-url = "https://github.com/opentofu/opentofu/releases/download/v1.13.1/tofu_1.13.1_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/603708017"
+checksum = "sha256:ac05d9952662c7db28dd57e93f0a68018837bfdf9342384ec0987977c16a9645"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.2_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742636"
 
 [tools.opentofu."platforms.linux-x64-musl"]
-checksum = "sha256:378ada19d4bc70c43732004e8159be771b23b9a5afdf059e5f8a2b3fa2c70a69"
-url = "https://github.com/opentofu/opentofu/releases/download/v1.13.1/tofu_1.13.1_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/603708017"
+checksum = "sha256:ac05d9952662c7db28dd57e93f0a68018837bfdf9342384ec0987977c16a9645"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.2_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742636"
 
 [tools.opentofu."platforms.macos-arm64"]
-checksum = "sha256:be78f659f04ef06a9dbd9b3934d46af95d787a3aa38396d459dea395261816a9"
-url = "https://github.com/opentofu/opentofu/releases/download/v1.13.1/tofu_1.13.1_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/603708059"
+checksum = "sha256:0d1cdc85f38992055b48e7fb161304a2ddfe2e5ee0ff68ffec9d0349c8bd1b59"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.2_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742637"
 
 [tools.opentofu."platforms.macos-x64"]
-checksum = "sha256:a73720443ba38712d7d96dc1e857add02c15a790919c653ad07492e9952f8c27"
-url = "https://github.com/opentofu/opentofu/releases/download/v1.13.1/tofu_1.13.1_darwin_amd64.tar.gz"
-url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/603708142"
+checksum = "sha256:dc6e4eb1d3ed6550c2ef052596f933dbcd8c806957665ea83ae7537147cb3074"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.2_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742982"
 
 [tools.opentofu."platforms.windows-x64"]
-checksum = "sha256:6825ae311e9a15747ce2ede7b7e97c8bb744a4d271fa8113259eeeee3d09438c"
-url = "https://github.com/opentofu/opentofu/releases/download/v1.13.1/tofu_1.13.1_windows_amd64.tar.gz"
-url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/603708102"
+checksum = "sha256:e74fc2bda0c81ce696b6b7016a4d5c1f557638161239e4101e9ee7d8e0faba59"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.2_windows_amd64.tar.gz"
+url_api = "https://api.github.com/repos/opentofu/opentofu/releases/assets/662742635"
 
 [[tools.python]]
 version = "3.13.16"
