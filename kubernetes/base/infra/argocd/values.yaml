@@ -3,6 +3,15 @@ configs:
     server.insecure: "true"
     # Traefik owns HTTP response compression on the steady-state external route.
     server.enable.gzip: "false"
+  cm:
+    # Store the controller's cached live manifests as compressed msgpack bytes
+    # instead of unstructured maps (Argo CD v3.6+). Hot-reloaded: a change
+    # invalidates and rebuilds the cluster cache. Unknown values silently fall
+    # back to json/gzip-bestspeed, so keep these strings exact.
+    # https://argo-cd.readthedocs.io/en/stable/operator-manual/manifest-compression/
+    resource.manifest.compression.enabled: "true"
+    resource.manifest.storage: msgpack
+    resource.manifest.compression: gzip-bestspeed
 
 controller:
   resources:
