@@ -102,9 +102,16 @@ spec:
         # that VPA is inflating. Threshold 200% sits above post-fix steady state (max node
         # was 155% before, drops after the traefik/vmsingle fix). Node-level, not per-container
         # ratio, because RequestsOnly workloads show a high ratio at idle by design.
+        # Only Running/Pending pods count: kube-state-metrics keeps exporting limits for
+        # Succeeded/Failed pods until they are deleted (a finished k3s helm-install pod with a
+        # 32G limit held this alert firing on cp-1 for over a week).
         - alert: NodeMemoryLimitCommitmentHigh
           expr: |
-            sum by (node) (kube_pod_container_resource_limits{resource="memory"})
+            sum by (node) (
+              kube_pod_container_resource_limits{resource="memory"}
+              * on(namespace, pod) group_left()
+                (max by (namespace, pod) (kube_pod_status_phase{phase=~"Running|Pending"}) == 1)
+            )
             / on(node)
             sum by (node) (kube_node_status_allocatable{resource="memory"})
             > 2
