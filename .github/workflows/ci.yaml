@@ -240,6 +240,7 @@ jobs:
       - run: cat .render/out/diff.md >> "$GITHUB_STEP_SUMMARY"
       - run: gh pr comment "$PR_NUMBER" --body-file .render/out/diff.md --edit-last --create-if-none
       - run: just check-policy
+      - run: cd .render/out && sha256sum base/* target/* # TEMP
 
   tofu:
     name: OpenTofu fmt + validate
