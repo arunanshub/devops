@@ -21,6 +21,8 @@ python = "3"
 shellcheck = "latest"
 sops = "latest"
 uv = "latest"
+# velero CLI must match the in-cluster server (velero/velero image tag).
+velero = "1.18.2"
 yamlfmt = "latest"
 k9s = "latest"
 

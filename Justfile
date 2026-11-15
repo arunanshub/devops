@@ -103,61 +103,6 @@ seal-tunnel-token:
 seal-cache-purge app output:
     kubectl create secret generic cloudflare-cache-purge -n "{{ app }}" --from-literal=zone_id="$(awk -F'"' '/cloudflare_zone_id/{print $2}' "{{ infra / "terraform.tfvars" }}")" --from-literal=api_token="$(just _tofu 'output -raw {{ output }}')" --dry-run=client -o yaml | kubeseal --cert "{{ sealing_cert }}" -o yaml > "{{ k8s / "base/apps" / app / "resources/cf-cache-purge.sealedsecret.yaml" }}"
 
-# Show current Velero backup and restore status.
-@velero-status:
-    @echo "=== Backups ==="
-    kubectl exec -n velero deploy/velero -- /velero backup get
-    @echo ""
-    @echo "=== Restores ==="
-    kubectl exec -n velero deploy/velero -- /velero restore get
-    @echo ""
-    @echo "=== Backup Storage Location ==="
-    kubectl exec -n velero deploy/velero -- /velero backup-location get
-
-# Create a Velero restore from a named backup into a target namespace.
-# IMPORTANT: disable ArgoCD auto-sync on NAMESPACE before running; re-enable after verifying.
-# Usage: just velero-restore <backup-name> <namespace>
-velero-restore backup namespace:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    printf '>> Disable ArgoCD auto-sync first:\n'
-    printf '   kubectl patch application {{ namespace }} -n argocd --type merge -p '"'"'{"spec":{"syncPolicy":{"automated":null}}}'"'"'\n'
-    printf '\n'
-    read -r -p "Confirm auto-sync is disabled for '{{ namespace }}' [y/N]: " confirm
-    [[ "$confirm" == "y" ]] || { printf 'Aborted.\n'; exit 1; }
-    kubectl exec -n velero deploy/velero -- /velero restore create \
-        --from-backup "{{ backup }}" \
-        --include-namespaces "{{ namespace }}" \
-        --wait
-    printf '\n'
-    printf '>> Restore complete. Verify state, then re-enable auto-sync:\n'
-    printf '   kubectl patch application {{ namespace }} -n argocd --type merge -p '"'"'{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'"'"'\n'
-
-# Print the manual etcd restore procedure. Credentials must be passed directly via CLI.
-@etcd-restore:
-    @echo "=== Manual etcd restore procedure ==="
-    @echo ""
-    @echo "1. Download the target snapshot from R2:"
-    @echo "   AWS_ACCESS_KEY_ID=<key> AWS_SECRET_ACCESS_KEY=<secret> \\"
-    @echo "   aws s3 cp s3://arunanshu-etcd-snapshots/prod/<snapshot-name> /tmp/snapshot.db \\"
-    @echo "   --endpoint-url https://<account_id>.r2.cloudflarestorage.com --region auto"
-    @echo ""
-    @echo "2. Stop k3s on ALL nodes:"
-    @echo "   ansible all -i ansible/inventory/hcloud.yml -m service -a 'name=k3s state=stopped' --become"
-    @echo ""
-    @echo "3. Reset etcd on ONE control-plane node (e.g. cp-0):"
-    @echo "   k3s server --cluster-reset --cluster-reset-restore-path=/tmp/snapshot.db"
-    @echo "   (This node will exit after reset — that is expected)"
-    @echo ""
-    @echo "4. Start k3s on the RESET node first, wait for it to become Ready:"
-    @echo "   systemctl start k3s && kubectl get nodes"
-    @echo ""
-    @echo "5. Start k3s on remaining CP nodes (one at a time):"
-    @echo "   systemctl start k3s"
-    @echo ""
-    @echo "Note: the S3 config Secret is unavailable during restore."
-    @echo "Pass credentials directly via --etcd-s3-* flags if downloading live."
-
 # ── Encrypted PV operations ───────────────────────────────────────────────────
 
 # Rotate the LUKS passphrase. It is never printed; it stays recoverable

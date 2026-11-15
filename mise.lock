@@ -889,6 +889,46 @@ url = "https://github.com/astral-sh/uv/releases/download/0.13.7/uv-x86_64-pc-win
 url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/704009796"
 provenance = "github-attestations"
 
+[[tools.velero]]
+version = "1.18.2"
+backend = "aqua:velero-io/velero"
+specifiers = ["1.18.2"]
+
+[tools.velero."platforms.linux-arm64"]
+checksum = "sha256:453053b79330f307e2eac492915125258292c67c5595acdb3eae87c2b0b86e48"
+url = "https://github.com/velero-io/velero/releases/download/v1.18.2/velero-v1.18.2-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/velero-io/velero/releases/assets/458400162"
+
+[tools.velero."platforms.linux-arm64-musl"]
+checksum = "sha256:453053b79330f307e2eac492915125258292c67c5595acdb3eae87c2b0b86e48"
+url = "https://github.com/velero-io/velero/releases/download/v1.18.2/velero-v1.18.2-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/velero-io/velero/releases/assets/458400162"
+
+[tools.velero."platforms.linux-x64"]
+checksum = "sha256:a4e273de70ea2d9555fee7568742ae175fc8746fdb464139edb428cc3abd9705"
+url = "https://github.com/velero-io/velero/releases/download/v1.18.2/velero-v1.18.2-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/velero-io/velero/releases/assets/458400125"
+
+[tools.velero."platforms.linux-x64-musl"]
+checksum = "sha256:a4e273de70ea2d9555fee7568742ae175fc8746fdb464139edb428cc3abd9705"
+url = "https://github.com/velero-io/velero/releases/download/v1.18.2/velero-v1.18.2-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/velero-io/velero/releases/assets/458400125"
+
+[tools.velero."platforms.macos-arm64"]
+checksum = "sha256:87e67e35550b8514bc1830d2632c6746ecf98c83400ee7ebad0948b81835d409"
+url = "https://github.com/velero-io/velero/releases/download/v1.18.2/velero-v1.18.2-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/velero-io/velero/releases/assets/458400218"
+
+[tools.velero."platforms.macos-x64"]
+checksum = "sha256:c19ceb2d4b62ad6433e5f63d1bb6855c059c079eb109a081c1830443e36e33e9"
+url = "https://github.com/velero-io/velero/releases/download/v1.18.2/velero-v1.18.2-darwin-amd64.tar.gz"
+url_api = "https://api.github.com/repos/velero-io/velero/releases/assets/458400185"
+
+[tools.velero."platforms.windows-x64"]
+checksum = "sha256:bf4312e6b7e56c6677892f6b802ca6e43541a11ef8b3c07af97a7bae42399282"
+url = "https://github.com/velero-io/velero/releases/download/v1.18.2/velero-v1.18.2-windows-amd64.tar.gz"
+url_api = "https://api.github.com/repos/velero-io/velero/releases/assets/458400217"
+
 [[tools.yamlfmt]]
 version = "0.21.0"
 backend = "aqua:google/yamlfmt"
