@@ -188,6 +188,11 @@ check-no-shell:
 check-no-manifest-tests:
     ! git grep -l 'kubernetes/' -- '*_test.go'
 
+# GitHub Actions workflows pass zizmor at its strictest persona (online audits need GH_TOKEN)
+[group('check')]
+check-actions:
+    zizmor --persona=auditor .github
+
 # justfile is `just --fmt` clean
 [group('check')]
 check-justfile:
@@ -238,6 +243,7 @@ render-secrets:
 [env("OUTPUT_APP_MANIFESTS", "true")]
 [env("OUTPUT_FOLDER", "out")]
 [env("PREINSTALL_FOLDER", "../.github/argocd-diff-preview/preinstall")]
+[env("RENDER_METHOD", "repo-server-api")]
 [env("TIMEOUT", "900")]
 [group('render')]
 [working-directory('.render')]

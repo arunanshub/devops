@@ -60,6 +60,10 @@ pre-commit:
     repo-policy:
       run: just check-no-shell check-justfile check-no-manifest-tests
 
+    zizmor:
+      run: just check-actions
+      glob: [".github/**"]
+
     policy-rego:
       run: just policy-lint policy-test
       glob: ["policy/**", ".regal/**"]
