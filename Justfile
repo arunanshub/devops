@@ -107,104 +107,24 @@ restore-sealed-secrets-key:
     just _sops-apply "{{ k8s / "bootstrap/secrets/sealed-secrets-master-key.sops.yaml" }}"
     kubectl rollout restart deployment sealed-secrets-controller -n kube-system
 
-# Seal the Cloudflare Tunnel token as a SealedSecret.
-# Run AFTER `just apply` creates the tunnel. Requires cluster access.
-# After running, add sealed-tunnel-token.yaml to the kustomization resources list and commit.
-seal-cloudflared-token:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    token=$(cd "{{ infra }}" && sops exec-env "{{ infra / "secrets.yaml" }}" "tofu output -raw tunnel_token")
-    out="{{ k8s / "base/infra/cloudflared/resources/sealed-tunnel-token.yaml" }}"
-    printf '%s' "$token" | \
-        kubectl create secret generic cloudflared-tunnel-token \
-            --namespace cloudflared \
-            --from-file=token=/dev/stdin \
-            --dry-run=client -o yaml | \
-        kubeseal \
-            --controller-namespace kube-system \
-            --controller-name sealed-secrets-controller \
-            --format yaml \
-            > "$out"
-    echo "Sealed token written to $out"
-    echo "Next: add 'sealed-tunnel-token.yaml' to kubernetes/base/infra/cloudflared/resources/kustomization.yaml, then commit both."
+# Offline sealing only: --cert uses the key held in the bootstrap backup,
+# so a rebuilt cluster can decrypt the result. Sealing against the live
+# controller uses its newest key, which the backup does not hold.
+sealing_cert := k8s / "sealed-secrets-cert.pem"
 
-# Seal the OpenTofu-managed Cloudflare Cache Purge token for the arunanshu-dev
-# PostSync Job. Token HCL: infra/cloudflare_tokens.tf
-# (resource cloudflare_account_token.cache_purge). Requires a prior
-# `just apply` so the sensitive value exists in state. Override with
-# CF_CACHE_PURGE_TOKEN=… only for emergencies.
-# Writes kubernetes/base/apps/arunanshu-dev/resources/sealed-cf-cache-purge.yaml
-# (already listed next to purge-cache-job.yaml in that kustomization).
-seal-cf-cache-purge:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    out="{{ k8s / "base/apps/arunanshu-dev/resources/sealed-cf-cache-purge.yaml" }}"
-    zone_id=$(awk -F'"' '/cloudflare_zone_id/{print $2}' "{{ infra / "terraform.tfvars" }}")
-    if [[ -z "${CF_CACHE_PURGE_TOKEN:-}" ]]; then
-        CF_CACHE_PURGE_TOKEN=$(
-            cd "{{ infra }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
-                "tofu output -raw cache_purge_token"
-        )
-    fi
-    if [[ -z "${CF_CACHE_PURGE_TOKEN:-}" ]]; then
-        printf 'No cache_purge_token from tofu (and CF_CACHE_PURGE_TOKEN unset). Run just apply first.\n' >&2
-        exit 1
-    fi
-    kubectl create secret generic cloudflare-cache-purge \
-        --namespace arunanshu-dev \
-        --from-literal=zone_id="$zone_id" \
-        --from-literal=api_token="$CF_CACHE_PURGE_TOKEN" \
-        --dry-run=client -o yaml | \
-    kubeseal --cert "{{ k8s / "sealed-secrets-cert.pem" }}" --format yaml \
-        > "$out"
-    printf 'Sealed to %s — commit with purge-cache-job.yaml if not already in tree.\n' "$out"
+# Seal a SOPS-encrypted Secret: foo.sops.yaml -> foo.sealedsecret.yaml (same dir).
+seal file:
+    sops -d "{{ file }}" | kubeseal --cert "{{ sealing_cert }}" -o yaml > "{{ replace(file, ".sops.yaml", ".sealedsecret.yaml") }}"
 
-# Seal R2 credentials for k3s etcd snapshot S3 upload.
-# Run AFTER Task 2 (R2 buckets created, credentials in secrets.yaml).
-# Requires cluster access (kubeseal reads the sealed-secrets controller pubkey).
-seal-etcd-s3:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    out="{{ k8s / "components/etcd-snapshot-health/resources/sealedsecret-etcd-s3.yaml" }}"
-    sops exec-env "{{ infra / "secrets.yaml" }}" \
-        'kubectl create secret generic k3s-etcd-snapshot-s3-config \
-            --namespace kube-system \
-            --type etcd.k3s.cattle.io/s3-config-secret \
-            --from-literal=etcd-s3-endpoint="${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
-            --from-literal=etcd-s3-access-key="${R2_ETCD_ACCESS_KEY}" \
-            --from-literal=etcd-s3-secret-key="${R2_ETCD_SECRET_KEY}" \
-            --from-literal=etcd-s3-bucket=arunanshu-etcd-snapshots \
-            --from-literal=etcd-s3-region=auto \
-            --from-literal=etcd-s3-bucket-lookup-type=path \
-            --from-literal=etcd-s3-folder=prod \
-            --from-literal=etcd-s3-insecure=false \
-            --from-literal=etcd-s3-timeout=5m \
-            --dry-run=client -o yaml | \
-        kubeseal \
-            --controller-namespace kube-system \
-            --controller-name sealed-secrets-controller \
-            --format yaml' \
-        > "$out"
-    printf 'Sealed to %s - add sealedsecret-etcd-s3.yaml to resources/kustomization.yaml and commit.\n' "$out"
+# Seal the Cloudflare Tunnel token from tofu state.
+seal-tunnel-token:
+    just _tofu "output -raw tunnel_token" | kubectl create secret generic cloudflared-tunnel-token -n cloudflared --from-file=token=/dev/stdin --dry-run=client -o yaml | kubeseal --cert "{{ sealing_cert }}" -o yaml > "{{ k8s / "components/cloudflared/resources/tunnel-token.sealedsecret.yaml" }}"
 
-# Seal R2 credentials for Velero BackupStorageLocation.
-# Run AFTER Task 2. Requires cluster access.
-seal-velero-s3:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    out="{{ k8s / "components/velero-restore-drill/resources/sealedsecret-velero-r2.yaml" }}"
-    creds=$'[default]\naws_access_key_id=${R2_VELERO_ACCESS_KEY}\naws_secret_access_key=${R2_VELERO_SECRET_KEY}'
-    sops exec-env "{{ infra / "secrets.yaml" }}" \
-        'kubectl create secret generic velero-r2-credentials \
-            --namespace velero \
-            --from-literal=cloud="'"$creds"'" \
-            --dry-run=client -o yaml | \
-        kubeseal \
-            --controller-namespace kube-system \
-            --controller-name sealed-secrets-controller \
-            --format yaml' \
-        > "$out"
-    printf 'Sealed to %s - add sealedsecret-velero-r2.yaml to velero-restore-drill/resources/kustomization.yaml and commit.\n' "$out"
+# Seal an app's Cloudflare cache-purge token from tofu state.
+# Usage: just seal-cache-purge arunanshu-dev cache_purge_token
+# just seal-cache-purge libby-hbd-2026 libby_hbd_2026_cache_purge_token
+seal-cache-purge app output:
+    kubectl create secret generic cloudflare-cache-purge -n "{{ app }}" --from-literal=zone_id="$(awk -F'"' '/cloudflare_zone_id/{print $2}' "{{ infra / "terraform.tfvars" }}")" --from-literal=api_token="$(just _tofu 'output -raw {{ output }}')" --dry-run=client -o yaml | kubeseal --cert "{{ sealing_cert }}" -o yaml > "{{ k8s / "base/apps" / app / "resources/cf-cache-purge.sealedsecret.yaml" }}"
 
 # Show current Velero backup and restore status.
 @velero-status:
@@ -263,27 +183,11 @@ velero-restore backup namespace:
 
 # ── Encrypted PV operations ───────────────────────────────────────────────────
 
-# Rotate the LUKS passphrase: generate, seal, commit, push, sync.
-# The passphrase is never printed — recoverable via SOPS → sealed-secrets chain.
-# Run `just ops-recreate-encrypted-pvcs` afterwards to reformat the PVCs.
+# Rotate the LUKS passphrase. It is never printed; it stays recoverable
+# through the sealed-secrets backup. Commit, sync, then run
+# `just ops-recreate-encrypted-pvcs` to reformat the PVCs.
 rotate-luks-passphrase:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    PASSPHRASE=$(openssl rand -base64 32)
-    kubectl create secret generic hcloud-luks-key \
-        --namespace kube-system \
-        --from-literal=encryption-passphrase="$PASSPHRASE" \
-        --dry-run=client -o yaml | \
-    kubeseal --cert kubernetes/sealed-secrets-cert.pem --format yaml \
-        > kubernetes/components/hcloud-luks-key/resources/sealed-luks-key.yaml
-    unset PASSPHRASE
-    git add kubernetes/components/hcloud-luks-key/resources/sealed-luks-key.yaml
-    git commit -m "security: rotate hcloud-luks-key passphrase"
-    git push
-    argocd app sync hcloud-luks-key --core
-    echo ""
-    echo "Passphrase rotated and live in cluster."
-    echo "Run 'just ops-recreate-encrypted-pvcs' to reformat PVCs with the new passphrase."
+    openssl rand -base64 32 | tr -d '\n' | kubectl create secret generic hcloud-luks-key -n kube-system --from-file=encryption-passphrase=/dev/stdin --dry-run=client -o yaml | kubeseal --cert "{{ sealing_cert }}" -o yaml > "{{ k8s / "components/hcloud-luks-key/resources/luks-key.sealedsecret.yaml" }}"
 
 # Recreate encrypted PVCs for Grafana, Alertmanager, Tempo (data loss is OK).
 # Run after just rotate-luks-passphrase, or any time PVCs need to be rebuilt.

@@ -43,7 +43,7 @@ configuration:
         key: cloud
       config:
         region: auto
-        # Replace 'placeholder' with your R2 account ID: sops exec-env infra/secrets.yaml 'echo $R2_ACCOUNT_ID'
+        # Replace 'placeholder' with your R2 account ID: sops -d kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sops.yaml | yq '.data.etcd-s3-endpoint | @base64d'
         s3Url: "https://2f120b3588f24bba8666100a3da52e02.r2.cloudflarestorage.com"
         s3ForcePathStyle: "true"
         checksumAlgorithm: ""

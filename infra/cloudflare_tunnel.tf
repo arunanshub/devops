@@ -60,7 +60,7 @@ resource "cloudflare_dns_record" "wildcard" {
 }
 
 # Retrieve the tunnel token — used to authenticate cloudflared with Cloudflare's edge.
-# Output via `just seal-cloudflared-token` to produce the SealedSecret.
+# Output via `just seal-tunnel-token` to produce the SealedSecret.
 data "cloudflare_zero_trust_tunnel_cloudflared_token" "main" {
   account_id = var.cloudflare_account_id
   tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.main.id

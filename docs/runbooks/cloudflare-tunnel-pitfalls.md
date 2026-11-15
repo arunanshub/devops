@@ -76,13 +76,12 @@ rules:
 
 **Symptom.** cloudflared pods stuck in `CreateContainerConfigError` — Secret not found.
 
-**Cause.** `cloudflared/application.yaml` was pushed to git and ArgoCD applied the Deployment before `just seal-cloudflared-token` was run, so `cloudflared-tunnel-token` Secret never existed.
+**Cause.** `cloudflared/application.yaml` was pushed to git and ArgoCD applied the Deployment before `just seal-tunnel-token` was run, so `cloudflared-tunnel-token` Secret never existed.
 
 **Fix.** Mandatory order:
 1. `just apply` — creates Cloudflare tunnel (Terraform)
-2. `just seal-cloudflared-token` — writes `sealed-tunnel-token.yaml`
-3. Add `sealed-tunnel-token.yaml` to `cloudflared/resources/kustomization.yaml`
-4. Commit both files in one atomic commit
+2. `just seal-tunnel-token` — writes `tunnel-token.sealedsecret.yaml` (already listed in `cloudflared/resources/kustomization.yaml`)
+3. Commit it
 5. Push — ArgoCD applies the SealedSecret and Deployment together
 
 ---
@@ -99,7 +98,7 @@ resource "random_bytes" "tunnel_secret" {
   length = 32
 }
 ```
-If the tunnel must be recreated, re-run `just seal-cloudflared-token` and commit the new SealedSecret.
+If the tunnel must be recreated, re-run `just seal-tunnel-token` and commit the new SealedSecret.
 
 ---
 

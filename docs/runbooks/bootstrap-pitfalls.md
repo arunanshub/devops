@@ -264,7 +264,7 @@ Don't do this without first reading the diff (`argocd app diff cilium`) — `--r
 **Fix.**
 
 ```sh
-sops exec-env infra/secrets.yaml 'echo $R2_ACCOUNT_ID'
+sops -d kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sops.yaml | yq '.data.etcd-s3-endpoint | @base64d'   # <account_id>.r2.cloudflarestorage.com
 # copy the account ID, then edit:
 sops kubernetes/base/platform/velero/values.yaml
 # find the line: s3Url: "https://placeholder.r2.cloudflarestorage.com"

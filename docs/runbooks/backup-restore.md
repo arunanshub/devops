@@ -45,7 +45,7 @@ The config lives on each CP node at `/etc/rancher/k3s/config.yaml.d/etcd-snapsho
 | File | What it does |
 |------|-------------|
 | `nodes/control-plane/etc/rancher/k3s/config.yaml.d/etcd-snapshots.yaml` | The declarative drop-in (applied by `just ansible-converge k3s-config`) |
-| `kubernetes/components/etcd-snapshot-health/resources/sealedsecret-etcd-s3.yaml` | S3 credentials as SealedSecret |
+| `kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sealedsecret.yaml` | S3 credentials as SealedSecret |
 | `kubernetes/components/etcd-snapshot-health/resources/cronjob.yaml` | Health check CronJob |
 
 The drop-in config:
@@ -89,7 +89,7 @@ Velero runs as a Deployment in the `velero` namespace. It backs up Kubernetes AP
 |------|-------------|
 | `kubernetes/base/platform/velero/application.yaml` | ArgoCD Application, sync-wave 2 |
 | `kubernetes/base/platform/velero/values.yaml` | Helm values: BSL config, schedule, metrics |
-| `kubernetes/components/velero-restore-drill/resources/sealedsecret-velero-r2.yaml` | R2 credentials as SealedSecret |
+| `kubernetes/components/velero-restore-drill/resources/velero-r2.sealedsecret.yaml` | R2 credentials as SealedSecret |
 
 ### Reconfigure Velero backup schedule
 
@@ -274,9 +274,9 @@ just etcd-restore
 
 **Why you must not pass credentials from the Secret:** The apiserver is down during etcd restore. The SealedSecrets controller is also down. The `k3s-etcd-snapshot-s3-config` Secret cannot be read. Credentials must be passed directly via environment variables or CLI flags.
 
-**Where are the credentials?** In `infra/secrets.yaml` (SOPS-encrypted). To decrypt:
+**Where are the credentials?** In `kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sops.yaml` (SOPS-encrypted Secret; the endpoint key holds the account ID). To read:
 ```bash
-sops exec-env infra/secrets.yaml 'echo $R2_ETCD_ACCESS_KEY $R2_ETCD_SECRET_KEY $R2_ACCOUNT_ID'
+sops -d kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sops.yaml | yq '.data | map_values(@base64d)'
 ```
 
 ---
@@ -285,17 +285,18 @@ sops exec-env infra/secrets.yaml 'echo $R2_ETCD_ACCESS_KEY $R2_ETCD_SECRET_KEY $
 
 | Secret | Namespace | Contains | How to reseal |
 |--------|-----------|---------|---------------|
-| `k3s-etcd-snapshot-s3-config` | kube-system | R2 endpoint, access key, secret key for etcd bucket | `just seal-etcd-s3` |
-| `velero-r2-credentials` | velero | AWS-format credentials for velero bucket | `just seal-velero-s3` |
+| `k3s-etcd-snapshot-s3-config` | kube-system | R2 endpoint, access key, secret key for etcd bucket | `just seal kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sops.yaml` |
+| `velero-r2-credentials` | velero | AWS-format credentials for velero bucket | `just seal kubernetes/components/velero-restore-drill/resources/velero-r2.sops.yaml` |
 
-Both are SealedSecrets reconciled by ArgoCD. The plaintext credentials source of truth is `infra/secrets.yaml` (SOPS-encrypted, keys: `R2_ETCD_ACCESS_KEY`, `R2_ETCD_SECRET_KEY`, `R2_VELERO_ACCESS_KEY`, `R2_VELERO_SECRET_KEY`, `R2_ACCOUNT_ID`).
+Both are SealedSecrets reconciled by ArgoCD. The plaintext source of truth is the `*.sops.yaml` Secret next to each `*.sealedsecret.yaml`. Sealing is offline against `kubernetes/sealed-secrets-cert.pem`, the key held in the bootstrap backup.
 
 To reseal after rotating R2 credentials:
 
 ```bash
-# Update infra/secrets.yaml with new values, then:
-just seal-etcd-s3
-just seal-velero-s3
+sops kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sops.yaml   # edit values, save
+sops kubernetes/components/velero-restore-drill/resources/velero-r2.sops.yaml
+just seal kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sops.yaml
+just seal kubernetes/components/velero-restore-drill/resources/velero-r2.sops.yaml
 # Commit the new sealed secrets; ArgoCD applies them; pods pick up the change on next restart
 ```
 
