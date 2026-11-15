@@ -169,6 +169,81 @@ checksum = "sha256:b72fe6bbef143d2ab5c308a3384c0e97a5e82242b209626721ee0a1e72ddd
 url = "https://github.com/cilium/cilium-cli/releases/download/v0.20.2/cilium-windows-amd64.zip"
 url_api = "https://api.github.com/repos/cilium/cilium-cli/releases/assets/687888457"
 
+[[tools."github:dag-andersen/argocd-diff-preview"]]
+version = "0.2.17"
+backend = "github:dag-andersen/argocd-diff-preview"
+specifiers = ["0.2.17"]
+
+[tools."github:dag-andersen/argocd-diff-preview"."platforms.linux-arm64"]
+checksum = "sha256:74fcfd33fd2699d891b38412ab9b26c43e3dcf86374c94c585ba2c1527df9dd8"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Linux-aarch64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654482233"
+
+[tools."github:dag-andersen/argocd-diff-preview"."platforms.linux-arm64-musl"]
+checksum = "sha256:74fcfd33fd2699d891b38412ab9b26c43e3dcf86374c94c585ba2c1527df9dd8"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Linux-aarch64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654482233"
+
+[tools."github:dag-andersen/argocd-diff-preview"."platforms.linux-x64"]
+checksum = "sha256:3913c5ded0c4bb748ab8cabc47d9ea1060462fb797b4b61e1a12a805fc35a319"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Linux-x86_64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654482818"
+
+[tools."github:dag-andersen/argocd-diff-preview"."platforms.linux-x64-musl"]
+checksum = "sha256:3913c5ded0c4bb748ab8cabc47d9ea1060462fb797b4b61e1a12a805fc35a319"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Linux-x86_64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654482818"
+
+[tools."github:dag-andersen/argocd-diff-preview"."platforms.macos-arm64"]
+checksum = "sha256:afe577a6bd91e20dc4e8122fd67ec2edb42f2684f834e80a50e0489234d41af4"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Darwin-aarch64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654485044"
+
+[tools."github:dag-andersen/argocd-diff-preview"."platforms.macos-x64"]
+checksum = "sha256:72450afd0d11564bfaec6e00764ad9f1038d7377ff7d9b2512948d58dd8aeabc"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Darwin-x86_64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654484197"
+
+[[tools."github:holos-run/holos"]]
+version = "0.106.0"
+backend = "github:holos-run/holos"
+specifiers = ["0.106.0"]
+
+[tools."github:holos-run/holos"."platforms.linux-arm64"]
+checksum = "sha256:7e7b005b7a7f35b22abc710c154d0c285f662cd7a3ceb3aee0d0104bc5277f01"
+url = "https://github.com/holos-run/holos/releases/download/v0.106.0/holos_Linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/holos-run/holos/releases/assets/320319277"
+
+[tools."github:holos-run/holos"."platforms.linux-arm64-musl"]
+checksum = "sha256:7e7b005b7a7f35b22abc710c154d0c285f662cd7a3ceb3aee0d0104bc5277f01"
+url = "https://github.com/holos-run/holos/releases/download/v0.106.0/holos_Linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/holos-run/holos/releases/assets/320319277"
+
+[tools."github:holos-run/holos"."platforms.linux-x64"]
+checksum = "sha256:4a8de6339dc00df3321bf634fc1830cb4b22e83c4d8efc5deccd43c6d5611478"
+url = "https://github.com/holos-run/holos/releases/download/v0.106.0/holos_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/holos-run/holos/releases/assets/320319279"
+
+[tools."github:holos-run/holos"."platforms.linux-x64-musl"]
+checksum = "sha256:4a8de6339dc00df3321bf634fc1830cb4b22e83c4d8efc5deccd43c6d5611478"
+url = "https://github.com/holos-run/holos/releases/download/v0.106.0/holos_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/holos-run/holos/releases/assets/320319279"
+
+[tools."github:holos-run/holos"."platforms.macos-arm64"]
+checksum = "sha256:119d7d796e1f7a369f97cc75b439056a8a657c70a9f8287664ea31aa583a2954"
+url = "https://github.com/holos-run/holos/releases/download/v0.106.0/holos_Darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/holos-run/holos/releases/assets/320319283"
+
+[tools."github:holos-run/holos"."platforms.macos-x64"]
+checksum = "sha256:13201404b8a0b20c11a4b83283769a7962641a717aa8399bf41b5c55b2e1cc26"
+url = "https://github.com/holos-run/holos/releases/download/v0.106.0/holos_Darwin_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/holos-run/holos/releases/assets/320319284"
+
+[tools."github:holos-run/holos"."platforms.windows-x64"]
+checksum = "sha256:c94893c31b3fcfb53ea935da1f91bcd4664e0b28708e7c4cb8319184baa517d8"
+url = "https://github.com/holos-run/holos/releases/download/v0.106.0/holos_Windows_x86_64.zip"
+url_api = "https://api.github.com/repos/holos-run/holos/releases/assets/320319278"
+
 [[tools."github:robusta-dev/krr"]]
 version = "1.30.0"
 backend = "github:robusta-dev/krr"
@@ -395,6 +470,46 @@ checksum = "sha256:1f4209a22437596fafade7809b4d223e6f1aca41437f4511e45b7c2d3c97b
 url = "https://github.com/helmfile/helmfile/releases/download/v1.8.3/helmfile_1.8.3_windows_amd64.tar.gz"
 signer = "sigstore-oidc:https://github.com/helmfile/helmfile/.github/workflows/releaser.yaml"
 
+[[tools.k3d]]
+version = "5.9.0"
+backend = "aqua:k3d-io/k3d"
+specifiers = ["5.9.0"]
+
+[tools.k3d."platforms.linux-arm64"]
+checksum = "sha256:03cde5cf23e6e8e67de5a039ecf26e5b85aca82fba3e5d13dadf904cd218a250"
+url = "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-arm64"
+url_api = "https://api.github.com/repos/k3d-io/k3d/releases/assets/436305757"
+
+[tools.k3d."platforms.linux-arm64-musl"]
+checksum = "sha256:03cde5cf23e6e8e67de5a039ecf26e5b85aca82fba3e5d13dadf904cd218a250"
+url = "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-arm64"
+url_api = "https://api.github.com/repos/k3d-io/k3d/releases/assets/436305757"
+
+[tools.k3d."platforms.linux-x64"]
+checksum = "sha256:06d8f25bc3a971c4eb29e0ff08429b180402db0f4dec838c9eac427e296800a0"
+url = "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-amd64"
+url_api = "https://api.github.com/repos/k3d-io/k3d/releases/assets/436305793"
+
+[tools.k3d."platforms.linux-x64-musl"]
+checksum = "sha256:06d8f25bc3a971c4eb29e0ff08429b180402db0f4dec838c9eac427e296800a0"
+url = "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-amd64"
+url_api = "https://api.github.com/repos/k3d-io/k3d/releases/assets/436305793"
+
+[tools.k3d."platforms.macos-arm64"]
+checksum = "sha256:fe106541d5d0a3f18debcd4d432a16f8c0ce3e6ddc06f8fbb6f696a122313e00"
+url = "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-darwin-arm64"
+url_api = "https://api.github.com/repos/k3d-io/k3d/releases/assets/436305875"
+
+[tools.k3d."platforms.macos-x64"]
+checksum = "sha256:b4aabc37534f95b9c764e7823f2df923f50d57600837aa60a06266cce47db732"
+url = "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-darwin-amd64"
+url_api = "https://api.github.com/repos/k3d-io/k3d/releases/assets/436305915"
+
+[tools.k3d."platforms.windows-x64"]
+checksum = "sha256:49d0b9c796f5b8ba6f58a1dd5469e8b7b34bf9b6ce9078633eedb2789680a034"
+url = "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-windows-amd64.exe"
+url_api = "https://api.github.com/repos/k3d-io/k3d/releases/assets/436305724"
+
 [[tools.k9s]]
 version = "0.51.0"
 backend = "aqua:derailed/k9s"
@@ -434,6 +549,46 @@ url_api = "https://api.github.com/repos/derailed/k9s/releases/assets/440224322"
 checksum = "sha256:bba299f1877913979831543a008f2e104995d2ea4ac8f23d7f49c0444857d973"
 url = "https://github.com/derailed/k9s/releases/download/v0.51.0/k9s_Windows_amd64.zip"
 url_api = "https://api.github.com/repos/derailed/k9s/releases/assets/440224317"
+
+[[tools.kcl]]
+version = "0.13.3"
+backend = "aqua:kcl-lang/cli"
+specifiers = ["0.13.3"]
+
+[tools.kcl."platforms.linux-arm64"]
+checksum = "sha256:f9275285bfe7fb8e6911a7459dd4a81305ff176fac68455431c10de50aff36ff"
+url = "https://github.com/kcl-lang/cli/releases/download/v0.13.3/kcl-v0.13.3-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/kcl-lang/cli/releases/assets/684315761"
+
+[tools.kcl."platforms.linux-arm64-musl"]
+checksum = "sha256:f9275285bfe7fb8e6911a7459dd4a81305ff176fac68455431c10de50aff36ff"
+url = "https://github.com/kcl-lang/cli/releases/download/v0.13.3/kcl-v0.13.3-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/kcl-lang/cli/releases/assets/684315761"
+
+[tools.kcl."platforms.linux-x64"]
+checksum = "sha256:37c8bf8e965f3f04f512a46fdb1ba471174d7d4592a831123115bcedb77d2633"
+url = "https://github.com/kcl-lang/cli/releases/download/v0.13.3/kcl-v0.13.3-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/kcl-lang/cli/releases/assets/684315760"
+
+[tools.kcl."platforms.linux-x64-musl"]
+checksum = "sha256:37c8bf8e965f3f04f512a46fdb1ba471174d7d4592a831123115bcedb77d2633"
+url = "https://github.com/kcl-lang/cli/releases/download/v0.13.3/kcl-v0.13.3-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/kcl-lang/cli/releases/assets/684315760"
+
+[tools.kcl."platforms.macos-arm64"]
+checksum = "sha256:df663e05e53d09373d6cd34fe198626565804b4c9001e0da4b7c1e55a3506d77"
+url = "https://github.com/kcl-lang/cli/releases/download/v0.13.3/kcl-v0.13.3-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/kcl-lang/cli/releases/assets/684315762"
+
+[tools.kcl."platforms.macos-x64"]
+checksum = "sha256:619e07eae8647c31e7d4187eeeacc8d76b8c10a6c37ddbcfa7d0d618abee9f43"
+url = "https://github.com/kcl-lang/cli/releases/download/v0.13.3/kcl-v0.13.3-darwin-amd64.tar.gz"
+url_api = "https://api.github.com/repos/kcl-lang/cli/releases/assets/684315759"
+
+[tools.kcl."platforms.windows-x64"]
+checksum = "sha256:a88be63f2e18ca75423436d9ab6ad0bfe3f6f10708b646230976c2b677d55892"
+url = "https://github.com/kcl-lang/cli/releases/download/v0.13.3/kcl-v0.13.3-windows-amd64.zip"
+url_api = "https://api.github.com/repos/kcl-lang/cli/releases/assets/684315866"
 
 [[tools.kubeconform]]
 version = "0.8.0"

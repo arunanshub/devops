@@ -22,6 +22,10 @@ sops = "latest"
 uv = "latest"
 # velero CLI must match the in-cluster server (velero/velero image tag).
 velero = "1.18.2"
+"github:dag-andersen/argocd-diff-preview" = "0.2.17"
+k3d = "5.9.0"
+kcl = "0.13.3"
+"github:holos-run/holos" = "0.106.0"
 yamlfmt = "latest"
 k9s = "latest"
 
