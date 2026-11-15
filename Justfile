@@ -38,18 +38,19 @@ destroy:
     echo "Launching {{ name }} at {{ url }}"
     kubectl port-forward {{ target }}
 
-# Applies the hcloud Secret before helmfile so hccm can start.
-@hcloud-secret-bootstrap:
-    just _sops-apply "{{ k8s / "bootstrap/secrets/hcloud-ccm-secret.sops.yaml" }}"
+# One-shot clean-cluster bootstrap (helmfile `needs:` sets the order):
+# Gateway API CRDs, hcloud Secret, hccm, Cilium, ArgoCD, then the repo
+# credentials, the sealed-secrets key and the root Application.
+# Refuses once the root Application exists: ArgoCD owns the cluster then.
+# Fails closed: an unreachable API (readyz) stops it before the root check.
+bootstrap:
+    kubectl get --raw=/readyz >/dev/null
+    ! kubectl -n argocd get application root >/dev/null 2>&1 || { echo "root Application exists; ArgoCD owns the cluster. Refusing." >&2; exit 1; }
+    cd "{{ k8s / "bootstrap" }}" && helmfile deps && sops exec-env secrets/helmfile.secrets.yaml "helmfile apply"
 
-argocd-bootstrap: hcloud-secret-bootstrap
-    cd "{{ k8s / "bootstrap/" }}" && helmfile deps && sops exec-env "{{ k8s / "bootstrap/secrets/helmfile.secrets.yaml" }}" "helmfile apply"
-
-# Bootstrap ArgoCD with the SSH key for accessing the private repo.
-@argocd-ssh-bootstrap:
-    just _sops-apply "{{ k8s / "bootstrap/secrets/argocd-repo-ssh.sops.yaml" }}"
-
-@argocd-root-bootstrap:
+# Re-apply the root Application after changing its spec (see CLAUDE.md
+# "Things not to do" before moving the kustomize source path).
+argocd-root-apply:
     kubectl apply -f "{{ k8s / "root-application.yaml" }}"
 
 ansible-inventory:
@@ -76,13 +77,6 @@ _ansible-playbook playbook args="":
 ansible-setup:
     uv sync --dev
     uv run ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections/ --force
-
-# Restore the sealed-secrets master key from the offline backup.
-# Must run BEFORE ArgoCD syncs any SealedSecret resources on a rebuilt cluster.
-# After applying, restart the controller so it picks up the restored key.
-restore-sealed-secrets-key:
-    just _sops-apply "{{ k8s / "bootstrap/secrets/sealed-secrets-master-key.sops.yaml" }}"
-    kubectl rollout restart deployment sealed-secrets-controller -n kube-system
 
 # Offline sealing only: --cert uses the key held in the bootstrap backup,
 # so a rebuilt cluster can decrypt the result. Sealing against the live
@@ -147,6 +141,3 @@ verify-node-config:
 # Build the operations toolkit to bin/opsctl.
 build:
     go build -ldflags="-s -w" -trimpath -o bin/opsctl ./cmd/opsctl
-
-@_sops-apply file:
-    sops --decrypt "{{ file }}" | kubectl apply -f -

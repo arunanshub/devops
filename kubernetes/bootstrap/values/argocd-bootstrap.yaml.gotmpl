@@ -1,0 +1,9 @@
+# Installed after argocd: repo credentials, the sealed-secrets key (before the
+# controller exists, so no restart is needed), then the root Application.
+# Helm installs Secrets before unknown kinds such as Application.
+manifests:
+  - {{ "ref+sops://secrets/argocd-repo-ssh.sops.yaml" | fetchSecretValue | fromYaml | toJson }}
+{{- range ("ref+sops://secrets/sealed-secrets-master-key.sops.yaml" | fetchSecretValue | fromYaml).items }}
+  - {{ . | toJson }}
+{{- end }}
+  - {{ readFile "../../root-application.yaml" | fromYaml | toJson }}

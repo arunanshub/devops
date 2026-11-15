@@ -249,34 +249,17 @@ intentional — do not script around them):
 
 ## Fresh Cluster Bootstrap
 
-The sequence is encoded (with ordering guards) in:
-
-```bash
-just opsctl cluster bootstrap --list-steps   # see the steps
-just opsctl cluster bootstrap --dry-run      # print every command
-just opsctl cluster bootstrap                # run it
-just opsctl cluster bootstrap --from-step X  # resume after a failure
-```
-
-It refuses to run the helmfile steps when the ArgoCD root Application already
-exists — after that point ArgoCD owns the cluster and re-running helmfile
-fights it for ownership.
-
-The equivalent manual recipes, in order:
-
 ```bash
 just apply
-just argocd-bootstrap
-just argocd-ssh-bootstrap
-just restore-sealed-secrets-key
-just argocd-root-bootstrap
+just bootstrap
 ```
 
-Important:
-
-- `argocd-bootstrap` is a one-time Helmfile bootstrap path.
-- After `argocd-root-bootstrap`, ArgoCD owns the cluster.
-- Do not re-run `just argocd-bootstrap` after ArgoCD has taken ownership.
+`just bootstrap` is one `helmfile apply` over `kubernetes/bootstrap/helmfile.yaml`;
+`needs:` orders the releases (CRDs → hcloud Secret → hccm → Cilium → ArgoCD →
+repo creds, sealed-secrets key, root Application). It refuses when the root
+Application already exists: from then on ArgoCD owns the cluster and
+re-running helmfile fights it for ownership. If it fails midway, fix the cause
+and re-run it; helmfile resumes from the release state.
 
 Then verify:
 
@@ -287,17 +270,17 @@ kubectl get applications -n argocd
 just ansible-check
 ```
 
-If SealedSecrets fail to decrypt, confirm `restore-sealed-secrets-key` ran before
-`argocd-root-bootstrap`.
+If SealedSecrets fail to decrypt, confirm `kube-system/sealed-secrets-keybnqjp`
+exists (the `argocd-bootstrap` release installs it before the controller).
 
 ## Kubernetes Operations
 
 ArgoCD is the steady-state deployer. Prefer Git changes over `kubectl apply`.
 
-Root application:
+Root application (after changing its spec):
 
 ```bash
-just argocd-root-bootstrap
+just argocd-root-apply
 ```
 
 Useful local UIs:
@@ -489,5 +472,5 @@ All nodes should be `Ready` (no `SchedulingDisabled`), all pods running, and
 - Keep `init.sh.tpl` for first boot only.
 - Put running host configuration in Ansible.
 - Put Kubernetes workload changes behind ArgoCD.
-- Do not re-run `argocd-bootstrap` after root ArgoCD bootstrap.
+- Do not re-run `helmfile apply` after the root Application exists.
 - Do not mutate host state manually over SSH unless it is break-glass recovery.

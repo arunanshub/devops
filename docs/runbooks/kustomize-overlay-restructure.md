@@ -41,7 +41,7 @@ The restructure was pushed as a single commit. At the time of push, the in-clust
 6. `root-application.yaml` is not part of that kustomize output. Root had previously managed it as a plain-directory resource (step 2). With `prune: true`, root deleted `root-application.yaml` → deleted **itself**.
 7. The 6 apps from waves −2 to 0 that were re-created in step 5 survived as orphans. The root Application was gone.
 
-**Recovery:** `kubectl apply -f kubernetes/root-application.yaml` (i.e., `just argocd-root-bootstrap`) re-created root. Root synced from `kubernetes/overlays/prod`, re-created all 13 Applications, and all apps returned to Synced/Healthy within ~90 seconds.
+**Recovery:** `kubectl apply -f kubernetes/root-application.yaml` (i.e., `just argocd-root-apply`) re-created root. Root synced from `kubernetes/overlays/prod`, re-created all 13 Applications, and all apps returned to Synced/Healthy within ~90 seconds.
 
 ---
 
@@ -64,7 +64,7 @@ WRONG (what happened):
 
 CORRECT:
   1. Add the new overlay structure alongside the old kustomization.yaml
-  2. Re-apply root-application.yaml to update the in-cluster source: just argocd-root-bootstrap
+  2. Re-apply root-application.yaml to update the in-cluster source: just argocd-root-apply
   3. Confirm ArgoCD is syncing from the new path and is healthy
   4. Then (optionally) delete the old entry point in a follow-up commit
 ```
@@ -77,7 +77,7 @@ Or more simply: **update the in-cluster Application source before the old kustom
 
 ### 3. root-application.yaml must never enter the kustomize tree
 
-`root-application.yaml` is applied out-of-band via `just argocd-root-bootstrap`. It must not appear inside any kustomize `resources:` list that root itself renders. If it does, a source-path change will cause root to self-prune on the next sync cycle (because the new rendered output won't include it).
+`root-application.yaml` is applied out-of-band via `just argocd-root-apply`. It must not appear inside any kustomize `resources:` list that root itself renders. If it does, a source-path change will cause root to self-prune on the next sync cycle (because the new rendered output won't include it).
 
 The current layout is correct: `root-application.yaml` sits at `kubernetes/` top level, outside `base/`, `overlays/`, and `bootstrap/`.
 

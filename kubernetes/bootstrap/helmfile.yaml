@@ -23,11 +23,19 @@ releases:
     values:
       - values/cilium.yaml.gotmpl
 
+  - name: hcloud-secret
+    namespace: kube-system
+    chart: ./raw
+    values:
+      - values/hcloud-secret.yaml.gotmpl
+
   - name: hccm
     namespace: kube-system
     chart: hcloud/hcloud-cloud-controller-manager
     version: "1.39.0"
     wait: true
+    needs:
+      - kube-system/hcloud-secret
     values:
       - values/ccm.yaml
 
@@ -43,3 +51,14 @@ releases:
     values:
       - ./values/argocd.yaml
       - ./values/bootstrap.yaml.gotmpl
+
+  - name: argocd-bootstrap
+    namespace: argocd
+    chart: ./raw
+    needs:
+      - argocd/argocd
+    # The root Application's CRD comes from the argocd release, so helm-diff
+    # cannot validate it before first install (verified on an empty k3d).
+    disableValidationOnInstall: true
+    values:
+      - values/argocd-bootstrap.yaml.gotmpl
