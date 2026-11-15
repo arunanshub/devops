@@ -202,7 +202,7 @@ server.
    just ansible-converge k3s-config       # declarative k3s config from nodes/
    ```
 
-5. `just opsctl cluster verify`
+5. `kubectl get nodes`, `just verify-adoption`, `just verify-mtu`
 
 To CHANGE k3s/kubelet config: edit the data files under `nodes/{all,control-plane}/`,
 let CI validate them against the pinned binaries (`just verify-node-config`

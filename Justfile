@@ -327,10 +327,6 @@ opsctl *args:
 verify-adoption:
     ARGOCD_ADMIN_PASSWORD_HASH=placeholder go run ./cmd/opsctl verify-adoption
 
-# Full cluster health check: nodes Ready + adoption invariant + MTU stack.
-cluster-verify *flags:
-    ARGOCD_ADMIN_PASSWORD_HASH=placeholder go run ./cmd/opsctl cluster verify {{ flags }}
-
 # Validate nodes/ config against the pinned k3s/kubelet flag schemas (also in CI).
 verify-node-config:
     go run ./cmd/opsctl verify-node-config

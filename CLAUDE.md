@@ -48,11 +48,9 @@ Go tests in `internal/` test opsctl behaviour with fixtures. They never read `ku
 ### Verification (all exit non-zero on failure)
 
 ```bash
-just cluster-verify      # nodes Ready + adoption invariant + MTU stack
 just verify-mtu          # VXLAN+WireGuard MTU chain
 just verify-adoption     # helmfile release == adopting ArgoCD Application (also in CI)
 just verify-node-config  # nodes/ keys against the pinned k3s and kubelet schemas (also in CI)
-just opsctl get-vpa      # VPAs whose updateMode is not the expected one
 ```
 
 ### Ansible
