@@ -38,9 +38,9 @@ go test -race -run TestName ./internal/mtu/
 ./custom-gcl fmt --diff       # format check
 ```
 
-The linter is a **custom** golangci-lint build with the nilaway plugin (`.custom-gcl.yaml`). Build it with `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1` then `golangci-lint custom`. Stock golangci-lint gives different results.
+The linter is a **custom** golangci-lint build with the nilaway plugin (`.custom-gcl.yaml`). Build it with `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0` then `golangci-lint custom`. Stock golangci-lint gives different results.
 
-Go tests in `internal/` assert invariants over `kubernetes/` YAML, so a YAML-only change still needs `go test ./...`.
+Go tests in `internal/` test opsctl behaviour with fixtures. They never read `kubernetes/` YAML; manifest invariants belong in the policy layer.
 
 ### Verification (all exit non-zero on failure)
 

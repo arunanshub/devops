@@ -4,8 +4,6 @@ global:
   checkNewVersion: false
   # Equal to the chart default. Keep the value explicit. The opt-out must not
   # depend on a chart default that an upgrade can change.
-  # internal/observability.TestTraefikDisablesOutboundVersionAndUsageChecks
-  # enforces this.
   sendAnonymousUsage: false
 
 ingressRoute:
