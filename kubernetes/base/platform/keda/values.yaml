@@ -67,23 +67,27 @@ topologySpreadConstraints:
 # Right-size KEDA control-plane pods. Chart defaults set a 1000Mi memory limit
 # on each (operator, metrics apiserver, webhooks) — ~3Gi of phantom limits for
 # pods that idle at tens of MiB, which inflates node limit-commit and defeats
-# limits as a node-protection signal. No CPU limits, matching house style.
+# limits as a node-protection signal. No CPU limits, matching house style:
+# `cpu: null` deletes the chart default (1 CPU); omitting the key lets it merge back.
 resources:
   operator:
     requests:
       cpu: 10m
       memory: 64Mi
     limits:
+      cpu: null
       memory: 256Mi
   metricServer:
     requests:
       cpu: 10m
       memory: 64Mi
     limits:
+      cpu: null
       memory: 256Mi
   webhooks:
     requests:
       cpu: 10m
       memory: 32Mi
     limits:
+      cpu: null
       memory: 96Mi
