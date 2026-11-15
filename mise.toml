@@ -9,7 +9,6 @@ go = "latest"
 hcloud = "latest"
 helm = "4.2.4"
 helmfile = "latest"
-just = "latest"
 kubeconform = "latest"
 kubectl = "latest"
 # kubeseal must match the sealed-secrets controller in the cluster.
@@ -30,7 +29,133 @@ k9s = "latest"
 KUBECONFIG = "{{config_root}}/infra/kubeconfig.yaml"
 LANG = "C.UTF-8"
 LC_ALL = "C.UTF-8"
+# Private API LB IP; read by the Cilium bootstrap values (gotmpl) and verify-adoption.
+K8S_API_ENDPOINT = "10.0.0.100"
 
 [settings]
 lockfile = true
 lockfile_auto_prune = true
+
+# Every task is one line (enforced in lefthook). Logic that needs more lives
+# in a tool's own config (helmfile, playbooks, kustomize) or, as a last
+# resort, in opsctl. `mise tasks` lists them; `mise run <task> --help` shows args.
+
+# ── infra (OpenTofu, secrets via sops) ──────────────────────────────────────
+[tasks."infra:plan"]
+dir = "{{config_root}}/infra"
+run = 'sops exec-env secrets.yaml "tofu plan"'
+
+[tasks."infra:apply"]
+dir = "{{config_root}}/infra"
+run = 'sops exec-env secrets.yaml "tofu apply"'
+
+[tasks."infra:destroy"]
+dir = "{{config_root}}/infra"
+confirm = "Destroy every server, network and load balancer?"
+run = 'sops exec-env secrets.yaml "tofu destroy"'
+
+# ── kubernetes ──────────────────────────────────────────────────────────────
+[tasks."k8s:bootstrap"]
+description = "One-shot clean-cluster bootstrap; refuses once application/root exists (fails closed if the API is unreachable)"
+dir = "{{config_root}}/kubernetes/bootstrap"
+run = 'kubectl get --raw=/readyz >/dev/null || exit 1; ! kubectl -n argocd get application root >/dev/null 2>&1 || { echo "root Application exists; ArgoCD owns the cluster. Refusing." >&2; exit 1; }; helmfile deps && sops exec-env secrets/helmfile.secrets.yaml "helmfile apply"'
+
+[tasks."k8s:root-apply"]
+description = "Re-apply the root Application after changing its spec"
+run = "kubectl apply -f kubernetes/root-application.yaml"
+
+[tasks."ui:argocd"]
+run = "kubectl port-forward -n argocd svc/argocd-server 8080:443"
+
+[tasks."ui:grafana"]
+run = "kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80"
+
+[tasks."ui:hubble"]
+run = "kubectl port-forward -n kube-system svc/hubble-ui 12000:80"
+
+# ── secrets (offline sealing against the backed-up key only) ───────────────
+[tasks."secrets:seal"]
+description = "Seal x.sops.yaml into x.sealedsecret.yaml next to it"
+usage = 'arg "<file>" help="Path to a SOPS-encrypted Secret (*.sops.yaml)"'
+run = 'sops -d "$usage_file" | kubeseal --cert kubernetes/sealed-secrets-cert.pem -o yaml > "${usage_file%.sops.yaml}.sealedsecret.yaml"'
+
+[tasks."secrets:seal-tunnel-token"]
+description = "Seal the Cloudflare Tunnel token from tofu state"
+run = '(cd infra && sops exec-env secrets.yaml "tofu output -raw tunnel_token") | kubectl create secret generic cloudflared-tunnel-token -n cloudflared --from-file=token=/dev/stdin --dry-run=client -o yaml | kubeseal --cert kubernetes/sealed-secrets-cert.pem -o yaml > kubernetes/components/cloudflared/resources/tunnel-token.sealedsecret.yaml'
+
+[tasks."secrets:seal-cache-purge"]
+description = "Seal an app's Cloudflare cache-purge token from tofu state"
+usage = '''
+arg "<app>" help="arunanshu-dev or libby-hbd-2026"
+arg "<output>" help="tofu output: cache_purge_token or libby_hbd_2026_cache_purge_token"
+'''
+run = '''kubectl create secret generic cloudflare-cache-purge -n "$usage_app" --from-literal=zone_id="$(awk -F'"' '/cloudflare_zone_id/{print $2}' infra/terraform.tfvars)" --from-literal=api_token="$(cd infra && sops exec-env secrets.yaml "tofu output -raw $usage_output")" --dry-run=client -o yaml | kubeseal --cert kubernetes/sealed-secrets-cert.pem -o yaml > "kubernetes/base/apps/$usage_app/resources/cf-cache-purge.sealedsecret.yaml"'''
+
+[tasks."secrets:rotate-luks"]
+description = "New LUKS passphrase, never printed; commit, sync, then ops:recreate-encrypted-pvcs"
+run = '''openssl rand -base64 32 | tr -d '\n' | kubectl create secret generic hcloud-luks-key -n kube-system --from-file=encryption-passphrase=/dev/stdin --dry-run=client -o yaml | kubeseal --cert kubernetes/sealed-secrets-cert.pem -o yaml > kubernetes/components/hcloud-luks-key/resources/luks-key.sealedsecret.yaml'''
+
+# ── ansible (Runner evidence in .artifacts/ansible; --omit-env-files keeps
+#    the sops env out of it; node plays roll with serial: 1) ────────────────
+[tasks."ansible:setup"]
+run = "uv sync --dev && uv run ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections/ --force"
+
+[tasks."ansible:inventory"]
+run = 'sops exec-env infra/secrets.yaml "uv run ansible-inventory --graph --vars"'
+
+[tasks."ansible:run"]
+description = "Run one playbook through ansible-runner"
+usage = '''
+arg "<playbook>" help="Path under ansible/playbooks without .yml, e.g. k3s-config"
+arg "[cmdline]" default="" help="Extra ansible-playbook args"
+'''
+run = '''sops exec-env infra/secrets.yaml "uv run ansible-runner run ansible/runner --project-dir . --inventory ansible/inventory/hcloud.yml --artifact-dir .artifacts/ansible --rotate-artifacts 20 --omit-env-files --forks 1 --playbook ansible/playbooks/$usage_playbook.yml --cmdline='$usage_cmdline'"'''
+
+[tasks."ansible:preflight"]
+run = "mise run ansible:run k3s-preflight"
+
+[tasks."ansible:check"]
+usage = 'arg "[playbook]" default="site"'
+run = 'mise run ansible:run "$usage_playbook" "--check --diff"'
+
+[tasks."ansible:converge"]
+usage = 'arg "[playbook]" default="site"'
+run = 'mise run ansible:run "$usage_playbook"'
+
+[tasks."ops:recreate-encrypted-pvcs"]
+description = "Recreate Grafana/Alertmanager/Tempo encrypted PVCs (data loss is OK)"
+run = "mise run ansible:run ops/recreate-encrypted-pvcs"
+
+[tasks."ops:diagnose-wireguard"]
+description = "Bounded WireGuard evidence capture from one node; no restarts"
+usage = '''
+arg "[node]" default="hetzner-k3s-cp-2"
+arg "[duration]" default="900" help="Seconds, 60-1800 (validated by the playbook)"
+'''
+run = 'mise run ansible:run ops/cilium-wireguard-diagnostics "--limit $usage_node,localhost --extra-vars wireguard_capture_duration=$usage_duration"'
+
+# ── opsctl (built once; skipped while sources are unchanged) ───────────────
+[tasks.build]
+sources = ["go.mod", "go.sum", "cmd/**/*.go", "internal/**/*.go"]
+outputs = ["bin/opsctl"]
+run = 'go build -ldflags="-s -w" -trimpath -o bin/opsctl ./cmd/opsctl'
+
+[tasks.opsctl]
+depends = ["build"]
+run = "bin/opsctl"
+
+[tasks."verify:mtu"]
+description = "VXLAN+WireGuard MTU chain (docs/incidents/cilium-mtu-overlay-networking.md)"
+depends = ["build"]
+run = "bin/opsctl verify-mtu"
+
+[tasks."verify:adoption"]
+description = "helmfile release == adopting ArgoCD Application (password hash excluded from comparison)"
+depends = ["build"]
+env = { ARGOCD_ADMIN_PASSWORD_HASH = "placeholder" }
+run = "bin/opsctl verify-adoption"
+
+[tasks."verify:node-config"]
+description = "nodes/ keys against the pinned k3s and kubelet flag schemas"
+depends = ["build"]
+run = "bin/opsctl verify-node-config"

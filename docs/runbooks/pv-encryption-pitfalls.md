@@ -17,9 +17,8 @@ hcloud-csi natively supports LUKS encryption. When a PVC is provisioned from `hc
 3. `kubectl get secret hcloud-luks-key -n kube-system -o jsonpath='{.data.encryption-passphrase}' | base64 -d`
 
 **Playbooks for ongoing ops:**
-- `just ops-migrate-prometheus` — migrate Prometheus data to encrypted PVC (interactive, two checkpoints)
-- `just ops-recreate-encrypted-pvcs` — rotate passphrase: delete and recreate Grafana/Alertmanager/Tempo PVCs
-- `just rotate-luks-passphrase` — generate new passphrase, seal, commit, push (run before ops-recreate-encrypted-pvcs)
+- `mise run ops:recreate-encrypted-pvcs` — rotate passphrase: delete and recreate Grafana/Alertmanager/Tempo PVCs
+- `mise run secrets:rotate-luks` — generate and seal a new passphrase; commit and sync it yourself, then run ops:recreate-encrypted-pvcs
 
 ---
 
@@ -31,17 +30,17 @@ hcloud-csi natively supports LUKS encryption. When a PVC is provisioned from `hc
 
 **Fix.** Always pipe directly without echoing:
 
-`just rotate-luks-passphrase` does this: `openssl rand` pipes straight into
+`mise run secrets:rotate-luks` does this: `openssl rand` pipes straight into
 `kubectl create secret --from-file=/dev/stdin`, so the passphrase never
 lands in a variable, the terminal, or a file.
 
-**If you accidentally exposed a passphrase:** run `just rotate-luks-passphrase` immediately, then `just ops-recreate-encrypted-pvcs`. Old volumes carry the old passphrase in their LUKS header and cannot be fixed in-place — they must be deleted and reprovisioned.
+**If you accidentally exposed a passphrase:** run `mise run secrets:rotate-luks` immediately, then `mise run ops:recreate-encrypted-pvcs`. Old volumes carry the old passphrase in their LUKS header and cannot be fixed in-place — they must be deleted and reprovisioned.
 
 ---
 
 ## Rotating the passphrase requires deleting and reprovisioning every encrypted PVC
 
-**Symptom.** After running `just rotate-luks-passphrase`, existing pods start failing with:
+**Symptom.** After running `mise run secrets:rotate-luks`, existing pods start failing with:
 
 ```
 MountVolume.SetUp failed: rpc error: code = Internal desc = failed to publish volume:
@@ -50,15 +49,15 @@ unable to open LUKS device /dev/disk/by-id/scsi-0HC_Volume_...: No key available
 
 **Cause.** The LUKS header is baked into the Hetzner volume at format time. Updating the Kubernetes Secret only changes what passphrase future `luksOpen` calls will use. Existing volumes still have the old passphrase in their LUKS header.
 
-**Fix.** After rotating the passphrase, run `just ops-recreate-encrypted-pvcs`. This deletes the old volumes (and their LUKS headers) and lets new ones be provisioned with the new passphrase. Data is lost for Grafana/Alertmanager/Tempo — acceptable because monitoring data is ephemeral. Prometheus is handled separately.
+**Fix.** After rotating the passphrase, run `mise run ops:recreate-encrypted-pvcs`. This deletes the old volumes (and their LUKS headers) and lets new ones be provisioned with the new passphrase. Data is lost for Grafana/Alertmanager/Tempo — acceptable because monitoring data is ephemeral. Prometheus is handled separately.
 
-**If Prometheus data matters:** use `just ops-migrate-prometheus` before rotating, which copies data to a new encrypted volume first.
+**If Prometheus data matters:** use the since-removed Prometheus migration playbook (Prometheus was replaced by VictoriaMetrics) before rotating, which copies data to a new encrypted volume first.
 
 ---
 
 ## WaitForFirstConsumer: temp PVC will never bind without a pod
 
-**Symptom.** `just ops-migrate-prometheus` hangs at:
+**Symptom.** the since-removed Prometheus migration playbook (Prometheus was replaced by VictoriaMetrics) hangs at:
 
 ```
 FAILED - RETRYING: Setup | Wait for temp PVC to be Bound (35 retries left).
@@ -269,7 +268,7 @@ The playbook does both. If you are doing this manually, always do it in this ord
 
 ## PV retain-and-rebind: how to migrate data to a new encrypted PVC
 
-This is the full procedure used when you need to preserve data (e.g., Prometheus TSDB). Used by `just ops-migrate-prometheus`.
+This is the full procedure used when you need to preserve data (e.g., Prometheus TSDB). Used by the since-removed Prometheus migration playbook (Prometheus was replaced by VictoriaMetrics).
 
 **Concept.** Kubernetes won't let you rename a PVC. Instead: copy data to a temp encrypted PVC, set the temp PV to `Retain` (so deleting the PVC doesn't delete the data), delete the temp PVC, clear the PV's `claimRef`, then create a new PVC with the exact name the StatefulSet expects pre-bound to that PV.
 

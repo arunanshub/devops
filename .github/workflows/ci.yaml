@@ -134,7 +134,7 @@ jobs:
           # would link the binary twice.
           - name: Build and verify invariants
             env:
-              # Must match the K8S_API_ENDPOINT exported by the Justfile.
+              # Must match K8S_API_ENDPOINT in mise.toml [env].
               K8S_API_ENDPOINT: "10.0.0.100"
               # Rendered but excluded from comparison (bootstrap-only overlay).
               ARGOCD_ADMIN_PASSWORD_HASH: "ci-placeholder"
@@ -212,7 +212,7 @@ jobs:
         run: tofu -chdir=infra validate
 
   hygiene:
-    name: yamlfmt, shellcheck, just fmt
+    name: yamlfmt, shellcheck
     runs-on: ubuntu-latest
     env:
       YAMLFMT_VERSION: 0.21.0
@@ -221,11 +221,8 @@ jobs:
       SHELLCHECK_VERSION: v0.11.0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
-        with:
-          just-version: "1.58.0"
 
-      # Each check fetches its own pinned binary, so all three overlap. yamlfmt
+      # Each check fetches its own pinned binary, so they overlap. yamlfmt
       # comes from the release tarball rather than `go install`, which is both
       # faster and removes the only reason this job needed a Go toolchain.
       - parallel:
@@ -242,9 +239,6 @@ jobs:
               "$RUNNER_TEMP/shellcheck" --version
               git ls-files '*.sh' '*.bash' '*.sh.tpl' '*.bash.tpl' \
                 | xargs -r "$RUNNER_TEMP/shellcheck" --enable=all --severity=style
-
-          - name: Check Justfile formatting
-            run: just --fmt --check --unstable
 
   gitleaks:
     name: Secret scan

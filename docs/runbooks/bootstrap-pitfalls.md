@@ -4,7 +4,7 @@ Every issue we hit during the first end-to-end cluster build, what caused it, an
 
 Each entry: **Symptom** → **Cause** → **Fix**.
 
-> Entries before 2026-11 name the old manual recipes (`hcloud-secret-bootstrap`, `argocd-bootstrap`, `argocd-ssh-bootstrap`, `restore-sealed-secrets-key`). `just bootstrap` now runs one `helmfile apply` whose `needs:` graph fixes that order: the sealed-secrets key lands before the controller, and the hcloud Secret before hccm. The failure modes stay relevant if a release fails midway.
+> Entries before 2026-11 name the old manual recipes (`hcloud-secret-bootstrap`, `argocd-bootstrap`, `argocd-ssh-bootstrap`, `restore-sealed-secrets-key`). `mise run k8s:bootstrap` now runs one `helmfile apply` whose `needs:` graph fixes that order: the sealed-secrets key lands before the controller, and the hcloud Secret before hccm. The failure modes stay relevant if a release fails midway.
 
 ---
 
@@ -54,7 +54,7 @@ sealed-secrets-keybnqjp   kubernetes.io/tls   2      6m12s
 sealed-secrets-keykck8s   kubernetes.io/tls   2      6m47s
 ```
 
-**Cause.** When `just argocd-root-apply` runs before `just restore-sealed-secrets-key`, the sealed-secrets controller starts up, finds no master key in `kube-system`, and **auto-generates a fresh one**. When the user later applies the real master key, it shows up as a second active-labeled Secret — but the controller's key registry doesn't always pick up newly-added keys cleanly mid-run, so SealedSecrets keep failing.
+**Cause.** When `mise run k8s:root-apply` runs before `just restore-sealed-secrets-key`, the sealed-secrets controller starts up, finds no master key in `kube-system`, and **auto-generates a fresh one**. When the user later applies the real master key, it shows up as a second active-labeled Secret — but the controller's key registry doesn't always pick up newly-added keys cleanly mid-run, so SealedSecrets keep failing.
 
 **Fix.**
 
@@ -65,7 +65,7 @@ kubectl -n kube-system rollout status deploy/sealed-secrets-controller
 
 The fresh pod re-lists active-labeled Secrets at startup, registers both keys, and re-attempts every SealedSecret. Within seconds, ones encrypted with your master key flip to `Synced=True`.
 
-**Prevention.** Run step 4 of the bootstrap (`just restore-sealed-secrets-key`) **before** step 5 (`just argocd-root-apply`).
+**Prevention.** Run step 4 of the bootstrap (`just restore-sealed-secrets-key`) **before** step 5 (`mise run k8s:root-apply`).
 
 ---
 
@@ -259,7 +259,7 @@ Don't do this without first reading the diff (`argocd app diff cilium`) — `--r
 
 ## Velero BSL s3Url placeholder must be replaced before sync
 
-**Symptom.** After `just argocd-root-apply`, the `velero` Application syncs but the BackupStorageLocation reports `Unavailable`, and all backup jobs fail with connection errors to a non-existent domain.
+**Symptom.** After `mise run k8s:root-apply`, the `velero` Application syncs but the BackupStorageLocation reports `Unavailable`, and all backup jobs fail with connection errors to a non-existent domain.
 
 **Cause.** `kubernetes/base/platform/velero/values.yaml` ships with `s3Url: "https://placeholder.r2.cloudflarestorage.com"` intentionally — the R2 account ID is not committed to the repo. The placeholder must be replaced with the actual account ID before ArgoCD reconciles the Application.
 
@@ -277,7 +277,7 @@ git commit -m "velero: substitute R2 account ID in s3Url"
 
 ArgoCD picks up the commit on the next reconcile, and the BackupStorageLocation becomes `Available`.
 
-**Prevention.** Check the s3Url placeholder substitution as a pre-sync checklist before running `just argocd-root-apply` on a fresh cluster.
+**Prevention.** Check the s3Url placeholder substitution as a pre-sync checklist before running `mise run k8s:root-apply` on a fresh cluster.
 
 ---
 
@@ -294,7 +294,7 @@ Warning DNSConfigForming Nameserver limits were exceeded
 **Fix.** Run the targeted resolver playbook once:
 
 ```sh
-just ansible-converge k3s-resolver
+mise run ansible:converge k3s-resolver
 ```
 
 The playbook writes `/etc/rancher/k3s/resolv.conf` with exactly three upstream nameservers, appends `resolv-conf=/etc/rancher/k3s/resolv.conf` through a k3s config drop-in, restarts k3s one node at a time, and verifies kubelet `/configz`.
@@ -310,7 +310,7 @@ The playbook writes `/etc/rancher/k3s/resolv.conf` with exactly three upstream n
 **Fix.** Run the targeted CoreDNS HA playbook once:
 
 ```sh
-just ansible-converge k3s-coredns-ha
+mise run ansible:converge k3s-coredns-ha
 ```
 
 The playbook patches CoreDNS to two replicas, creates a `maxUnavailable: 1` PDB, and waits until both replicas are ready. Keep it targeted rather than importing it into `site.yml` so ordinary host convergence does not constantly patch k3s-packaged resources.
@@ -320,6 +320,6 @@ The playbook patches CoreDNS to two replicas, creates a `maxUnavailable: 1` PDB,
 ## Quick reference: things that look broken but aren't
 
 - `coredns`, `local-path-provisioner`, `metrics-server` `Pending` early in bootstrap → expected, no CNI yet, they schedule once Cilium is up
-- `Warning DNSConfigForming Nameserver limits were exceeded` during initial bootstrap only → usually benign; persistent events after the cluster is running should be fixed with `just ansible-converge k3s-resolver`
+- `Warning DNSConfigForming Nameserver limits were exceeded` during initial bootstrap only → usually benign; persistent events after the cluster is running should be fixed with `mise run ansible:converge k3s-resolver`
 - Node `NotReady` for ~30s after Cilium install → kubelet re-evaluates after CNI config is written, brief gap
 - `ImagePullBackOff` on Cilium right after install → check the 502 entry above before assuming local network problem
