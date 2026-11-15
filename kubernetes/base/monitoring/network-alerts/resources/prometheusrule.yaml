@@ -73,7 +73,7 @@ spec:
             severity: warning
           annotations:
             summary: "WireGuard transmit drop ratio high on {{ $labels.instance }}"
-            description: "cilium_wg0 dropped {{ $value | humanizePercentage }} of transmitted packets over 30m on {{ $labels.instance }}, and more than 1500 packets, for 1 hour. Check the TCP retransmit ratio first. If retransmits are flat, the datapath is healthy and this alert needs a higher threshold. Run: just diagnose-wireguard node=<kubernetes-node-name> duration=900"
+            description: "cilium_wg0 dropped {{ $value | humanizePercentage }} of transmitted packets over 30m on {{ $labels.instance }}, and more than 1500 packets, for 1 hour. Check the TCP retransmit ratio first. If retransmits are flat, the datapath is healthy and this alert needs a higher threshold. Run: mise run ops:diagnose-wireguard node=<kubernetes-node-name> duration=900"
 
     # cloudflared is the SOLE external ingress path into the cluster. Each replica
     # holds 4 HA connections to the Cloudflare edge; healthy steady state is 12

@@ -1,6 +1,6 @@
 # Recreate encrypted PVCs for Grafana, Alertmanager, and Tempo.
 #
-# Use this after rotating the LUKS passphrase (just rotate-luks-passphrase).
+# Use this after rotating the LUKS passphrase (mise run secrets:rotate-luks).
 # Old volumes carry the old passphrase in their LUKS header and must be
 # discarded; new volumes are formatted fresh with the current passphrase.
 #
@@ -8,8 +8,8 @@
 # when you want to preserve its TSDB data.
 #
 # Usage:
-#   just ops-recreate-encrypted-pvcs          # run for real
-#   just ops-recreate-encrypted-pvcs --check  # dry-run (shows what would change)
+#   mise run ops:recreate-encrypted-pvcs          # run for real
+#   mise run ops:recreate-encrypted-pvcs --check  # dry-run (shows what would change)
 #
 # Safe to re-run: every step waits for full completion before continuing.
 
