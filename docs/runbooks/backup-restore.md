@@ -151,7 +151,9 @@ All route to `mydellpc07@gmail.com` via Alertmanager.
 
 ```bash
 # Quick status — backups, restores, BSL availability
-just velero-status
+velero backup get
+velero restore get
+velero backup-location get   # STATUS should be Available
 
 # Are snapshots actually in R2?
 kubectl create job --from=cronjob/etcd-snapshot-health etcd-health-$(date +%s) -n kube-system
@@ -161,10 +163,6 @@ kubectl logs -n kube-system job/etcd-health-<name> -f
 kubectl create job --from=cronjob/velero-restore-drill drill-$(date +%s) -n velero
 kubectl logs -n velero job/drill-<name> -f
 # Should end with: "Restore drill succeeded"
-
-# Check Velero BSL status directly
-kubectl exec -n velero deploy/velero -- /velero backup-location get
-# STATUS column should show: Available
 ```
 
 ---
@@ -177,7 +175,7 @@ Use when: a namespace was accidentally deleted, data corrupted, need to recover 
 
 ```bash
 # 1. Find available backups
-just velero-status
+velero backup get
 
 # 2. Disable ArgoCD auto-sync on the target namespace FIRST
 #    (or ArgoCD will overwrite what you just restored)
@@ -185,9 +183,8 @@ kubectl patch application <app-name> -n argocd \
   --type merge \
   -p '{"spec":{"syncPolicy":{"automated":null}}}'
 
-# 3. Restore
-just velero-restore <backup-name> <namespace>
-# The recipe will prompt you to confirm auto-sync is disabled
+# 3. Restore (only after step 2)
+velero restore create --from-backup <backup-name> --include-namespaces <namespace> --wait
 
 # 4. Verify the restored state looks correct
 
@@ -216,7 +213,7 @@ just argocd-root-bootstrap
 kubectl get applications -n argocd
 
 # 4. Optional: restore any dynamic state not in git (operator-created CRs, etc.)
-just velero-restore <latest-backup> <namespace>
+velero restore create --from-backup <latest-backup> --include-namespaces <namespace> --wait
 ```
 
 See `docs/runbooks/bootstrap-pitfalls.md` for things that go wrong in step 2.
@@ -224,11 +221,6 @@ See `docs/runbooks/bootstrap-pitfalls.md` for things that go wrong in step 2.
 ### Scenario 3 — etcd restore (last resort, 60+ min)
 
 Use when: etcd is corrupted, cluster is in split-brain, or you need to roll back cluster state. This is destructive — the cluster will restart from the snapshot point.
-
-```bash
-just etcd-restore
-# Prints the full procedure. Steps summarized below.
-```
 
 **Step-by-step:**
 
