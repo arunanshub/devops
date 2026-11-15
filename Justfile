@@ -52,47 +52,24 @@ argocd-bootstrap: hcloud-secret-bootstrap
 @argocd-root-bootstrap:
     kubectl apply -f "{{ k8s / "root-application.yaml" }}"
 
-@ansible-inventory:
-    cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
-        "{{ ansible_env }} uv run ansible-inventory -i '{{ ansible_inventory }}' --graph --vars"
+ansible-inventory:
+    sops exec-env "{{ infra / "secrets.yaml" }}" "{{ ansible_env }} uv run ansible-inventory -i '{{ ansible_inventory }}' --graph --vars"
 
-@node-preflight:
-    just _ansible-playbook "k3s-preflight"
+node-preflight:
+    just _ansible-playbook k3s-preflight
 
-@ansible-check playbook="site":
+ansible-check playbook="site":
     just _ansible-playbook "{{ playbook }}" "--check --diff"
 
+# Rolling: every node-mutating play sets serial: 1 + max_fail_percentage: 0
+# and gates each node on cluster health before the next.
 ansible-converge playbook="site":
-    just _ansible-rolling "{{ playbook }}"
+    just _ansible-playbook "{{ playbook }}"
 
-@_ansible-hosts:
-    cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
-        "{{ ansible_env }} uv run ansible-inventory -i '{{ ansible_inventory }}' --list" \
-        | jq -r '.k3s_nodes.hosts[]' | sort
-
-@_ansible-rolling playbook:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    mapfile -t hosts < <(just _ansible-hosts)
-    ((${#hosts[@]} > 0)) || { printf 'No k3s_nodes found; refusing to run.\n' >&2; exit 1; }
-    for host in "${hosts[@]}"; do
-        printf '\n=== %s: %s ===\n' "{{ playbook }}" "$host"
-        just _ansible-playbook "{{ playbook }}" "--limit $host,localhost"
-    done
-
-@_ansible-playbook playbook args="":
-    test -f "{{ ansible_playbooks }}/{{ playbook }}.yml"
-    mkdir -p "{{ ansible_artifacts }}"
-    cd "{{ justfile_dir() }}" && sops exec-env "{{ infra / "secrets.yaml" }}" \
-        "{{ ansible_env }} uv run ansible-runner run '{{ ansible_runner }}' \
-        --project-dir '{{ justfile_dir() }}' \
-        --inventory '{{ ansible_inventory }}' \
-        --artifact-dir '{{ ansible_artifacts }}' \
-        --rotate-artifacts 20 \
-        --omit-env-files \
-        --forks 1 \
-        --playbook 'ansible/playbooks/{{ playbook }}.yml' \
-        --cmdline='{{ args }}'"
+# Runner evidence goes to .artifacts/ansible. --omit-env-files keeps the
+# sops-injected environment out of those artifacts.
+_ansible-playbook playbook args="":
+    sops exec-env "{{ infra / "secrets.yaml" }}" "{{ ansible_env }} uv run ansible-runner run '{{ ansible_runner }}' --project-dir '{{ justfile_dir() }}' --inventory '{{ ansible_inventory }}' --artifact-dir '{{ ansible_artifacts }}' --rotate-artifacts 20 --omit-env-files --forks 1 --playbook 'ansible/playbooks/{{ playbook }}.yml' --cmdline='{{ args }}'"
 
 # Install Python deps (uv) and Ansible collections. Run once after cloning or
 # after pyproject.toml / ansible/requirements.yml changes.
@@ -204,22 +181,9 @@ verify-mtu *flags:
 
 # Capture bounded WireGuard handshake and tx_dropped evidence from exactly one node.
 # Dynamic debug is restored in an Ansible always block. No service is restarted.
+# The playbook validates the node and the 60-1800 s duration.
 diagnose-wireguard node="hetzner-k3s-cp-2" duration="900":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    node='{{ node }}'
-    duration='{{ duration }}'
-    [[ "$duration" =~ ^[0-9]+$ ]] && (( duration >= 60 && duration <= 1800 )) || {
-        printf 'Duration must be an integer from 60 to 1800 seconds.\n' >&2
-        exit 2
-    }
-    mapfile -t valid_nodes < <(just _ansible-hosts)
-    printf '%s\n' "${valid_nodes[@]}" | grep -Fxq -- "$node" || {
-        printf 'Unknown k3s node: %s\n' "$node" >&2
-        exit 2
-    }
-    just _ansible-playbook "ops/cilium-wireguard-diagnostics" \
-        "--limit {{ node }},localhost --extra-vars wireguard_capture_duration={{ duration }}"
+    just _ansible-playbook ops/cilium-wireguard-diagnostics "--limit {{ node }},localhost --extra-vars wireguard_capture_duration={{ duration }}"
 
 # Run the operations toolkit from source (see `just opsctl --help`).
 opsctl *args:

@@ -9,6 +9,13 @@
     wireguard_capture_root: >-
       {{ (playbook_dir | dirname | dirname | dirname) + '/.artifacts/wireguard' }}
   tasks:
+    # A --limit naming no k3s node would skip the capture play and exit 0.
+    - name: Require the limit to name exactly one k3s node
+      ansible.builtin.assert:
+        that:
+          - groups.k3s_nodes | intersect((ansible_limit | default('')).split(',')) | length == 1
+        fail_msg: "Pass --limit <one k3s node>,localhost. Known nodes: {{ groups.k3s_nodes | sort | join(', ') }}"
+
     - name: Generate capture identifier
       ansible.builtin.command: date -u +%Y%m%dT%H%M%SZ
       register: wireguard_capture_timestamp

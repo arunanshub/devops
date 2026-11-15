@@ -59,7 +59,7 @@ just verify-node-config  # nodes/ keys against the pinned k3s and kubelet schema
 just ansible-setup                 # once: uv sync + galaxy collections
 just ansible-inventory             # print the inventory graph
 just ansible-check <playbook>      # --check --diff
-just ansible-converge <playbook>   # rolling apply, one node per Runner job, stops on first failure
+just ansible-converge <playbook>   # rolling apply (serial: 1 in the play), stops on first failure
 ```
 
 Runner evidence goes to `.artifacts/ansible/`.
