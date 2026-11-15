@@ -31,3 +31,4 @@ ansible/collections/
 
 # Local Ansible Runner evidence; retained on the operator machine.
 .artifacts/
+.claude/agent-memory/
