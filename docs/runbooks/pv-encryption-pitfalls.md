@@ -9,7 +9,7 @@ Everything learned during the LUKS PV encryption migration. Every bug we hit, wh
 hcloud-csi natively supports LUKS encryption. When a PVC is provisioned from `hcloud-volumes-encrypted`, the CSI node plugin runs `cryptsetup luksFormat` with the passphrase from a Kubernetes Secret, then formats the resulting device with ext4. Mount = `luksOpen`. No separate daemon. No extra CSI driver.
 
 **The passphrase lives as a SealedSecret at:**
-`kubernetes/components/hcloud-luks-key/resources/sealed-luks-key.yaml`
+`kubernetes/components/hcloud-luks-key/resources/luks-key.sealedsecret.yaml`
 
 **Recovery chain if you ever need the plaintext passphrase:**
 1. SOPS private key → decrypt `kubernetes/bootstrap/secrets/sealed-secrets-master-key.sops.yaml` → sealed-secrets private key
@@ -31,16 +31,9 @@ hcloud-csi natively supports LUKS encryption. When a PVC is provisioned from `hc
 
 **Fix.** Always pipe directly without echoing:
 
-```bash
-PASSPHRASE=$(openssl rand -base64 32)
-kubectl create secret generic hcloud-luks-key \
-  --namespace kube-system \
-  --from-literal=encryption-passphrase="$PASSPHRASE" \
-  --dry-run=client -o yaml | \
-kubeseal --cert kubernetes/sealed-secrets-cert.pem --format yaml \
-  > kubernetes/components/hcloud-luks-key/resources/sealed-luks-key.yaml
-unset PASSPHRASE
-```
+`just rotate-luks-passphrase` does this: `openssl rand` pipes straight into
+`kubectl create secret --from-file=/dev/stdin`, so the passphrase never
+lands in a variable, the terminal, or a file.
 
 **If you accidentally exposed a passphrase:** run `just rotate-luks-passphrase` immediately, then `just ops-recreate-encrypted-pvcs`. Old volumes carry the old passphrase in their LUKS header and cannot be fixed in-place — they must be deleted and reprovisioned.
 
