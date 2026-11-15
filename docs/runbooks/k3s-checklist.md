@@ -302,7 +302,7 @@ k3s install flags required (all set at provision time via `init.sh.tpl`):
 - [x] `sealed-secrets-cert.pem` fetched and committed to repo
 - [x] GitHub deploy key sealed and applied; ArgoCD accesses private repo via SSH
 - [x] Root Application tracks `kubernetes/overlays/prod` via kustomize
-  - Applied once via `just argocd-root-bootstrap`; never managed by ArgoCD itself
+  - Applied once via `just argocd-root-apply`; never managed by ArgoCD itself
 - [x] AppProject/infra at sync wave `-2`; destinations include `argocd`, `kube-system`, `system-upgrade`, `cilium-secrets`, `cert-manager`
 - [x] system-upgrade-controller v0.19.2 deployed; Plans in separate Application at wave `2`
 - [x] kured 1.21.0 deployed; first OS reboot handled cleanly
@@ -453,7 +453,7 @@ Or use `argocd app delete <app> --cascade` before removing from git.
 - **etcd quorum**: control plane count must always be odd (1, 3, 5).
 - **Private network**: set up before adding a second node, not after.
 - **k3s version**: always pinned via `INSTALL_K3S_VERSION`. Never install latest implicitly.
-- **No direct `kubectl apply`**: once ArgoCD is live, all deployments go through it. Exceptions: `just argocd-ssh-bootstrap`, `just argocd-root-bootstrap`, `just restore-sealed-secrets-key`.
+- **No direct `kubectl apply`**: once ArgoCD is live, all deployments go through it. Exceptions: `just bootstrap`, `just argocd-root-apply`.
 - **Nodes are cattle, not pets**: wanting to SSH in to fix something is a signal to improve observability or automation.
 - **Cilium vs Flannel**: mutually exclusive at install time. Cannot migrate without a full rebuild.
 - **Sealed Secrets master key**: back it up offline immediately after first deploy. Losing it = losing all sealed secrets permanently.

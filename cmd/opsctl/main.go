@@ -17,7 +17,6 @@ import (
 type cli struct {
 	LogLevel string `default:"info" enum:"debug,info,warn,error" help:"Log level."`
 
-	Cluster          clusterCmd             `cmd:"" help:"Whole-cluster operations: bootstrap."`
 	VerifyMTU        verifyMTUCmd           `cmd:"" help:"Verify the VXLAN+WireGuard MTU stack is correctly configured."                name:"verify-mtu"`
 	VerifyAdoption   verifyAdoptionCmd      `cmd:"" help:"Verify helmfile-installed releases match their adopting ArgoCD Applications." name:"verify-adoption"`
 	VerifyNodeConfig verifyNodeConfigCmd    `cmd:"" help:"Validate nodes/ config against the pinned k3s and kubelet flag schemas."      name:"verify-node-config"`

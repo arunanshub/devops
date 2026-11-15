@@ -82,13 +82,12 @@ Commits are SSH-signed with a passphrase-protected key. If signing fails, tell t
 
 ## Bootstrap order (clean cluster)
 
-Steps 3–5 are one-shots and must run in order. `docs/runbooks/bootstrap-pitfalls.md` covers each failure.
+`docs/runbooks/bootstrap-pitfalls.md` covers each failure.
 
 1. `just apply` — OpenTofu creates servers and the API LB; cloud-init runs `infra/scripts/init.sh.tpl` and writes `infra/kubeconfig.yaml`.
-2. `just argocd-bootstrap` — applies the hcloud Secret, then `helmfile apply` installs Gateway API CRDs and hccm before Cilium, then ArgoCD.
-3. `just argocd-ssh-bootstrap` — ArgoCD repository SSH key.
-4. `just restore-sealed-secrets-key` — sealed-secrets master key.
-5. `just argocd-root-bootstrap` — applies `kubernetes/root-application.yaml`; ArgoCD owns the cluster from here.
+2. `just bootstrap` — one `helmfile apply`; `needs:` orders it: Gateway API CRDs → hcloud Secret → hccm → Cilium → ArgoCD → `argocd-bootstrap` (repo SSH Secret, sealed-secrets key, root Application). It refuses once `application/root` exists; ArgoCD owns the cluster from there.
+
+The `hcloud-secret` and `argocd-bootstrap` releases render SOPS files through vals `ref+sops://` into the local `raw` chart. They are never adopted by ArgoCD, so the adoption invariant is untouched.
 
 ## Key patterns
 
@@ -155,11 +154,11 @@ Two traps:
 
 ## Things not to do
 
-- Re-run `just argocd-bootstrap` after the root Application exists (helmfile and ArgoCD fight over resources).
+- Re-run `helmfile apply` after the root Application exists (helmfile and ArgoCD fight over resources); `just bootstrap` refuses for this reason.
 - Commit `kubeconfig.yaml` or anything in `docs/plans/`.
 - Change `helm.releaseName` on a live Application (immutable selector; the Deployment must be deleted and recreated).
 - Echo a passphrase before piping it to `kubeseal` — pipe it directly.
-- Change the kustomize source path in `kubernetes/root-application.yaml` in the same commit that moves the directories. ArgoCD reads the source from the in-cluster object; if the old `kustomization.yaml` is gone it falls back to plain-directory mode, applies every YAML it finds, and with `prune: true` can delete every app and the root. Run `just argocd-root-bootstrap` **first**, then push the commit that removes the old entry point (`docs/runbooks/kustomize-overlay-restructure.md`).
+- Change the kustomize source path in `kubernetes/root-application.yaml` in the same commit that moves the directories. ArgoCD reads the source from the in-cluster object; if the old `kustomization.yaml` is gone it falls back to plain-directory mode, applies every YAML it finds, and with `prune: true` can delete every app and the root. Run `just argocd-root-apply` **first**, then push the commit that removes the old entry point (`docs/runbooks/kustomize-overlay-restructure.md`).
 - Run the Ansible inventory during a `tofu apply` (no per-node guard for an empty IPv6 → `ansible_host: ""`).
 - Re-enable ArgoCD auto-sync before a deleted PVC fully disappears (the volume can rebind to the old claim).
 

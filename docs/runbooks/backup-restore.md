@@ -204,10 +204,7 @@ Use when: entire cluster is gone or unrecoverable. This is the GitOps path — n
 just apply
 
 # 2. Bootstrap
-just argocd-bootstrap
-just argocd-ssh-bootstrap
-just restore-sealed-secrets-key   # CRITICAL — do this before argocd-root-bootstrap
-just argocd-root-bootstrap
+just bootstrap   # installs the sealed-secrets key before the controller exists
 
 # 3. ArgoCD reconciles everything from git (~15-20 min)
 kubectl get applications -n argocd

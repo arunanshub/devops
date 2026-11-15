@@ -1,0 +1,6 @@
+# Renders .Values.manifests verbatim. Used by the hcloud-secret and
+# argocd-bootstrap releases to install SOPS-decrypted Secrets and the root
+# Application in helmfile's `needs:` order.
+apiVersion: v2
+name: raw
+version: 0.1.0
