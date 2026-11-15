@@ -1,6 +1,6 @@
 # Cluster CPU/Latency Perf Scan (2026-06-19)
 
-Spiritual continuation of `docs/2026-06-17-memory-perf-scan.md`. That scan's lever was
+Spiritual continuation of `docs/research/2026-06-17-memory-perf-scan.md`. That scan's lever was
 **RAM reduction for reboot headroom**. This one targets **traefik, cloudflared, k3s and the
 other naturally hot/latency-sensitive paths** ("must be fast"). Same invariants: reboot-safe
 (1 node drains, 2 survive — must not block kured drain or drop ingress), **zero observability

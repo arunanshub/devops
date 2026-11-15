@@ -9,7 +9,7 @@
 // Pod interface MTU stays at 1450; path MTU enforcement is done via PMTUD
 // (packetization-layer-pmtud-mode=always) for UDP/ICMP and eBPF MSS clamping
 // for TCP. Packets at the VXLAN ceiling (payload ≤ 1276b = 1304b IP) must
-// pass. See docs/cilium-mtu-overlay-networking.md for the full analysis.
+// pass. See docs/incidents/cilium-mtu-overlay-networking.md for the full analysis.
 package mtu
 
 import (

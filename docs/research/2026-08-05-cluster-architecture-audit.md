@@ -65,7 +65,7 @@ VictoriaMetrics / Tempo / Velero / etcd snapshots -> observability and recovery
 ### High — etcd restore procedure cannot safely rejoin all peers
 
 **Evidence.** [Justfile](../Justfile) and
-[backup-restore.md](backup-restore.md) stop every node, reset one server, and
+[backup-restore.md](../runbooks/backup-restore.md) stop every node, reset one server, and
 then start the remaining servers without removing their previous K3s database
 directories. They also use `cp-0`, but the live nodes are `cp-1` through
 `cp-3`.
@@ -90,7 +90,7 @@ nodes.
 - `ansible/playbooks/ops/migrate-prometheus-encrypted.yml`
 - `ansible/playbooks/ops/talos-pre-cutover.yml`
 - `ansible/playbooks/ops/talos-post-bootstrap.yml`
-- [pv-encryption-pitfalls.md](pv-encryption-pitfalls.md)
+- [pv-encryption-pitfalls.md](../runbooks/pv-encryption-pitfalls.md)
 
 These files reference kube-prometheus-stack Grafana, Prometheus, Alertmanager,
 and the Prometheus Operator. The live monitoring workloads are VictoriaMetrics,

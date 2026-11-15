@@ -59,7 +59,7 @@ register counter is the only metric that survives short events.
 2. `CloudflaredTunnelReconnectStorm`: more than 4 re-registrations in
    30 m with no pod younger than 30 m. A replay at event 4 fires.
 3. Transport split: 2 QUIC replicas + 1 http2 (TCP) replica on the same
-   tunnel token. See `docs/cloudflare-tunnel-transport.md`.
+   tunnel token. See `docs/research/cloudflare-tunnel-transport.md`.
 
 ## Follow-up
 

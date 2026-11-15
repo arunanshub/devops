@@ -4,7 +4,7 @@ Lessons from deploying cloudflared as the cluster's ingress path via Cloudflare 
 
 The temporary HTTP/2 connector-transport experiment, its incident evidence, and
 its rollback procedure are documented in
-[`cloudflare-tunnel-transport.md`](cloudflare-tunnel-transport.md).
+[`cloudflare-tunnel-transport.md`](../research/cloudflare-tunnel-transport.md).
 
 ---
 

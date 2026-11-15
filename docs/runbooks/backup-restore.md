@@ -219,7 +219,7 @@ kubectl get applications -n argocd
 just velero-restore <latest-backup> <namespace>
 ```
 
-See `docs/bootstrap-pitfalls.md` for things that go wrong in step 2.
+See `docs/runbooks/bootstrap-pitfalls.md` for things that go wrong in step 2.
 
 ### Scenario 3 — etcd restore (last resort, 60+ min)
 
