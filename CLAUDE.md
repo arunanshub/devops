@@ -70,6 +70,7 @@ Runner evidence goes to `.artifacts/ansible/`.
 just check-manifests          # prod overlay → kubeconform (k8s + CRD schemas)
 just check-no-shell           # no shell scripts except infra/scripts/init.sh.tpl
 just check-justfile           # justfile is just --fmt clean
+just check-actions            # zizmor --persona=auditor on .github (strictest)
 just check-no-manifest-tests  # no _test.go reads kubernetes/ (no value pins)
 ```
 
@@ -104,7 +105,7 @@ Add a rule:
 
 ### Pre-commit and commits
 
-`lefthook.yml` runs: `custom-gcl fmt`/`run`, `go mod tidy`, `tofu fmt`/`validate`, `gitleaks`, `shellcheck`, `yamlfmt`, `ansible-lint`, `opsctl verify-node-config`, `check-manifests`, `policy-lint`/`policy-test`, and the `check-no-*`/`check-justfile` checks.
+`lefthook.yml` runs: `custom-gcl fmt`/`run`, `go mod tidy`, `tofu fmt`/`validate`, `gitleaks`, `zizmor`, `shellcheck`, `yamlfmt`, `ansible-lint`, `opsctl verify-node-config`, `check-manifests`, `policy-lint`/`policy-test`, and the `check-no-*`/`check-justfile` checks.
 
 Commits are SSH-signed with a passphrase-protected key. If signing fails, tell the user (they can load the key into the agent). Never use `--no-gpg-sign`.
 

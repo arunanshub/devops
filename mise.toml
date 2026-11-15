@@ -32,6 +32,7 @@ k3d = "5.9.0"
 yq = "4.54.3"
 yamlfmt = "latest"
 k9s = "latest"
+zizmor = "1.32.0"
 
 [env]
 KUBECONFIG = "{{config_root}}/infra/kubeconfig.yaml"
