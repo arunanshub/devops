@@ -290,12 +290,6 @@ rotate-luks-passphrase:
 ops-recreate-encrypted-pvcs *args:
     just _ansible-playbook "ops/recreate-encrypted-pvcs" "{{ args }}"
 
-# Migrate Prometheus TSDB data to the encrypted StorageClass.
-# Interactive — has two human checkpoints. Read the playbook before running.
-# Do NOT pass --check: command tasks are no-ops in check mode.
-ops-migrate-prometheus:
-    just _ansible-playbook "ops/migrate-prometheus-encrypted"
-
 # Verify the VXLAN+WireGuard MTU stack is correctly configured.
 # Implemented in Go: cmd/opsctl (verify-mtu subcommand). Expected values and
 # their derivation are documented on the flags (`just opsctl verify-mtu --help`)
