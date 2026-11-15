@@ -197,3 +197,6 @@ hubble:
     dashboards:
       enabled: true
       namespace: monitoring
+
+podAnnotations:
+  bakeoff: control

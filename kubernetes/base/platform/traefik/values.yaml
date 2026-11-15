@@ -5,12 +5,10 @@ global:
   # Equal to the chart default. Keep the value explicit. The opt-out must not
   # depend on a chart default that an upgrade can change.
   sendAnonymousUsage: false
-
 ingressRoute:
   dashboard:
     enabled: true
     matchRule: Host(`traefik.arunanshu.dev`)
-
 providers:
   kubernetesGateway:
     enabled: true
@@ -18,10 +16,8 @@ providers:
   # ExtensionRefs, but do not watch or claim Kubernetes Ingress resources.
   kubernetesIngress:
     enabled: false
-
 ingressClass:
   enabled: false
-
 gateway:
   listeners:
     web:
@@ -42,22 +38,20 @@ gateway:
                 - kube-system
                 - monitoring
                 - traefik
-
 service:
   spec:
     type: ClusterIP
-
 # KEDA owns replicas. VPA manages requests only, so the 1Gi memory limit remains
 # fixed. Let the chart set GOMEMLIMIT to 90% of that limit and retain headroom for
 # memory that the Go runtime does not control.
 deployment:
   replicas: null
-
+  podAnnotations:
+    bakeoff: control
 # KEDA holds a minimum of 2 replicas. Let a node drain remove one pod.
 podDisruptionBudget:
   enabled: true
   maxUnavailable: 1
-
 # Keep accepting on the web entry point for 5s after SIGTERM while routing
 # components stop selecting the pod. Then give active requests 50s to finish.
 # The chart renders a 60s pod termination period, which leaves 5s for exit.
@@ -88,7 +82,6 @@ ports:
   websecure:
     expose:
       default: false
-
 # Buffered, error-only JSON access logs make 4xx/5xx requests available in Loki
 # with low steady-state log volume. Chart 41 uses the upstream accessLog syntax.
 accessLog:
@@ -97,7 +90,6 @@ accessLog:
   bufferingSize: 100
   filters:
     statusCodes: "400-599"
-
 topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: kubernetes.io/hostname
@@ -108,7 +100,6 @@ topologySpreadConstraints:
       matchLabels:
         app.kubernetes.io/name: traefik
         app.kubernetes.io/instance: traefik-traefik
-
 resources:
   requests:
     # Equal to the VPA minAllowed. The idle request (10m to 25m) let one pod use
@@ -120,7 +111,6 @@ resources:
     # no longer inflates this via ratio preservation. 1Gi sits above the measured 674Mi
     # load peak. The chart sets GOMEMLIMIT to 90% of this value. No CPU limit intentionally.
     memory: 1Gi
-
 tracing:
   # Keep coherent end-to-end traces without allowing traffic tests to flood
   # the single-binary Tempo ingester and metrics generator.
@@ -130,7 +120,6 @@ tracing:
     http:
       enabled: true
       endpoint: http://tempo.monitoring.svc.cluster.local:4318/v1/traces
-
 metrics:
   prometheus:
     # Chart default, but load-bearing. The traefik-scaling KEDA trigger reads
