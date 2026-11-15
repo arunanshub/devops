@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: null-init-cpu-limit, namespace: apps}
+spec:
+  template:
+    spec:
+      initContainers: null
+      containers:
+        - name: app
+          resources: {limits: {cpu: "1", memory: 128Mi}}

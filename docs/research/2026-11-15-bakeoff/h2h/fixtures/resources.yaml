@@ -1,0 +1,89 @@
+# One object per case. Names say the expected verdict.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: ok, namespace: apps}
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          resources: {limits: {memory: 128Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: bad-cpu-limit, namespace: apps}
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          resources: {limits: {cpu: "1", memory: 128Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: bad-init-cpu-limit, namespace: apps}
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: init
+          resources: {limits: {cpu: 100m, memory: 32Mi}}
+      containers:
+        - name: app
+          resources: {limits: {memory: 128Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: bad-no-memory-limit, namespace: apps}
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: velero, namespace: velero}
+spec:
+  template:
+    spec:
+      containers:
+        - name: velero
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hcloud-csi-controller
+  namespace: kube-system
+  labels: {app.kubernetes.io/name: hcloud-csi}
+spec:
+  template:
+    spec:
+      priorityClassName: system-cluster-critical
+      containers:
+        - name: csi
+          resources: {limits: {memory: 128Mi}}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: hcloud-csi-node
+  namespace: kube-system
+  labels: {app.kubernetes.io/name: hcloud-csi}
+spec:
+  template:
+    spec:
+      containers:
+        - name: csi
+          resources: {limits: {memory: 128Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: traefik, namespace: traefik}
+spec:
+  template:
+    spec:
+      containers:
+        - name: traefik
+          args: ["--entryPoints.web.address=:8000", "--global.sendAnonymousUsage"]
+          resources: {limits: {memory: 128Mi}}

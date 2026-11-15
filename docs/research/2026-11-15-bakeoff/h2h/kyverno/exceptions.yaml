@@ -1,0 +1,25 @@
+# velero: limitless on purpose; the backup job must not be OOM-capped (VPA RequestsOnly).
+apiVersion: policies.kyverno.io/v1
+kind: PolicyException
+metadata:
+  name: velero-no-memory-limit
+spec:
+  policyRefs:
+    - name: memory-limits
+      kind: ValidatingPolicy
+  matchConditions:
+    - name: velero
+      expression: object.metadata.namespace == 'velero' && object.metadata.name == 'velero'
+---
+# cilium-agent: an OOM-killed CNI agent takes node networking down (assumed; confirm).
+apiVersion: policies.kyverno.io/v1
+kind: PolicyException
+metadata:
+  name: cilium-agent-no-memory-limit
+spec:
+  policyRefs:
+    - name: memory-limits
+      kind: ValidatingPolicy
+  matchConditions:
+    - name: cilium-agent
+      expression: object.kind == 'DaemonSet' && object.metadata.name == 'cilium'

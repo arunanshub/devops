@@ -1,0 +1,15 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: house-rules
+policies: [policies.yaml]
+exceptions: [exceptions.yaml]
+resources: [../fixtures/resources.yaml, ../fixtures/null-init.yaml]
+results:
+  - {isValidatingPolicy: true, policy: no-cpu-limits, kind: Deployment, result: pass, resources: [apps/ok]}
+  - {isValidatingPolicy: true, policy: no-cpu-limits, kind: Deployment, result: fail, resources: [apps/bad-cpu-limit, apps/bad-init-cpu-limit, apps/null-init-cpu-limit]}
+  - {isValidatingPolicy: true, policy: memory-limits, kind: Deployment, result: fail, resources: [apps/bad-no-memory-limit]}
+  - {isValidatingPolicy: true, policy: memory-limits, kind: Deployment, result: skip, resources: [velero/velero]}
+  - {isValidatingPolicy: true, policy: csi-critical-priority, kind: Deployment, result: pass, resources: [kube-system/hcloud-csi-controller]}
+  - {isValidatingPolicy: true, policy: csi-critical-priority, kind: DaemonSet, result: fail, resources: [kube-system/hcloud-csi-node]}
+  - {isValidatingPolicy: true, policy: traefik-no-telemetry, kind: Deployment, result: fail, resources: [traefik/traefik]}

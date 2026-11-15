@@ -1,0 +1,78 @@
+# House rule: no CPU limits (CPU is compressible; limits cause CFS throttling).
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: no-cpu-limits
+spec:
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [deployments, daemonsets, statefulsets]
+  variables:
+    - name: containers
+      # initContainers can be an explicit null in rendered charts (hcloud-csi); orValue() does not cover null.
+      expression: "object.spec.template.spec.containers + (object.spec.template.spec.?initContainers.orValue(null) != null ? object.spec.template.spec.initContainers : [])"
+    - name: offenders
+      expression: variables.containers.filter(c, 'cpu' in c.?resources.?limits.orValue({})).map(c, c.name)
+  validations:
+    - expression: size(variables.offenders) == 0
+      messageExpression: "'CPU limit on container(s) ' + variables.offenders.join(', ') + '; set resources.limits.cpu: null in the chart values'"
+---
+# Every container sets a memory limit (node protection). Exceptions: exceptions.yaml.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: memory-limits
+spec:
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [deployments, daemonsets, statefulsets]
+  variables:
+    - name: offenders
+      expression: object.spec.template.spec.containers.filter(c, !('memory' in c.?resources.?limits.orValue({}))).map(c, c.name)
+  validations:
+    - expression: size(variables.offenders) == 0
+      messageExpression: "'no memory limit on container(s) ' + variables.offenders.join(', ')"
+---
+# The CSI controller and node plugin are on the critical path for every volume.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: csi-critical-priority
+spec:
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [deployments, daemonsets]
+  matchConditions:
+    - name: hcloud-csi
+      expression: object.metadata.?labels['app.kubernetes.io/name'].orValue('') == 'hcloud-csi'
+  validations:
+    - expression: object.spec.template.spec.?priorityClassName.orValue('').matches('^system-(cluster|node)-critical$')
+      message: hcloud-csi must run at system-*-critical priority (set controller./node.priorityClassName)
+---
+# Traefik telemetry stays off regardless of the chart default.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: traefik-no-telemetry
+spec:
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [deployments]
+  matchConditions:
+    - name: traefik
+      expression: object.metadata.name == 'traefik'
+  validations:
+    - expression: "!object.spec.template.spec.containers.exists(c, c.?args.orValue([]).exists(a, a.startsWith('--global.sendAnonymousUsage')))"
+      message: traefik must not send anonymous usage (global.sendAnonymousUsage must stay false)

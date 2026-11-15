@@ -151,3 +151,31 @@ add no render step. Files: `2026-11-15-bakeoff/`.
 - Gap: the CPU rule checks `containers`, not `initContainers`.
 - Kyverno vs Rego: same verdicts. Kyverno's YAML pattern plus its error path
   is easier to read at 3am; Rego needs the language.
+
+## Head-to-head: Kyverno 1.19.2 (ValidatingPolicy, CEL) vs conftest 0.71.1 (Rego)
+
+`ClusterPolicy` is deprecated in Kyverno 1.19 and removed in 1.20, so the
+Kyverno side uses `ValidatingPolicy`. Same four invariants, same fixtures
+(`2026-11-15-bakeoff/h2h/`):
+
+1. no CPU limits (containers + initContainers)
+2. memory limit on every container, exceptions: velero (deliberate), cilium-agent (assumed; confirm)
+3. hcloud-csi at system-*-critical priority
+4. traefik never passes `--global.sendAnonymousUsage`
+
+| | Kyverno | conftest |
+|---|---|---|
+| Unit tests | 9/9 (`kyverno test`, real YAML fixtures + expected-results table) | 9/9 (`conftest verify`, inputs inline in Rego) |
+| Null-default replay | fails | fails |
+| Nesting replay | fails | fails |
+| Full render (49 apps) | 4 failures: keda ×3, cilium `install-cni-binaries` init container | same 4 |
+| Evaluation error (`initContainers: null` in hcloud-csi) | `error: 1`, **exit 1** (fails closed) | rule silently undefined, **exit 0** (fails open; `--strict` doesn't help) |
+| Code lines (policies + exceptions / tests) | 96 / 15 | 41 / 45 |
+| Full-render time | 8.2 s | 1.7 s |
+| Exception model | `PolicyException` resource, scoped to the policy's kinds | `exception` rule; my first version over-matched a VPA named velero |
+| Language | CEL (same as Kubernetes ValidatingAdmissionPolicy) | Rego (own language; undefined ≠ false) |
+| Stability | 1.20 (3 days old) removed ClusterPolicy; 1.20.0 fails mise's cosign check today | Rego v1 stable; conftest release Oct 2026 |
+
+Both engines initially missed a real CPU limit behind `initContainers: null`.
+Kyverno reported it as an error and failed the run; conftest reported a clean
+pass. Both rules are null-safe now, with a test for that case.
