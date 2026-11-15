@@ -169,6 +169,88 @@ checksum = "sha256:b72fe6bbef143d2ab5c308a3384c0e97a5e82242b209626721ee0a1e72ddd
 url = "https://github.com/cilium/cilium-cli/releases/download/v0.20.2/cilium-windows-amd64.zip"
 url_api = "https://api.github.com/repos/cilium/cilium-cli/releases/assets/687888457"
 
+[[tools.conftest]]
+version = "0.71.1"
+backend = "aqua:open-policy-agent/conftest"
+specifiers = ["0.71.1"]
+
+[tools.conftest."platforms.linux-arm64"]
+checksum = "sha256:218c682e110ae7e826dc14a746a6f9b43eb782643dbe730b771fd305634e3f47"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476733"
+provenance = "github-attestations"
+
+[tools.conftest."platforms.linux-arm64-musl"]
+checksum = "sha256:218c682e110ae7e826dc14a746a6f9b43eb782643dbe730b771fd305634e3f47"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476733"
+provenance = "github-attestations"
+
+[tools.conftest."platforms.linux-x64"]
+checksum = "sha256:c3f6b2a753bd56e377a1e51a95ae3e057f926f2e9139f7d5b5dfbbaf810f7985"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476638"
+provenance = "github-attestations"
+
+[tools.conftest."platforms.linux-x64-musl"]
+checksum = "sha256:c3f6b2a753bd56e377a1e51a95ae3e057f926f2e9139f7d5b5dfbbaf810f7985"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476638"
+provenance = "github-attestations"
+
+[tools.conftest."platforms.macos-arm64"]
+checksum = "sha256:e1cc50d2590b6c5e3da6912666a71264bae82d60bdd62d7ae2b99971ccc8eedd"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476647"
+provenance = "github-attestations"
+
+[tools.conftest."platforms.macos-x64"]
+checksum = "sha256:a309853b5763c18486768157442d440248ee683b20a2aa1f6b28214e818bd780"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Darwin_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476639"
+provenance = "github-attestations"
+
+[tools.conftest."platforms.windows-x64"]
+checksum = "sha256:34d623334b5e7ed4465bf62a4cb3b092684859cd3d224bbd390925a0852b922a"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Windows_x86_64.zip"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476742"
+provenance = "github-attestations"
+
+[[tools."github:dag-andersen/argocd-diff-preview"]]
+version = "0.2.17"
+backend = "github:dag-andersen/argocd-diff-preview"
+specifiers = ["0.2.17"]
+
+[tools."github:dag-andersen/argocd-diff-preview"."platforms.linux-arm64"]
+checksum = "sha256:74fcfd33fd2699d891b38412ab9b26c43e3dcf86374c94c585ba2c1527df9dd8"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Linux-aarch64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654482233"
+
+[tools."github:dag-andersen/argocd-diff-preview"."platforms.linux-arm64-musl"]
+checksum = "sha256:74fcfd33fd2699d891b38412ab9b26c43e3dcf86374c94c585ba2c1527df9dd8"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Linux-aarch64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654482233"
+
+[tools."github:dag-andersen/argocd-diff-preview"."platforms.linux-x64"]
+checksum = "sha256:3913c5ded0c4bb748ab8cabc47d9ea1060462fb797b4b61e1a12a805fc35a319"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Linux-x86_64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654482818"
+
+[tools."github:dag-andersen/argocd-diff-preview"."platforms.linux-x64-musl"]
+checksum = "sha256:3913c5ded0c4bb748ab8cabc47d9ea1060462fb797b4b61e1a12a805fc35a319"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Linux-x86_64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654482818"
+
+[tools."github:dag-andersen/argocd-diff-preview"."platforms.macos-arm64"]
+checksum = "sha256:afe577a6bd91e20dc4e8122fd67ec2edb42f2684f834e80a50e0489234d41af4"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Darwin-aarch64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654485044"
+
+[tools."github:dag-andersen/argocd-diff-preview"."platforms.macos-x64"]
+checksum = "sha256:72450afd0d11564bfaec6e00764ad9f1038d7377ff7d9b2512948d58dd8aeabc"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Darwin-x86_64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654484197"
+
 [[tools."github:robusta-dev/krr"]]
 version = "1.30.0"
 backend = "github:robusta-dev/krr"
@@ -434,6 +516,46 @@ url_api = "https://api.github.com/repos/casey/just/releases/assets/643131819"
 checksum = "sha256:9c5463e2d0974e31bee71346aa5cbf19167de1585a4abc1bae7b3b04604ea9c0"
 url = "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-x86_64-pc-windows-msvc.zip"
 url_api = "https://api.github.com/repos/casey/just/releases/assets/643131303"
+
+[[tools.k3d]]
+version = "5.9.0"
+backend = "aqua:k3d-io/k3d"
+specifiers = ["5.9.0"]
+
+[tools.k3d."platforms.linux-arm64"]
+checksum = "sha256:03cde5cf23e6e8e67de5a039ecf26e5b85aca82fba3e5d13dadf904cd218a250"
+url = "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-arm64"
+url_api = "https://api.github.com/repos/k3d-io/k3d/releases/assets/436305757"
+
+[tools.k3d."platforms.linux-arm64-musl"]
+checksum = "sha256:03cde5cf23e6e8e67de5a039ecf26e5b85aca82fba3e5d13dadf904cd218a250"
+url = "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-arm64"
+url_api = "https://api.github.com/repos/k3d-io/k3d/releases/assets/436305757"
+
+[tools.k3d."platforms.linux-x64"]
+checksum = "sha256:06d8f25bc3a971c4eb29e0ff08429b180402db0f4dec838c9eac427e296800a0"
+url = "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-amd64"
+url_api = "https://api.github.com/repos/k3d-io/k3d/releases/assets/436305793"
+
+[tools.k3d."platforms.linux-x64-musl"]
+checksum = "sha256:06d8f25bc3a971c4eb29e0ff08429b180402db0f4dec838c9eac427e296800a0"
+url = "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-amd64"
+url_api = "https://api.github.com/repos/k3d-io/k3d/releases/assets/436305793"
+
+[tools.k3d."platforms.macos-arm64"]
+checksum = "sha256:fe106541d5d0a3f18debcd4d432a16f8c0ce3e6ddc06f8fbb6f696a122313e00"
+url = "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-darwin-arm64"
+url_api = "https://api.github.com/repos/k3d-io/k3d/releases/assets/436305875"
+
+[tools.k3d."platforms.macos-x64"]
+checksum = "sha256:b4aabc37534f95b9c764e7823f2df923f50d57600837aa60a06266cce47db732"
+url = "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-darwin-amd64"
+url_api = "https://api.github.com/repos/k3d-io/k3d/releases/assets/436305915"
+
+[tools.k3d."platforms.windows-x64"]
+checksum = "sha256:49d0b9c796f5b8ba6f58a1dd5469e8b7b34bf9b6ce9078633eedb2789680a034"
+url = "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-windows-amd64.exe"
+url_api = "https://api.github.com/repos/k3d-io/k3d/releases/assets/436305724"
 
 [[tools.k9s]]
 version = "0.51.0"
@@ -755,6 +877,46 @@ checksum = "sha256:3a7adfb69e3ff02a41ed38ac637808532b438ab3c8619af46ca5dbec5c1f5
 url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.13.16+20261009-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
+[[tools.regal]]
+version = "0.43.0"
+backend = "aqua:open-policy-agent/regal"
+specifiers = ["0.43.0"]
+
+[tools.regal."platforms.linux-arm64"]
+checksum = "sha256:d4fd44a191d5b12a5ab980f56d7eddfed0718129c43d1ede5e8dbc9d217fdcb8"
+url = "https://github.com/open-policy-agent/regal/releases/download/v0.43.0/regal_Linux_arm64"
+url_api = "https://api.github.com/repos/open-policy-agent/regal/releases/assets/598403605"
+
+[tools.regal."platforms.linux-arm64-musl"]
+checksum = "sha256:d4fd44a191d5b12a5ab980f56d7eddfed0718129c43d1ede5e8dbc9d217fdcb8"
+url = "https://github.com/open-policy-agent/regal/releases/download/v0.43.0/regal_Linux_arm64"
+url_api = "https://api.github.com/repos/open-policy-agent/regal/releases/assets/598403605"
+
+[tools.regal."platforms.linux-x64"]
+checksum = "sha256:5e7d030064e307d54e6ffa3d85b8d9052d3d40b7afa10262c86c886f8a76559d"
+url = "https://github.com/open-policy-agent/regal/releases/download/v0.43.0/regal_Linux_x86_64"
+url_api = "https://api.github.com/repos/open-policy-agent/regal/releases/assets/598403603"
+
+[tools.regal."platforms.linux-x64-musl"]
+checksum = "sha256:5e7d030064e307d54e6ffa3d85b8d9052d3d40b7afa10262c86c886f8a76559d"
+url = "https://github.com/open-policy-agent/regal/releases/download/v0.43.0/regal_Linux_x86_64"
+url_api = "https://api.github.com/repos/open-policy-agent/regal/releases/assets/598403603"
+
+[tools.regal."platforms.macos-arm64"]
+checksum = "sha256:23a6e4ef62f288c53e65d770e9325e6d8a9c35ca3f33f6ffb5943c1f381ef540"
+url = "https://github.com/open-policy-agent/regal/releases/download/v0.43.0/regal_Darwin_arm64"
+url_api = "https://api.github.com/repos/open-policy-agent/regal/releases/assets/598403601"
+
+[tools.regal."platforms.macos-x64"]
+checksum = "sha256:f33fc0ac70b6a5783b92c324123c314f7ff127bb970cf1e3dde807925cd821b7"
+url = "https://github.com/open-policy-agent/regal/releases/download/v0.43.0/regal_Darwin_x86_64"
+url_api = "https://api.github.com/repos/open-policy-agent/regal/releases/assets/598403604"
+
+[tools.regal."platforms.windows-x64"]
+checksum = "sha256:7239b548b0298fd4538b2555cce9b09a359e4d77e12d31e4210b94f154c75215"
+url = "https://github.com/open-policy-agent/regal/releases/download/v0.43.0/regal_Windows_x86_64.exe"
+url_api = "https://api.github.com/repos/open-policy-agent/regal/releases/assets/598403697"
+
 [[tools.shellcheck]]
 version = "0.11.0"
 backend = "aqua:koalaman/shellcheck"
@@ -968,3 +1130,50 @@ url_api = "https://api.github.com/repos/google/yamlfmt/releases/assets/336650207
 checksum = "sha256:07f80ce5d741eb4b0a9380ac78a19c7cb5bd44e2a9a47a5a04839e3ba54dd463"
 url = "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Windows_x86_64.tar.gz"
 url_api = "https://api.github.com/repos/google/yamlfmt/releases/assets/336650206"
+
+[[tools.yq]]
+version = "4.54.3"
+backend = "aqua:mikefarah/yq"
+specifiers = ["4.54.3"]
+
+[tools.yq."platforms.linux-arm64"]
+checksum = "sha256:89f69310b61b68d1245065a1241d1fc843f7a36cd6103ffd77ad987613bd1b67"
+url = "https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_linux_arm64"
+url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/726219924"
+provenance = "cosign"
+
+[tools.yq."platforms.linux-arm64-musl"]
+checksum = "sha256:89f69310b61b68d1245065a1241d1fc843f7a36cd6103ffd77ad987613bd1b67"
+url = "https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_linux_arm64"
+url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/726219924"
+provenance = "cosign"
+
+[tools.yq."platforms.linux-x64"]
+checksum = "sha256:129534601871538efe0ba4c5e62a34fb1d5f469bcb975c4fddeb467d82974973"
+url = "https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_linux_amd64"
+url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/726219936"
+provenance = "cosign"
+
+[tools.yq."platforms.linux-x64-musl"]
+checksum = "sha256:129534601871538efe0ba4c5e62a34fb1d5f469bcb975c4fddeb467d82974973"
+url = "https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_linux_amd64"
+url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/726219936"
+provenance = "cosign"
+
+[tools.yq."platforms.macos-arm64"]
+checksum = "sha256:a2aebb93b5bdcb61bb76f630e42a0ef6a3ee10842a6516cd7b9e4080786ec593"
+url = "https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_darwin_arm64"
+url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/726219940"
+provenance = "cosign"
+
+[tools.yq."platforms.macos-x64"]
+checksum = "sha256:96d5105ffd693d6845c54fbd825b2d1bbdb8619e0a2ce6af95e5654e841e0984"
+url = "https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_darwin_amd64"
+url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/726219934"
+provenance = "cosign"
+
+[tools.yq."platforms.windows-x64"]
+checksum = "sha256:066ea0a09a282e47588ec1e1867280ff5ede458f7183617a2d99012e4e34f18a"
+url = "https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_windows_amd64.exe"
+url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/726219881"
+provenance = "cosign"

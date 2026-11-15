@@ -1,0 +1,14 @@
+# Argo CD repository credentials for the render cluster. CI fills sshPrivateKey
+# from the ARGOCD_REPO_SSH_KEY secret (a read-only deploy key); locally,
+# `mise run render:secrets` writes the real one from SOPS instead.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: git@github.com:arunanshub/devops.git
+  sshPrivateKey: ""

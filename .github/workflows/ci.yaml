@@ -177,6 +177,50 @@ jobs:
           install_args: just
       - run: just check-no-shell check-justfile check-no-manifest-tests
 
+  rego:
+    name: Policy lint + unit tests (Regal, conftest verify)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
+        with:
+          install_args: just regal conftest
+      - run: just policy-lint policy-test
+
+  render:
+    name: Render diff (argocd-diff-preview) + policy
+    # Same-repo PRs only (Renovate included): fork PRs get no secrets.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.base_ref }}
+          path: .render/base-branch
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: .render/target-branch
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
+        with:
+          install_args: just github:dag-andersen/argocd-diff-preview k3d kubectl helm yq conftest
+      - name: Repo credentials for the render cluster
+        env:
+          ARGOCD_REPO_SSH_KEY: ${{ secrets.ARGOCD_REPO_SSH_KEY }}
+        run: |
+          mkdir -p .render/secrets
+          yq '.stringData.sshPrivateKey = strenv(ARGOCD_REPO_SSH_KEY)' \
+            .github/argocd-diff-preview/repo-creds.yaml > .render/secrets/repo.yaml
+      - run: just render-diff "refs/pull/${{ github.event.number }}/merge"
+      - run: cat .render/out/diff.md >> "$GITHUB_STEP_SUMMARY"
+      - run: gh pr comment "${{ github.event.number }}" --body-file .render/out/diff.md --edit-last --create-if-none
+      - run: just check-policy
+
   tofu:
     name: OpenTofu fmt + validate
     runs-on: ubuntu-latest

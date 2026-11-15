@@ -3,6 +3,12 @@
 # that owns it (helmfile, kustomize, a playbook, a .jq file) or in opsctl.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
+# Backtick variables evaluate only when a recipe uses them.
+set lazy
+
+# Real tool binaries ahead of mise shims: a shim re-applies mise [env], which
+# overrides an explicit KUBECONFIG with prod's. render-diff must never reach prod.
+export PATH := `mise bin-paths | paste -sd:` + ":" + env("PATH")
 
 cert := "kubernetes/sealed-secrets-cert.pem"
 zone_id := `awk -F'"' '/cloudflare_zone_id/{print $2}' infra/terraform.tfvars`
@@ -186,3 +192,63 @@ check-no-manifest-tests:
 [group('check')]
 check-justfile:
     just --fmt --check --unstable
+
+# ── policy layer (OPA/Rego in policy/, run with conftest) ──────────────────
+
+# Lint policy/ with Regal (fails on warnings)
+[group('policy')]
+policy-lint:
+    regal lint --fail-level warning policy
+
+# Policy unit tests
+[group('policy')]
+policy-test:
+    conftest verify --policy policy --data policy/data --strict --show-builtin-errors
+
+# Policies against rendered manifests (default: render-diff's target render)
+[group('policy')]
+check-policy dir=".render/out/target":
+    conftest test --all-namespaces --strict --show-builtin-errors \
+      --policy policy --data policy/data {{ dir }}/*.yaml
+
+# ── render (every Application through a real Argo CD in k3d) ───────────────
+
+argocd_chart := `yq '.spec.sources[0].targetRevision' kubernetes/base/infra/argocd/application.yaml`
+
+# Clone base and target into .render/{base,target}-branch (CI: actions/checkout)
+[group('render')]
+[working-directory('.render')]
+render-checkout base="master" target="HEAD":
+    rm -rf base-branch target-branch
+    git clone -q --branch {{ base }} .. base-branch
+    git clone -q .. target-branch && git -C target-branch checkout -q {{ target }}
+
+# Argo CD repo credentials from SOPS (CI: the ARGOCD_REPO_SSH_KEY secret)
+[group('render')]
+[working-directory('.render')]
+render-secrets:
+    mkdir -p secrets
+    sops -d ../kubernetes/bootstrap/secrets/argocd-repo-ssh.sops.yaml > secrets/repo.yaml
+
+# Render base vs target (pushed; CI passes refs/pull/N/merge) → .render/out
+[env("ARGOCD_CHART_URL", "oci://ghcr.io/argoproj/argo-helm/argo-cd")]
+[env("BASE_BRANCH", "master")]
+[env("CLUSTER", "k3d")]
+[env("KUBECONFIG", "kubeconfig")]
+[env("OUTPUT_APP_MANIFESTS", "true")]
+[env("OUTPUT_FOLDER", "out")]
+[env("PREINSTALL_FOLDER", "../.github/argocd-diff-preview/preinstall")]
+[env("TIMEOUT", "900")]
+[group('render')]
+[working-directory('.render')]
+render-diff target=`git branch --show-current`:
+    argocd-diff-preview --repo arunanshub/devops --target-branch {{ target }} \
+      --argocd-chart-version {{ argocd_chart }} \
+      --k3d-options "--k3s-arg --resolv-conf=/etc/k3s-resolv.conf@all \
+        --volume {{ justfile_directory() }}/.github/argocd-diff-preview/k3s-resolv.conf:/etc/k3s-resolv.conf@all"
+
+# Refresh the CRD snapshot render-diff preinstalls, from the live cluster
+[group('render')]
+render-crds:
+    kubectl get crd -o json | jq -f .github/argocd-diff-preview/crds.jq \
+      | yq -p json -o yaml '.[] | split_doc' > .github/argocd-diff-preview/preinstall/crds.yaml

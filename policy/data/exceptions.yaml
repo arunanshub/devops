@@ -1,0 +1,14 @@
+# Deliberate exceptions, one exact (kind, namespace, name, container) per entry.
+# Every entry needs a reason; policy tests fail on an empty one.
+exceptions:
+  memory_limits:
+    - kind: Deployment
+      namespace: velero
+      name: velero
+      container: velero
+      reason: Backups must not be OOM-capped mid-run; the VPA is RequestsOnly to stay limitless.
+    - kind: DaemonSet
+      namespace: kube-system
+      name: cilium
+      container: cilium-agent
+      reason: An OOM-killed CNI agent drops node networking.
