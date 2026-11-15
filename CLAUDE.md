@@ -28,13 +28,13 @@ The git remote (`git@github.com:arunanshub/devops.git`) is also the URL ArgoCD r
 
 Run `mise install` once; `mise.toml` declares every CLI and `mise.lock` pins versions. mise sets `KUBECONFIG` inside the repo only — from another directory (e.g. a scratchpad), pass `--kubeconfig infra/kubeconfig.yaml` or kubectl hits whatever context is current. `kubeseal` 0.36.0 must match the in-cluster sealed-secrets controller.
 
-mise tasks are the operator entrypoint (`mise tasks`; `mise run <task> --help` for args). `[env]` sets `KUBECONFIG` and `K8S_API_ENDPOINT` for every task. Each task is one line; logic that needs more belongs in a tool's own config (helmfile, playbooks, kustomize) or, as a last resort, in opsctl.
+`justfile` recipes are the operator entrypoint (`just --list`; groups: infra, k8s, secrets, ansible, ops, verify, check). Run them inside the repo so mise provides the tools and `[env]` (`KUBECONFIG`, `K8S_API_ENDPOINT`). Keep a recipe to a few short lines; logic that needs more belongs in the tool that owns it (helmfile, playbooks, kustomize, a `.jq` file) or, as a last resort, in opsctl.
 
 ### Go toolkit
 
 ```bash
-mise run build                    # build bin/opsctl
-mise run opsctl --help            # all subcommands
+just build                    # build bin/opsctl
+just opsctl --help            # all subcommands
 go test -race -count=1 ./...  # all tests
 go test -race -run TestName ./internal/mtu/
 ./custom-gcl run ./...        # lint
@@ -48,18 +48,18 @@ Go tests in `internal/` test opsctl behaviour with fixtures. They never read `ku
 ### Verification (all exit non-zero on failure)
 
 ```bash
-mise run verify:mtu          # VXLAN+WireGuard MTU chain
-mise run verify:adoption     # helmfile release == adopting ArgoCD Application (also in CI)
-mise run verify:node-config  # nodes/ keys against the pinned k3s and kubelet schemas (also in CI)
+just verify-mtu          # VXLAN+WireGuard MTU chain
+just verify-adoption     # helmfile release == adopting ArgoCD Application (also in CI)
+just verify-node-config  # nodes/ keys against the pinned k3s and kubelet schemas (also in CI)
 ```
 
 ### Ansible
 
 ```bash
-mise run ansible:setup                 # once: uv sync + galaxy collections
-mise run ansible:inventory             # print the inventory graph
-mise run ansible:check <playbook>      # --check --diff
-mise run ansible:converge <playbook>   # rolling apply (serial: 1 in the play), stops on first failure
+just ansible-setup                 # once: uv sync + galaxy collections
+just ansible-inventory             # print the inventory graph
+just ansible-check <playbook>      # --check --diff
+just ansible-converge <playbook>   # rolling apply (serial: 1 in the play), stops on first failure
 ```
 
 Runner evidence goes to `.artifacts/ansible/`.
@@ -67,17 +67,17 @@ Runner evidence goes to `.artifacts/ansible/`.
 ### Manifest validation and repo policy
 
 ```bash
-mise run check:manifests          # prod overlay → kubeconform (k8s + CRD schemas)
-mise run check:no-shell           # no shell scripts except infra/scripts/init.sh.tpl
-mise run check:one-line-tasks     # every mise task is one single-line command
-mise run check:no-manifest-tests  # no _test.go reads kubernetes/ (no value pins)
+just check-manifests          # prod overlay → kubeconform (k8s + CRD schemas)
+just check-no-shell           # no shell scripts except infra/scripts/init.sh.tpl
+just check-justfile           # justfile is just --fmt clean
+just check-no-manifest-tests  # no _test.go reads kubernetes/ (no value pins)
 ```
 
-lefthook and CI call these same tasks; the commands live only in `mise.toml`.
+lefthook and CI call these same recipes; the commands live only in `justfile`.
 
 ### Pre-commit and commits
 
-`lefthook.yml` runs: `custom-gcl fmt`/`run`, `go mod tidy`, `tofu fmt`/`validate`, `gitleaks`, `shellcheck`, `yamlfmt`, `ansible-lint`, `opsctl verify-node-config`, `check:manifests`, and the three `check:no-*`/`check:one-line-tasks` policy tasks.
+`lefthook.yml` runs: `custom-gcl fmt`/`run`, `go mod tidy`, `tofu fmt`/`validate`, `gitleaks`, `shellcheck`, `yamlfmt`, `ansible-lint`, `opsctl verify-node-config`, `check-manifests`, and the `check-no-*`/`check-justfile` checks.
 
 Commits are SSH-signed with a passphrase-protected key. If signing fails, tell the user (they can load the key into the agent). Never use `--no-gpg-sign`.
 
@@ -85,8 +85,8 @@ Commits are SSH-signed with a passphrase-protected key. If signing fails, tell t
 
 `docs/runbooks/bootstrap-pitfalls.md` covers each failure.
 
-1. `mise run infra:apply` — OpenTofu creates servers and the API LB; cloud-init runs `infra/scripts/init.sh.tpl` and writes `infra/kubeconfig.yaml`.
-2. `mise run k8s:bootstrap` — one `helmfile apply`; `needs:` orders it: Gateway API CRDs → hcloud Secret → hccm → Cilium → ArgoCD → `argocd-bootstrap` (repo SSH Secret, sealed-secrets key, root Application). It refuses once `application/root` exists; ArgoCD owns the cluster from there.
+1. `just infra-apply` — OpenTofu creates servers and the API LB; cloud-init runs `infra/scripts/init.sh.tpl` and writes `infra/kubeconfig.yaml`.
+2. `just k8s-bootstrap` — one `helmfile apply`; `needs:` orders it: Gateway API CRDs → hcloud Secret → hccm → Cilium → ArgoCD → `argocd-bootstrap` (repo SSH Secret, sealed-secrets key, root Application). It refuses once `application/root` exists; ArgoCD owns the cluster from there.
 
 The `hcloud-secret` and `argocd-bootstrap` releases render SOPS files through vals `ref+sops://` into the local `raw` chart. They are never adopted by ArgoCD, so the adoption invariant is untouched.
 
@@ -99,7 +99,7 @@ helmfile installs Cilium, hccm, and ArgoCD; ArgoCD then adopts them. Adoption mu
 - `helm.releaseName` in the Application must equal the helmfile release `name`. It drives the `app.kubernetes.io/instance` selector label, and selectors are immutable — a mismatch permanently fails on `Deployment.spec.selector`.
 - The bootstrap values file and the ArgoCD values file must render identical manifests. The bootstrap file may be `.yaml.gotmpl` (reads `K8S_API_ENDPOINT` from env); the ArgoCD file holds the literal. **Edit both together** (e.g. both Cilium values files).
 
-`mise run verify:adoption` checks this; CI runs it on every push.
+`just verify-adoption` checks this; CI runs it on every push.
 
 ### SOPS file names
 
@@ -130,7 +130,7 @@ A component is `kubernetes/components/<name>/kustomization.yaml`, listed under `
 - The Node Ready gate can false-pass during the ~40 s node-monitor grace period. The `verify-kubelet-config` probe of the live kubelet is the load-bearing gate.
 - Pass declared values to shell verifications through environment variables, never by interpolation.
 
-Run `mise run ansible:check k3s-config` first, then `mise run ansible:converge k3s-config`.
+Run `just ansible-check k3s-config` first, then `just ansible-converge k3s-config`.
 
 ## Network architecture
 
@@ -139,7 +139,7 @@ Run `mise run ansible:check k3s-config` first, then `mise run ansible:converge k
 - **VXLAN tunnel mode is required**: the Hetzner network cannot carry the pod CIDRs of multiple ClusterMesh clusters. hccm still provides LoadBalancer services and node labels, but no pod routes.
 - WireGuard encrypts pod-to-pod traffic between nodes (`persistentKeepalive: 25s`); the traffic flows over `enp7s0`. `nodeEncryption: true` is a **no-op** (all 3 nodes carry the default opt-out label `node-role.kubernetes.io/control-plane`). Never force it on — it causes a key-rotation deadlock, and Cilium v1.22 removes the option.
 - **Pods use netkit (Layer 3)**, `bpf.datapathMode: netkit`. A node cannot switch between veth and netkit in place: changing the mode needs a drain and a reboot of each node.
-- **MTU is critical.** `enp7s0` 1450 → `cilium_wg0` 1355 (−95 WireGuard) → overlay route clamp 1305 (−50 VXLAN). Pod `eth0` stays 1450. PMTUD runs in `always` mode so oversized UDP/ICMP gets ICMP feedback instead of a silent drop. Run `mise run verify:mtu` after any Cilium change; see `docs/incidents/cilium-mtu-overlay-networking.md`.
+- **MTU is critical.** `enp7s0` 1450 → `cilium_wg0` 1355 (−95 WireGuard) → overlay route clamp 1305 (−50 VXLAN). Pod `eth0` stays 1450. PMTUD runs in `always` mode so oversized UDP/ICMP gets ICMP feedback instead of a silent drop. Run `just verify-mtu` after any Cilium change; see `docs/incidents/cilium-mtu-overlay-networking.md`.
 - The Hetzner virtio NICs have 1 queue and no UDP-tunnel offload, so VXLAN+WireGuard costs real kernel CPU under load. BIG TCP is not possible (needs no tunnel and no encryption), and RPS does not help (2 WireGuard flows per node).
 - Cilium agents reach the API server at `K8S_API_ENDPOINT` (default `10.0.0.100`, the private Hetzner LB in front of all control planes).
 - Admin access uses the bootstrap control plane's public IPv6; `infra/firewall.tf` gates public `6443` on `var.home_ip`. The API LB's public IPv4 is in the k3s TLS SANs for a future public-LB admin path, not the current kubeconfig endpoint.
@@ -155,11 +155,11 @@ Two traps:
 
 ## Things not to do
 
-- Re-run `helmfile apply` after the root Application exists (helmfile and ArgoCD fight over resources); `mise run k8s:bootstrap` refuses for this reason.
+- Re-run `helmfile apply` after the root Application exists (helmfile and ArgoCD fight over resources); `just k8s-bootstrap` refuses for this reason.
 - Commit `kubeconfig.yaml` or anything in `docs/plans/`.
 - Change `helm.releaseName` on a live Application (immutable selector; the Deployment must be deleted and recreated).
 - Echo a passphrase before piping it to `kubeseal` — pipe it directly.
-- Change the kustomize source path in `kubernetes/root-application.yaml` in the same commit that moves the directories. ArgoCD reads the source from the in-cluster object; if the old `kustomization.yaml` is gone it falls back to plain-directory mode, applies every YAML it finds, and with `prune: true` can delete every app and the root. Run `mise run k8s:root-apply` **first**, then push the commit that removes the old entry point (`docs/runbooks/kustomize-overlay-restructure.md`).
+- Change the kustomize source path in `kubernetes/root-application.yaml` in the same commit that moves the directories. ArgoCD reads the source from the in-cluster object; if the old `kustomization.yaml` is gone it falls back to plain-directory mode, applies every YAML it finds, and with `prune: true` can delete every app and the root. Run `just k8s-root-apply` **first**, then push the commit that removes the old entry point (`docs/runbooks/kustomize-overlay-restructure.md`).
 - Run the Ansible inventory during a `tofu apply` (no per-node guard for an empty IPv6 → `ansible_host: ""`).
 - Re-enable ArgoCD auto-sync before a deleted PVC fully disappears (the volume can rebind to the old claim).
 

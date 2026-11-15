@@ -33,7 +33,7 @@ does not exist here:
 
 - `keyrenewperiod: "0"` in `kubernetes/base/infra/sealed-secrets/values.yaml`.
   The controller keeps one key: the backed-up one.
-- Sealing stays offline and pinned to the backup cert (`mise run secrets:seal*`).
+- Sealing stays offline and pinned to the backup cert (`just seal*`).
 - The age identity is the load-bearing secret. Protect it and keep an offline
   second recipient so losing one identity file does not lose the cluster.
 

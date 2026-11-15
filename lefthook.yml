@@ -54,8 +54,8 @@ pre-commit:
       glob: ["nodes/**/*.yaml", "internal/nodecfg/*.go", "cmd/opsctl/verify_node_config.go"]
 
     kustomize-validate:
-      run: mise run check:manifests
+      run: just check-manifests
       glob: ["kubernetes/**/*.yaml"]
 
     repo-policy:
-      run: "mise run check:no-shell ::: check:one-line-tasks ::: check:no-manifest-tests"
+      run: just check-no-shell check-justfile check-no-manifest-tests

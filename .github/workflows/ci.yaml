@@ -159,28 +159,23 @@ jobs:
   kubernetes:
     name: Kustomize render + kubeconform
     runs-on: ubuntu-latest
-    env:
-      # Install only what the task needs, not every tool in mise.toml.
-      MISE_TASK_RUN_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
-          install_args: kustomize kubeconform
-      # Same task lefthook runs; the command is defined once, in mise.toml.
-      - run: mise run check:manifests
+          install_args: just kustomize kubeconform
+      # Same recipe lefthook runs; the command is defined once, in justfile.
+      - run: just check-manifests
 
   policy:
-    name: Repo policy (no shell, one-line tasks, no manifest tests)
+    name: Repo policy (no shell, justfile fmt, no manifest tests)
     runs-on: ubuntu-latest
-    env:
-      MISE_TASK_RUN_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
-          install: false
-      - run: "mise run check:no-shell ::: check:one-line-tasks ::: check:no-manifest-tests"
+          install_args: just
+      - run: just check-no-shell check-justfile check-no-manifest-tests
 
   tofu:
     name: OpenTofu fmt + validate
