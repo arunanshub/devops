@@ -243,7 +243,6 @@ render-secrets:
 [env("OUTPUT_APP_MANIFESTS", "true")]
 [env("OUTPUT_FOLDER", "out")]
 [env("PREINSTALL_FOLDER", "../.github/argocd-diff-preview/preinstall")]
-[env("RENDER_METHOD", "repo-server-api")]
 [env("TIMEOUT", "900")]
 [group('render')]
 [working-directory('.render')]
