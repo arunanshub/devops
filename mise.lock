@@ -509,44 +509,44 @@ checksum = "sha256:1691938f7de0e931969f9968c3601cf32d6b0d573573afb4ce471f3d28f51
 url = "https://dl.k8s.io/v1.37.2/bin/windows/amd64/kubectl.exe"
 
 [[tools.kubeseal]]
-version = "0.36.0"
+version = "0.40.0"
 backend = "aqua:bitnami/sealed-secrets"
-specifiers = ["0.36.0"]
+specifiers = ["0.40.0"]
 
 [tools.kubeseal."platforms.linux-arm64"]
-checksum = "sha256:22e6739b8e5019560e4ec1ee7fbdaa6185c5d38bc6a2c59c7d5b07bac621413b"
-url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.36.0/kubeseal-0.36.0-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/362264835"
+checksum = "sha256:d82f01e9226d194ca7ebc13e3619edefd596b5b433582bcec3d5a8e8b1a03123"
+url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.40.0/kubeseal-0.40.0-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/555346329"
 
 [tools.kubeseal."platforms.linux-arm64-musl"]
-checksum = "sha256:22e6739b8e5019560e4ec1ee7fbdaa6185c5d38bc6a2c59c7d5b07bac621413b"
-url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.36.0/kubeseal-0.36.0-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/362264835"
+checksum = "sha256:d82f01e9226d194ca7ebc13e3619edefd596b5b433582bcec3d5a8e8b1a03123"
+url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.40.0/kubeseal-0.40.0-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/555346329"
 
 [tools.kubeseal."platforms.linux-x64"]
-checksum = "sha256:c0e6f37dae3b8c7538b4d46fe1fb624ca58d9d823bd5dfdd7c8c4d3d626bf5f7"
-url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.36.0/kubeseal-0.36.0-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/362264843"
+checksum = "sha256:9314c35916646e9d59c8f06b1314574b4e79c4d76f079433607ed7b697bb5eb7"
+url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.40.0/kubeseal-0.40.0-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/555346331"
 
 [tools.kubeseal."platforms.linux-x64-musl"]
-checksum = "sha256:c0e6f37dae3b8c7538b4d46fe1fb624ca58d9d823bd5dfdd7c8c4d3d626bf5f7"
-url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.36.0/kubeseal-0.36.0-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/362264843"
+checksum = "sha256:9314c35916646e9d59c8f06b1314574b4e79c4d76f079433607ed7b697bb5eb7"
+url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.40.0/kubeseal-0.40.0-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/555346331"
 
 [tools.kubeseal."platforms.macos-arm64"]
-checksum = "sha256:56952833daee4d8f2bf2f6f967712d93c415615bf24fc729fd2494b90f040783"
-url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.36.0/kubeseal-0.36.0-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/362264844"
+checksum = "sha256:ec8a34b19ff8f1c1dee6fa09e13111b3007aa9ad08de1da28bd65cdc1eaecf93"
+url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.40.0/kubeseal-0.40.0-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/555346330"
 
 [tools.kubeseal."platforms.macos-x64"]
-checksum = "sha256:685b765bc90a23b644abe239ee35f03d45cb98511844a67b3a187bf14e97dab5"
-url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.36.0/kubeseal-0.36.0-darwin-amd64.tar.gz"
-url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/362264884"
+checksum = "sha256:e165574e647029a562de2471caff444e06b33119f9546679e69492cdc3c6137f"
+url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.40.0/kubeseal-0.40.0-darwin-amd64.tar.gz"
+url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/555346387"
 
 [tools.kubeseal."platforms.windows-x64"]
-checksum = "sha256:b1651a6fca45aa96f1922c054707b6fca734550b143ad1d67c97bfb30a4a93eb"
-url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.36.0/kubeseal-0.36.0-windows-amd64.tar.gz"
-url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/362264887"
+checksum = "sha256:e43f3208b41709f69eea03059fcfe5688152543184ee0d7454f0e6d709466821"
+url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.40.0/kubeseal-0.40.0-windows-amd64.tar.gz"
+url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/555346383"
 
 [[tools.kustomize]]
 version = "5.8.3"

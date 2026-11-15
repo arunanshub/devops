@@ -12,7 +12,7 @@ helmfile = "latest"
 kubeconform = "latest"
 kubectl = "latest"
 # kubeseal must match the sealed-secrets controller in the cluster.
-kubeseal = "0.36.0"
+kubeseal = "0.40.0"
 kustomize = "latest"
 lefthook = "latest"
 opentofu = "latest"
