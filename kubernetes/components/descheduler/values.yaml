@@ -20,7 +20,6 @@ resources:
   # cpu: null is required to delete the chart's default 500m limit — Helm
   # deep-merges maps, so simply omitting the key lets the default reappear.
   limits:
-    cpu: null
     memory: 256Mi
 
 # Prevents the descheduler from being evicted by its own decisions.
