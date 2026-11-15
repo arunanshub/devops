@@ -28,7 +28,7 @@ The git remote (`git@github.com:arunanshub/devops.git`) is also the URL ArgoCD r
 
 Run `mise install` once; `mise.toml` declares every CLI and `mise.lock` pins versions. mise sets `KUBECONFIG` inside the repo only — from another directory (e.g. a scratchpad), pass `--kubeconfig infra/kubeconfig.yaml` or kubectl hits whatever context is current. `kubeseal` 0.36.0 must match the in-cluster sealed-secrets controller.
 
-`justfile` recipes are the operator entrypoint (`just --list`; groups: infra, k8s, secrets, ansible, ops, verify, check). Run them inside the repo so mise provides the tools and `[env]` (`KUBECONFIG`, `K8S_API_ENDPOINT`). A recipe is a few short lines (`just check-recipes` enforces ≤6 body lines of ≤100 chars); logic that needs more belongs in the tool that owns it (helmfile, playbooks, kustomize, a `.jq`/`.awk` file) or, as a last resort, in opsctl.
+`justfile` recipes are the operator entrypoint (`just --list`; groups: infra, k8s, secrets, ansible, ops, verify, check). Run them inside the repo so mise provides the tools and `[env]` (`KUBECONFIG`, `K8S_API_ENDPOINT`). Keep a recipe to a few short lines; logic that needs more belongs in the tool that owns it (helmfile, playbooks, kustomize, a `.jq` file) or, as a last resort, in opsctl.
 
 ### Go toolkit
 
@@ -69,7 +69,7 @@ Runner evidence goes to `.artifacts/ansible/`.
 ```bash
 just check-manifests          # prod overlay → kubeconform (k8s + CRD schemas)
 just check-no-shell           # no shell scripts except infra/scripts/init.sh.tpl
-just check-recipes            # recipes stay short (.just/recipe-shape.awk) and just --fmt clean
+just check-justfile           # justfile is just --fmt clean
 just check-no-manifest-tests  # no _test.go reads kubernetes/ (no value pins)
 ```
 
@@ -77,7 +77,7 @@ lefthook and CI call these same recipes; the commands live only in `justfile`.
 
 ### Pre-commit and commits
 
-`lefthook.yml` runs: `custom-gcl fmt`/`run`, `go mod tidy`, `tofu fmt`/`validate`, `gitleaks`, `shellcheck`, `yamlfmt`, `ansible-lint`, `opsctl verify-node-config`, `check-manifests`, and the `check-no-*`/`check-recipes` checks.
+`lefthook.yml` runs: `custom-gcl fmt`/`run`, `go mod tidy`, `tofu fmt`/`validate`, `gitleaks`, `shellcheck`, `yamlfmt`, `ansible-lint`, `opsctl verify-node-config`, `check-manifests`, and the `check-no-*`/`check-justfile` checks.
 
 Commits are SSH-signed with a passphrase-protected key. If signing fails, tell the user (they can load the key into the agent). Never use `--no-gpg-sign`.
 

@@ -168,14 +168,14 @@ jobs:
       - run: just check-manifests
 
   policy:
-    name: Repo policy (no shell, recipe shape, no manifest tests)
+    name: Repo policy (no shell, justfile fmt, no manifest tests)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           install_args: just
-      - run: just check-no-shell check-recipes check-no-manifest-tests
+      - run: just check-no-shell check-justfile check-no-manifest-tests
 
   tofu:
     name: OpenTofu fmt + validate

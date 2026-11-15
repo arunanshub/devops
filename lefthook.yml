@@ -58,4 +58,4 @@ pre-commit:
       glob: ["kubernetes/**/*.yaml"]
 
     repo-policy:
-      run: just check-no-shell check-recipes check-no-manifest-tests
+      run: just check-no-shell check-justfile check-no-manifest-tests

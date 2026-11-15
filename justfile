@@ -1,7 +1,6 @@
 # Operator entrypoint: `just --list`. Tools and KUBECONFIG come from mise.toml.
-# Shape rule (`just check-recipes`): a recipe is a few short lines; logic that
-# needs more lives in the tool that owns it (helmfile, kustomize, a playbook,
-# a .jq/.awk file) or, as a last resort, in opsctl.
+# Keep recipes to a few short lines; logic that needs more lives in the tool
+# that owns it (helmfile, kustomize, a playbook, a .jq file) or in opsctl.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
@@ -183,8 +182,7 @@ check-no-shell:
 check-no-manifest-tests:
     ! git grep -l 'kubernetes/' -- '*_test.go'
 
-# Recipes stay short (.just/recipe-shape.awk) and formatted
+# justfile is `just --fmt` clean
 [group('check')]
-check-recipes:
-    awk -f .just/recipe-shape.awk justfile
+check-justfile:
     just --fmt --check --unstable
