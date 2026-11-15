@@ -125,3 +125,29 @@ for `git@github.com:arunanshub` goes in `./secrets/`.)
 3. **Holos is out:** no catch, every app rewritten, Renovate impact, stale.
 4. **Real cleanup found:** hcloud-csi `volumeBindingMode`/`allowVolumeExpansion`
    are dead keys.
+
+## Addendum: policy layer (Kyverno 1.19.2, conftest 0.71.1)
+
+Policies run on the manifests argocd-diff-preview already renders, so they
+add no render step. Files: `2026-11-15-bakeoff/`.
+
+| | Kyverno | conftest (Rego) |
+|---|---|---|
+| Null-default replay | **fails**: `descheduler/Deployment/descheduler ... rule containers failed at path /spec/template/spec/containers/0/resources/limits/cpu/` | **fails** |
+| Nesting replay | **fails**: `hcloud-csi-node` and `hcloud-csi-controller` at `/spec/template/spec/priorityClassName/` | not written (same shape) |
+| Master (5 apps) | pass | pass |
+| Full render, 49 apps | 3 failures, 1.5 s | 3 failures |
+| Policy language | YAML pattern | Rego |
+
+- **Live bug found:** all three KEDA Deployments run with a 1-CPU limit. The
+  values comment says "No CPU limits, matching house style", but `cpu: null`
+  is missing, so the chart default merged back. That is incident #1 again,
+  live today. Neither diff-preview nor KCL could find it.
+- Policies encode **intent**, not chart structure: they catch any way of
+  breaking the invariant (wrong nesting, missing null, chart upgrade flipping
+  a default) and never false-positive on keys a chart schema forgot.
+- Cost: an invariant has to be written per intent. The CPU rule is generic
+  (all workloads); the priority rule is per app.
+- Gap: the CPU rule checks `containers`, not `initContainers`.
+- Kyverno vs Rego: same verdicts. Kyverno's YAML pattern plus its error path
+  is easier to read at 3am; Rego needs the language.

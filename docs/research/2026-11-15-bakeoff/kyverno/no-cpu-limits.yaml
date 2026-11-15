@@ -1,0 +1,24 @@
+# House rule: no CPU limits (CPU is compressible; limits cause CFS throttling).
+# Catches the descheduler incident: a chart default CPU limit coming back.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: no-cpu-limits
+spec:
+  validationFailureAction: Enforce
+  rules:
+    - name: containers
+      match:
+        any:
+          - resources:
+              kinds: [Deployment, DaemonSet, StatefulSet]
+      validate:
+        message: "CPU limits are not allowed; set resources.limits.cpu: null in the chart values."
+        pattern:
+          spec:
+            template:
+              spec:
+                containers:
+                  - =(resources):
+                      =(limits):
+                        X(cpu): "null"

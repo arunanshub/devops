@@ -169,6 +169,53 @@ checksum = "sha256:b72fe6bbef143d2ab5c308a3384c0e97a5e82242b209626721ee0a1e72ddd
 url = "https://github.com/cilium/cilium-cli/releases/download/v0.20.2/cilium-windows-amd64.zip"
 url_api = "https://api.github.com/repos/cilium/cilium-cli/releases/assets/687888457"
 
+[[tools.conftest]]
+version = "0.71.1"
+backend = "aqua:open-policy-agent/conftest"
+specifiers = ["0.71.1"]
+
+[tools.conftest."platforms.linux-arm64"]
+checksum = "sha256:218c682e110ae7e826dc14a746a6f9b43eb782643dbe730b771fd305634e3f47"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476733"
+provenance = "github-attestations"
+
+[tools.conftest."platforms.linux-arm64-musl"]
+checksum = "sha256:218c682e110ae7e826dc14a746a6f9b43eb782643dbe730b771fd305634e3f47"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476733"
+provenance = "github-attestations"
+
+[tools.conftest."platforms.linux-x64"]
+checksum = "sha256:c3f6b2a753bd56e377a1e51a95ae3e057f926f2e9139f7d5b5dfbbaf810f7985"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476638"
+provenance = "github-attestations"
+
+[tools.conftest."platforms.linux-x64-musl"]
+checksum = "sha256:c3f6b2a753bd56e377a1e51a95ae3e057f926f2e9139f7d5b5dfbbaf810f7985"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476638"
+provenance = "github-attestations"
+
+[tools.conftest."platforms.macos-arm64"]
+checksum = "sha256:e1cc50d2590b6c5e3da6912666a71264bae82d60bdd62d7ae2b99971ccc8eedd"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476647"
+provenance = "github-attestations"
+
+[tools.conftest."platforms.macos-x64"]
+checksum = "sha256:a309853b5763c18486768157442d440248ee683b20a2aa1f6b28214e818bd780"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Darwin_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476639"
+provenance = "github-attestations"
+
+[tools.conftest."platforms.windows-x64"]
+checksum = "sha256:34d623334b5e7ed4465bf62a4cb3b092684859cd3d224bbd390925a0852b922a"
+url = "https://github.com/open-policy-agent/conftest/releases/download/v0.71.1/conftest_0.71.1_Windows_x86_64.zip"
+url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/assets/614476742"
+provenance = "github-attestations"
+
 [[tools."github:dag-andersen/argocd-diff-preview"]]
 version = "0.2.17"
 backend = "github:dag-andersen/argocd-diff-preview"
@@ -742,6 +789,53 @@ url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/asset
 checksum = "sha256:763c4040ff01435bfce39661072452ebdf1cf2808bb91f5708ab4420834fbd42"
 url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.8.3/kustomize_v5.8.3_windows_amd64.zip"
 url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/621661357"
+
+[[tools.kyverno]]
+version = "1.19.2"
+backend = "aqua:kyverno/kyverno"
+specifiers = ["1.19.2"]
+
+[tools.kyverno."platforms.linux-arm64"]
+checksum = "sha256:250f2a02f143d5c6425e686b13c130d3a3ba7372dba6a7210d599d1b0dd12e92"
+url = "https://github.com/kyverno/kyverno/releases/download/v1.19.2/kyverno-cli_v1.19.2_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/kyverno/kyverno/releases/assets/660821014"
+provenance = "cosign"
+
+[tools.kyverno."platforms.linux-arm64-musl"]
+checksum = "sha256:250f2a02f143d5c6425e686b13c130d3a3ba7372dba6a7210d599d1b0dd12e92"
+url = "https://github.com/kyverno/kyverno/releases/download/v1.19.2/kyverno-cli_v1.19.2_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/kyverno/kyverno/releases/assets/660821014"
+provenance = "cosign"
+
+[tools.kyverno."platforms.linux-x64"]
+checksum = "sha256:357eaf1df8bc24ddd5a73979fadeaae6a032e8710f11af264229756e4956bf4a"
+url = "https://github.com/kyverno/kyverno/releases/download/v1.19.2/kyverno-cli_v1.19.2_linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/kyverno/kyverno/releases/assets/660820927"
+provenance = "cosign"
+
+[tools.kyverno."platforms.linux-x64-musl"]
+checksum = "sha256:357eaf1df8bc24ddd5a73979fadeaae6a032e8710f11af264229756e4956bf4a"
+url = "https://github.com/kyverno/kyverno/releases/download/v1.19.2/kyverno-cli_v1.19.2_linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/kyverno/kyverno/releases/assets/660820927"
+provenance = "cosign"
+
+[tools.kyverno."platforms.macos-arm64"]
+checksum = "sha256:7915c03c613c22363a100adb3da8d06f2e2626d9d21a98b97f921795ffdc536f"
+url = "https://github.com/kyverno/kyverno/releases/download/v1.19.2/kyverno-cli_v1.19.2_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/kyverno/kyverno/releases/assets/660820931"
+provenance = "cosign"
+
+[tools.kyverno."platforms.macos-x64"]
+checksum = "sha256:b645654ab8e65bd4aa64de9228e274b388bab19b3404a4e9af70174b3d5ad230"
+url = "https://github.com/kyverno/kyverno/releases/download/v1.19.2/kyverno-cli_v1.19.2_darwin_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/kyverno/kyverno/releases/assets/660820926"
+provenance = "cosign"
+
+[tools.kyverno."platforms.windows-x64"]
+checksum = "sha256:c787cd56d2c2571e5470b1d070fff851c05d104513fcf5cb1652021bb187a1f6"
+url = "https://github.com/kyverno/kyverno/releases/download/v1.19.2/kyverno-cli_v1.19.2_windows_x86_64.zip"
+url_api = "https://api.github.com/repos/kyverno/kyverno/releases/assets/660821018"
+provenance = "cosign"
 
 [[tools.lefthook]]
 version = "2.2.2"

@@ -1,0 +1,24 @@
+# Intent: the CSI controller and node plugin are on the critical path for every volume.
+# Catches the hcloud-csi incident: priorityClassName at the values root is ignored.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: csi-critical-priority
+spec:
+  validationFailureAction: Enforce
+  rules:
+    - name: hcloud-csi
+      match:
+        any:
+          - resources:
+              kinds: [Deployment, DaemonSet]
+              selector:
+                matchLabels:
+                  app.kubernetes.io/name: hcloud-csi
+      validate:
+        message: "hcloud-csi must run at system-*-critical priority (set controller./node.priorityClassName)."
+        pattern:
+          spec:
+            template:
+              spec:
+                priorityClassName: "system-?*-critical"
