@@ -64,19 +64,20 @@ mise run ansible:converge <playbook>   # rolling apply (serial: 1 in the play), 
 
 Runner evidence goes to `.artifacts/ansible/`.
 
-### Manifest validation
+### Manifest validation and repo policy
 
 ```bash
-kustomize build kubernetes/overlays/prod | kubeconform --strict --ignore-missing-schemas --summary \
-  --schema-location default \
-  --schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+mise run check:manifests          # prod overlay → kubeconform (k8s + CRD schemas)
+mise run check:no-shell           # no shell scripts except infra/scripts/init.sh.tpl
+mise run check:one-line-tasks     # every mise task is one single-line command
+mise run check:no-manifest-tests  # no _test.go reads kubernetes/ (no value pins)
 ```
 
-CI and the lefthook `kustomize-validate` hook run the same command — keep them in sync.
+lefthook and CI call these same tasks; the commands live only in `mise.toml`.
 
 ### Pre-commit and commits
 
-`lefthook.yml` runs: `custom-gcl fmt`/`run`, `go mod tidy`, `tofu fmt`/`validate`, `gitleaks`, `shellcheck`, `yamlfmt`, `ansible-lint`, `opsctl verify-node-config`, `kustomize-validate`.
+`lefthook.yml` runs: `custom-gcl fmt`/`run`, `go mod tidy`, `tofu fmt`/`validate`, `gitleaks`, `shellcheck`, `yamlfmt`, `ansible-lint`, `opsctl verify-node-config`, `check:manifests`, and the three `check:no-*`/`check:one-line-tasks` policy tasks.
 
 Commits are SSH-signed with a passphrase-protected key. If signing fails, tell the user (they can load the key into the agent). Never use `--no-gpg-sign`.
 

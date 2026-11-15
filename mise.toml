@@ -159,3 +159,20 @@ run = "bin/opsctl verify-adoption"
 description = "nodes/ keys against the pinned k3s and kubelet flag schemas"
 depends = ["build"]
 run = "bin/opsctl verify-node-config"
+
+# ── repo policy (lefthook + CI run these; each prints its offenders) ────────
+[tasks."check:manifests"]
+description = "Render the prod overlay and validate it against k8s + CRD schemas"
+run = "kustomize build kubernetes/overlays/prod | kubeconform --strict --ignore-missing-schemas --summary --schema-location default --schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{\"{{\"}}.Group{{\"}}\"}}/{{\"{{\"}}.ResourceKind{{\"}}\"}}_{{\"{{\"}}.ResourceAPIVersion{{\"}}\"}}.json'"
+
+[tasks."check:no-shell"]
+description = "No shell scripts except the cloud-init template"
+run = "! git ls-files '*.sh' '*.bash' '*.sh.tpl' '*.bash.tpl' | grep -vx infra/scripts/init.sh.tpl"
+
+[tasks."check:one-line-tasks"]
+description = "Every mise task runs exactly one single-line command"
+run = '''! mise tasks --json | jq -r '.[] | select((.run | length) != 1 or any(.run[]; contains("\n"))) | .name' | grep .'''
+
+[tasks."check:no-manifest-tests"]
+description = "Go tests never read kubernetes/ YAML (invariants belong in the policy layer)"
+run = "! git grep -l 'kubernetes/' -- '*_test.go'"
