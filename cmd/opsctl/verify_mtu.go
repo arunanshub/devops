@@ -13,7 +13,7 @@ import (
 
 // verifyMTUCmd verifies the VXLAN+WireGuard MTU stack. Run it after bootstrap
 // or any Cilium config change. The expected values are documented on the
-// flags and in docs/cilium-mtu-overlay-networking.md.
+// flags and in docs/incidents/cilium-mtu-overlay-networking.md.
 type verifyMTUCmd struct {
 	Kubeconfig     string        `env:"KUBECONFIG"       help:"Path to kubeconfig."                                                                                     required:"" type:"existingfile"`
 	Namespace      string        `default:"default"      help:"Namespace for the throwaway test pods."`

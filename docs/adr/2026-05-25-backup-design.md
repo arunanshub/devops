@@ -98,7 +98,7 @@ Strip `creationTimestamp`, `resourceVersion`, `uid`, `ownerReferences` before se
 
 ### 3. Velero — `kubernetes/base/platform/velero/`
 
-ArgoCD Application + `values.yaml`. Follows the platform AppProject conventions from `docs/specs/2026-05-24-kustomize-appproject-reorganization.md`:
+ArgoCD Application + `values.yaml`. Follows the platform AppProject conventions from `docs/adr/2026-05-24-kustomize-appproject-reorganization.md`:
 
 - `project: platform`
 - Add `velero` namespace to platform AppProject destinations

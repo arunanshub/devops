@@ -16,7 +16,10 @@ A self-managed k3s cluster on Hetzner Cloud. OpenTofu declares the servers, Argo
 | `kubernetes/base/` | ArgoCD `Application`s in 4 groups: `infra/`, `platform/`, `monitoring/`, `apps/`. |
 | `kubernetes/components/` | Kustomize components; each adds an Application or raw resources to the overlay. |
 | `kubernetes/overlays/prod/` | The production overlay ArgoCD reads. |
-| `docs/specs/` | Committed designs and ADRs. |
+| `docs/adr/` | Committed designs and decisions. |
+| `docs/runbooks/` | Operator procedures and pitfalls. |
+| `docs/incidents/` | Dated postmortems. |
+| `docs/research/` | Audits, scans, investigations. |
 | `docs/plans/` | Local plans, git-ignored. Never commit a plan. |
 
 The git remote (`git@github.com:arunanshub/devops.git`) is also the URL ArgoCD reads. Multi-source apps reference values as `$values/kubernetes/base/<group>/<app>/values.yaml`.
@@ -81,7 +84,7 @@ Commits are SSH-signed with a passphrase-protected key. If signing fails, tell t
 
 ## Bootstrap order (clean cluster)
 
-Steps 3–5 are one-shots and must run in order. `docs/bootstrap-pitfalls.md` covers each failure.
+Steps 3–5 are one-shots and must run in order. `docs/runbooks/bootstrap-pitfalls.md` covers each failure.
 
 1. `just apply` — OpenTofu creates servers and the API LB; cloud-init runs `infra/scripts/init.sh.tpl` and writes `infra/kubeconfig.yaml`.
 2. `just argocd-bootstrap` — applies the hcloud Secret, then `helmfile apply` installs Gateway API CRDs and hccm before Cilium, then ArgoCD.
@@ -138,7 +141,7 @@ Run `just ansible-check k3s-config` first, then `just ansible-converge k3s-confi
 - **VXLAN tunnel mode is required**: the Hetzner network cannot carry the pod CIDRs of multiple ClusterMesh clusters. hccm still provides LoadBalancer services and node labels, but no pod routes.
 - WireGuard encrypts pod-to-pod traffic between nodes (`persistentKeepalive: 25s`); the traffic flows over `enp7s0`. `nodeEncryption: true` is a **no-op** (all 3 nodes carry the default opt-out label `node-role.kubernetes.io/control-plane`). Never force it on — it causes a key-rotation deadlock, and Cilium v1.22 removes the option.
 - **Pods use netkit (Layer 3)**, `bpf.datapathMode: netkit`. A node cannot switch between veth and netkit in place: changing the mode needs a drain and a reboot of each node.
-- **MTU is critical.** `enp7s0` 1450 → `cilium_wg0` 1355 (−95 WireGuard) → overlay route clamp 1305 (−50 VXLAN). Pod `eth0` stays 1450. PMTUD runs in `always` mode so oversized UDP/ICMP gets ICMP feedback instead of a silent drop. Run `just verify-mtu` after any Cilium change; see `docs/cilium-mtu-overlay-networking.md`.
+- **MTU is critical.** `enp7s0` 1450 → `cilium_wg0` 1355 (−95 WireGuard) → overlay route clamp 1305 (−50 VXLAN). Pod `eth0` stays 1450. PMTUD runs in `always` mode so oversized UDP/ICMP gets ICMP feedback instead of a silent drop. Run `just verify-mtu` after any Cilium change; see `docs/incidents/cilium-mtu-overlay-networking.md`.
 - The Hetzner virtio NICs have 1 queue and no UDP-tunnel offload, so VXLAN+WireGuard costs real kernel CPU under load. BIG TCP is not possible (needs no tunnel and no encryption), and RPS does not help (2 WireGuard flows per node).
 - Cilium agents reach the API server at `K8S_API_ENDPOINT` (default `10.0.0.100`, the private Hetzner LB in front of all control planes).
 - Admin access uses the bootstrap control plane's public IPv6; `infra/firewall.tf` gates public `6443` on `var.home_ip`. The API LB's public IPv4 is in the k3s TLS SANs for a future public-LB admin path, not the current kubeconfig endpoint.
@@ -158,16 +161,16 @@ Two traps:
 - Commit `kubeconfig.yaml` or anything in `docs/plans/`.
 - Change `helm.releaseName` on a live Application (immutable selector; the Deployment must be deleted and recreated).
 - Echo a passphrase before piping it to `kubeseal` — pipe it directly.
-- Change the kustomize source path in `kubernetes/root-application.yaml` in the same commit that moves the directories. ArgoCD reads the source from the in-cluster object; if the old `kustomization.yaml` is gone it falls back to plain-directory mode, applies every YAML it finds, and with `prune: true` can delete every app and the root. Run `just argocd-root-bootstrap` **first**, then push the commit that removes the old entry point (`docs/kustomize-overlay-restructure.md`).
+- Change the kustomize source path in `kubernetes/root-application.yaml` in the same commit that moves the directories. ArgoCD reads the source from the in-cluster object; if the old `kustomization.yaml` is gone it falls back to plain-directory mode, applies every YAML it finds, and with `prune: true` can delete every app and the root. Run `just argocd-root-bootstrap` **first**, then push the commit that removes the old entry point (`docs/runbooks/kustomize-overlay-restructure.md`).
 - Run the Ansible inventory during a `tofu apply` (no per-node guard for an empty IPv6 → `ansible_host: ""`).
 - Re-enable ArgoCD auto-sync before a deleted PVC fully disappears (the volume can rebind to the old claim).
 
 ## Files worth reading once
 
-- `docs/bootstrap-pitfalls.md` — bootstrap failures with diagnosis and fix
-- `docs/cilium-mtu-overlay-networking.md` — the VXLAN + WireGuard MTU postmortem
-- `docs/runbook.md`, `docs/backup-restore.md` — operator procedures
-- `docs/k3s-checklist.md` — node and k3s checks
+- `docs/runbooks/bootstrap-pitfalls.md` — bootstrap failures with diagnosis and fix
+- `docs/incidents/cilium-mtu-overlay-networking.md` — the VXLAN + WireGuard MTU postmortem
+- `docs/runbooks/runbook.md`, `docs/runbooks/backup-restore.md` — operator procedures
+- `docs/runbooks/k3s-checklist.md` — node and k3s checks
 - `ansible/playbooks/k3s-config.yml` — the node config transport and its safety gates
 - `kubernetes/bootstrap/helmfile.yaml` — bootstrap order and the `needs:` graph
 - `infra/scripts/init.sh.tpl` — the k3s install script

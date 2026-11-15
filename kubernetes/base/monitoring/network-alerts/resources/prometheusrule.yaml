@@ -64,7 +64,7 @@ spec:
         # 0.5% is the level where TCP throughput suffers. The floor of 1500
         # keeps the ratio honest when cross-node traffic falls.
         # Do not lower these values. Check the TCP retransmit ratio first.
-        # See docs/2026-08-07-cilium-wireguard-tx-drops-research.md.
+        # See docs/research/2026-08-07-cilium-wireguard-tx-drops-research.md.
         - alert: CiliumWireGuardTransmitDrops
           expr: >-
             increase(node_network_transmit_drop_total{job="node-exporter",device="cilium_wg0"}[30m]) / increase(node_network_transmit_packets_total{job="node-exporter",device="cilium_wg0"}[30m]) > 0.005 and increase(node_network_transmit_drop_total{job="node-exporter",device="cilium_wg0"}[30m]) > 1500

@@ -120,4 +120,4 @@ spec:
             severity: warning
           annotations:
             summary: "Node {{ $labels.node }} memory-limit commitment above 200%"
-            description: "Sum of container memory limits on {{ $labels.node }} exceeds 2x allocatable for >30m. This is a config-drift/regression signal, not a stability alert. Likely a new or changed workload with a large limit:request ratio that VPA is inflating. Check: kubectl get pods -A -o json | jq -r '.items[]|.spec.containers[]|select(.resources.limits.memory)|\"\\(.resources.limits.memory) \\(.name)\"' | sort -h | tail. See docs/specs/2026-07-12-memory-limit-rightsizing-design.md."
+            description: "Sum of container memory limits on {{ $labels.node }} exceeds 2x allocatable for >30m. This is a config-drift/regression signal, not a stability alert. Likely a new or changed workload with a large limit:request ratio that VPA is inflating. Check: kubectl get pods -A -o json | jq -r '.items[]|.spec.containers[]|select(.resources.limits.memory)|\"\\(.resources.limits.memory) \\(.name)\"' | sort -h | tail. See docs/adr/2026-07-12-memory-limit-rightsizing-design.md."

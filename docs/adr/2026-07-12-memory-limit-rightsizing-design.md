@@ -141,7 +141,7 @@ to the existing `cluster-alerts` PrometheusRule
         severity: warning
       annotations:
         summary: "Node {{ $labels.node }} memory-limit commitment above 200%"
-        description: "Sum of container memory limits on {{ $labels.node }} exceeds 2x allocatable for >30m. Limit over-commit is benign in itself (limits are ceilings, and actual usage is the real OOM guard), so this is a CREEP/REGRESSION signal, not a stability alert: it usually means a new or changed workload carries a large limit:request ratio that VPA is inflating. Check: kubectl get pods -A -o json | jq to find the largest memory limits, and confirm the workload's chart ratio. See docs/specs/2026-07-12-memory-limit-rightsizing-design.md."
+        description: "Sum of container memory limits on {{ $labels.node }} exceeds 2x allocatable for >30m. Limit over-commit is benign in itself (limits are ceilings, and actual usage is the real OOM guard), so this is a CREEP/REGRESSION signal, not a stability alert: it usually means a new or changed workload carries a large limit:request ratio that VPA is inflating. Check: kubectl get pods -A -o json | jq to find the largest memory limits, and confirm the workload's chart ratio. See docs/adr/2026-07-12-memory-limit-rightsizing-design.md."
 ```
 
 Rationale for this signal over the alternatives:

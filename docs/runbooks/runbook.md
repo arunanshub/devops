@@ -31,8 +31,8 @@ run from the repo after infrastructure bootstrap.
 - `kubernetes/bootstrap/` - one-time Helmfile bootstrap path.
 - `kubernetes/infra/` - ArgoCD-managed infrastructure applications.
 - `kubernetes/monitoring/` - ArgoCD-managed monitoring applications.
-- `docs/bootstrap-pitfalls.md` - bootstrap failure notes.
-- `docs/specs/` - architectural decisions.
+- `docs/runbooks/bootstrap-pitfalls.md` - bootstrap failure notes.
+- `docs/adr/` - architectural decisions.
 
 ## Infrastructure
 
@@ -438,7 +438,7 @@ blocks it indefinitely. The drain never completes, the node stays cordoned.
 only one pod, evicting it would drop the count to zero, which always violates
 `minAvailable: 1`. The correct setting for single-replica workloads is
 `maxUnavailable: 1` — this permits eviction while accepting a brief reschedule
-window (typically 30–60 s). See `docs/bootstrap-pitfalls.md` for context on
+window (typically 30–60 s). See `docs/runbooks/bootstrap-pitfalls.md` for context on
 why `minAvailable` vs `maxUnavailable` matters.
 
 Also check: when overriding a Helm chart's PDB values, always explicitly set

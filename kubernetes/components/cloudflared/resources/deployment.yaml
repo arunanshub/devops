@@ -52,7 +52,7 @@ spec:
             # every connection on 2026-08-17. http2 lost every connection on
             # 2026-08-21. The transport does not prevent an edge event.
             # http2 also blocks post-quantum key agreement.
-            # See docs/cloudflare-tunnel-transport.md.
+            # See docs/research/cloudflare-tunnel-transport.md.
             - run
           ports:
             - name: metrics

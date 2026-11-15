@@ -48,7 +48,7 @@ Do not change the cloudflared image version as part of this experiment. The pers
 
 ### Operator documentation
 
-Create `docs/cloudflare-tunnel-transport.md` with:
+Create `docs/research/cloudflare-tunnel-transport.md` with:
 
 - A diagram or compact text description of the three network legs.
 - The incident evidence and competing hypotheses.
@@ -57,7 +57,7 @@ Create `docs/cloudflare-tunnel-transport.md` with:
 - Success, inconclusive, and regression criteria.
 - Queries and commands for verifying the active connector protocol and checking tunnel errors.
 
-Add a short cross-reference from `docs/cloudflare-tunnel-pitfalls.md` rather than duplicating the runbook.
+Add a short cross-reference from `docs/runbooks/cloudflare-tunnel-pitfalls.md` rather than duplicating the runbook.
 
 ## Attribution
 

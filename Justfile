@@ -293,7 +293,7 @@ ops-recreate-encrypted-pvcs *args:
 # Verify the VXLAN+WireGuard MTU stack is correctly configured.
 # Implemented in Go: cmd/opsctl (verify-mtu subcommand). Expected values and
 # their derivation are documented on the flags (`just opsctl verify-mtu --help`)
-# and in docs/cilium-mtu-overlay-networking.md.
+# and in docs/incidents/cilium-mtu-overlay-networking.md.
 # Run after bootstrap or any Cilium config change. Exits non-zero on failure.
 verify-mtu *flags:
     go run ./cmd/opsctl verify-mtu {{ flags }}

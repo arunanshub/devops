@@ -3,7 +3,7 @@
 > Record of the CPX32→CX33 rolling node migration completed 2026-06-08.
 > Kept as a runbook for the next time a node type changes (the `tofu -replace`
 > requirement, etcd member removal, drop-in restore, and the enp7s0 race are
-> all reusable). See also `docs/talos-migration-attempt.md`.
+> all reusable). See also `docs/research/talos-migration-attempt.md`.
 
 ## What you're running today
 

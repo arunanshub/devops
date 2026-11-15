@@ -78,7 +78,7 @@ labels (verified live).
 `TUNNEL_GRACE_PERIOD` is set (cloudflared's own default grace is also 30s). So k8s SIGKILL
 fires at ~30s — exactly when cloudflared's own drain would finish — cutting in-flight
 requests on the terminating pod on every rollout/drain. This is verbatim
-`docs/2026-06-19-cpu-latency-perf-scan.md` Tier A ("do now"); it was simply never landed.
+`docs/research/2026-06-19-cpu-latency-perf-scan.md` Tier A ("do now"); it was simply never landed.
 Blast radius is bounded (min 2 replicas + PDB `maxUnavailable:1` keep the other replica
 serving), so impact is only in-flight requests on the single draining pod during rollouts.
 
@@ -101,7 +101,7 @@ in-progress ones up to this period.
 ## Change 3 — vmsingle retention 14d → 28d
 
 **Why.** `retentionPeriod: "14d"` is a carried-over Prometheus default, not a pinned
-constraint (`docs/k3s-checklist.md`; the migration doc calls 14d "disproportionate"). The
+constraint (`docs/runbooks/k3s-checklist.md`; the migration doc calls 14d "disproportionate"). The
 10Gi PVC is prepaid at Hetzner's volume floor and only ~3.2Gi used (~0.23Gi/day). VM RAM
 scales with active-series count, not retention depth (older parts sit on NVMe, queried on
 demand, bounded by `search.maxMemoryPerQuery: 256MB`). Doubling history is therefore ~free.

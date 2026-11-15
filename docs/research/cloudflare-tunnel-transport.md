@@ -309,7 +309,7 @@ The key fact is symmetry. Both transports failed the same way:
   **after** the `net.core.rmem_max` fix of 2026-08-08. The buffer fix is
   therefore not the reason to leave http2.
 - http2 lost all connections in the edge event on 2026-08-21. Total connections
-  reached 0. See `docs/2026-08-21-cloudflare-tunnel-flap-incident.md`.
+  reached 0. See `docs/incidents/2026-08-21-cloudflare-tunnel-flap-incident.md`.
 
 The transport does not prevent an edge event. Neither transport survived one.
 The pin buys nothing and it has a cost:
