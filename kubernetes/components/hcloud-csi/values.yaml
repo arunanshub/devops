@@ -21,7 +21,6 @@ controller:
   # The CSI controller is on the critical path for every volume operation. NOTE: the chart
   # exposes priorityClassName ONLY under controller.*/node.* — a document-root-level key is
   # silently ignored by Helm (schema has no top-level priorityClassName), so this lives here.
-  priorityClassName: system-cluster-critical
   hcloudToken:
     existingSecret:
       name: hcloud
@@ -63,7 +62,6 @@ node:
   # under node memory pressure (this cluster runs custom eviction thresholds + kured reboots)
   # — evicting it breaks volume mount/unmount on that node. Same silently-ignored root-level
   # key as controller.priorityClassName above; the chart only reads it under node.*.
-  priorityClassName: system-node-critical
   resources:
     csiNodeDriverRegistrar:
       requests:
