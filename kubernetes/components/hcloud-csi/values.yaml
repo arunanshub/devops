@@ -109,3 +109,5 @@ metrics:
 # priorityClassName moved into controller.* and node.* above — this chart has no top-level
 # priorityClassName in its values schema, so a root-level key was silently ignored (both the
 # controller Deployment and node DaemonSet ran at priority 0 despite this being set).
+
+priorityClassName: system-cluster-critical
