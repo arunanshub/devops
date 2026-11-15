@@ -16,29 +16,6 @@ import (
 	"github.com/arunanshub/devops/internal/logging"
 )
 
-// NodeStatus is one node's readiness.
-type NodeStatus struct {
-	Name  string
-	Ready bool
-}
-
-// NodeStatuses returns every node with its Ready condition.
-func (c *Client) NodeStatuses(ctx context.Context) ([]NodeStatus, error) {
-	nodes, err := c.clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("list nodes: %w", err)
-	}
-
-	statuses := make([]NodeStatus, 0, len(nodes.Items))
-	for i := range nodes.Items {
-		statuses = append(statuses, NodeStatus{
-			Name:  nodes.Items[i].Name,
-			Ready: isNodeReady(&nodes.Items[i]),
-		})
-	}
-	return statuses, nil
-}
-
 // WaitNodeReady blocks until the named node exists and reports Ready — used
 // after provisioning, where the node may not exist yet while cloud-init
 // installs k3s.
