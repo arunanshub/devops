@@ -235,7 +235,11 @@ render-secrets:
     mkdir -p secrets
     sops -d ../kubernetes/bootstrap/secrets/argocd-repo-ssh.sops.yaml > secrets/repo.yaml
 
-# Render base vs target (pushed; CI passes refs/pull/N/merge) → .render/out
+# Render base vs target (pushed; CI passes refs/pull/N/merge) → .render/out.
+# repo-server-api: 3x faster than server-api and Secret data is unmasked, so
+# a Secret change is reviewable. Safe because nothing here can decrypt: no age
+# or sealed-secrets key, no decrypting Argo CD plugin; rendered Secrets hold
+# only what public git and charts already hold. Revisit if that changes.
 [env("ARGOCD_CHART_URL", "oci://ghcr.io/argoproj/argo-helm/argo-cd")]
 [env("BASE_BRANCH", "master")]
 [env("CLUSTER", "k3d")]
