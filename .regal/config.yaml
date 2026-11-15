@@ -1,0 +1,20 @@
+# Regal: the one style for policy/. `mise run policy:lint` fails on warnings too.
+project:
+  roots:
+    - policy
+rules:
+  idiomatic:
+    # conftest discovers deny_* rules by name; there is no single entrypoint.
+    no-defined-entrypoint:
+      level: ignore
+  imports:
+    # Loaded by conftest --data policy/data at run time.
+    unresolved-import:
+      level: error
+      except-imports:
+        - data.exceptions
+    unresolved-reference:
+      level: error
+      except-paths:
+        - data.exceptions
+        - data.exceptions.*

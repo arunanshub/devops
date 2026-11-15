@@ -28,7 +28,7 @@ The git remote (`git@github.com:arunanshub/devops.git`) is also the URL ArgoCD r
 
 Run `mise install` once; `mise.toml` declares every CLI and `mise.lock` pins versions. mise sets `KUBECONFIG` inside the repo only — from another directory (e.g. a scratchpad), pass `--kubeconfig infra/kubeconfig.yaml` or kubectl hits whatever context is current. `kubeseal` 0.36.0 must match the in-cluster sealed-secrets controller.
 
-`justfile` recipes are the operator entrypoint (`just --list`; groups: infra, k8s, secrets, ansible, ops, verify, check). Run them inside the repo so mise provides the tools and `[env]` (`KUBECONFIG`, `K8S_API_ENDPOINT`). Keep a recipe to a few short lines; logic that needs more belongs in the tool that owns it (helmfile, playbooks, kustomize, a `.jq` file) or, as a last resort, in opsctl.
+`justfile` recipes are the operator entrypoint (`just --list`; groups: infra, k8s, secrets, ansible, ops, verify, check, policy, render). Run them inside the repo so mise provides the tools and `[env]` (`KUBECONFIG`, `K8S_API_ENDPOINT`). Keep a recipe to a few short lines; logic that needs more belongs in the tool that owns it (helmfile, playbooks, kustomize, a `.jq` file) or, as a last resort, in opsctl.
 
 ### Go toolkit
 
@@ -43,7 +43,7 @@ go test -race -run TestName ./internal/mtu/
 
 The linter is a **custom** golangci-lint build with the nilaway plugin (`.custom-gcl.yaml`). Build it with `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0` then `golangci-lint custom`. Stock golangci-lint gives different results.
 
-Go tests in `internal/` test opsctl behaviour with fixtures. They never read `kubernetes/` YAML; manifest invariants belong in the policy layer.
+Go tests in `internal/` test opsctl behaviour with fixtures. They never read `kubernetes/` YAML; manifest invariants belong in `policy/` (see Policy layer).
 
 ### Verification (all exit non-zero on failure)
 
@@ -75,9 +75,36 @@ just check-no-manifest-tests  # no _test.go reads kubernetes/ (no value pins)
 
 lefthook and CI call these same recipes; the commands live only in `justfile`.
 
+### Policy layer (rendered manifests)
+
+Manifest intent ("no CPU limits", "CSI runs at critical priority") is enforced by OPA/Rego policies in `policy/`, run with conftest on what Argo CD actually renders:
+
+```bash
+just policy-lint              # Regal; fails on warnings (.regal/config.yaml)
+just policy-test              # conftest verify (unit tests next to each policy)
+just render-checkout          # master + current branch → .render/{base,target}-branch
+just render-secrets           # repo credentials from SOPS → .render/secrets
+just render-diff              # both through Argo CD in k3d → .render/out (~4 min, Docker; branch must be pushed)
+just check-policy             # conftest on .render/out/target
+just render-crds              # refresh the CRD snapshot render-diff preinstalls (after adding a CRD-bearing chart)
+```
+
+CI renders every same-repo PR (`render` job; repo credentials from the `ARGOCD_REPO_SSH_KEY` deploy-key secret), posts the diff as a PR comment, and fails on any policy denial. lefthook runs only lint and unit tests.
+
+The justfile puts mise's real tool binaries ahead of its shims: a shim re-applies mise `[env]` and would override render-diff's `KUBECONFIG` with prod's.
+
+Add a rule:
+
+1. One `deny_<id>` per invariant in `policy/kubernetes/<domain>/<domain>.rego`, with a `# METADATA` block: title, and a description of *why* (the incident commit, if any).
+2. Use `data.lib.k8s` helpers (`containers` covers init containers, CronJobs and explicit nulls).
+3. In `<domain>_test.rego`: at least one passing and one failing input. A rule whose bad input doesn't fail is a typo'd rule that silently passes.
+4. A deliberate exception is an exact entry in `policy/data/exceptions.yaml` with a `reason`; never widen a rule to fit one workload.
+
+`--strict --show-builtin-errors` are on everywhere: a runtime type error fails the run instead of silently passing.
+
 ### Pre-commit and commits
 
-`lefthook.yml` runs: `custom-gcl fmt`/`run`, `go mod tidy`, `tofu fmt`/`validate`, `gitleaks`, `shellcheck`, `yamlfmt`, `ansible-lint`, `opsctl verify-node-config`, `check-manifests`, and the `check-no-*`/`check-justfile` checks.
+`lefthook.yml` runs: `custom-gcl fmt`/`run`, `go mod tidy`, `tofu fmt`/`validate`, `gitleaks`, `shellcheck`, `yamlfmt`, `ansible-lint`, `opsctl verify-node-config`, `check-manifests`, `policy-lint`/`policy-test`, and the `check-no-*`/`check-justfile` checks.
 
 Commits are SSH-signed with a passphrase-protected key. If signing fails, tell the user (they can load the key into the agent). Never use `--no-gpg-sign`.
 

@@ -59,3 +59,7 @@ pre-commit:
 
     repo-policy:
       run: just check-no-shell check-justfile check-no-manifest-tests
+
+    policy-rego:
+      run: just policy-lint policy-test
+      glob: ["policy/**", ".regal/**"]
