@@ -1,0 +1,18 @@
+# In-cluster k6 capacity test against arunanshu.dev through the Traefik
+# ClusterIP (bypasses Cloudflare, keeps the Traefik metrics KEDA scales on).
+# Not part of any ArgoCD app; see ../README.md. The smoke/ overlay reuses it.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: arunanshu-dev
+labels:
+  - pairs:
+      app.kubernetes.io/name: k6
+      app.kubernetes.io/part-of: arunanshu-dev
+    includeSelectors: false
+    includeTemplates: true
+resources:
+  - job.yaml
+configMapGenerator:
+  - name: arunanshu-dev-k6
+    files:
+      - test.js=arunanshu-dev.js

@@ -1,0 +1,65 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: arunanshu-dev-k6
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 480
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 12345
+        runAsGroup: 12345
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app: arunanshu-dev
+      containers:
+        - name: k6
+          image: grafana/k6:2.1.0
+          imagePullPolicy: IfNotPresent
+          args: [run, --quiet, /scripts/test.js]
+          env:
+            - name: TARGET_URL
+              value: http://traefik.traefik.svc.cluster.local/blog/next-server-actions-client-side-data-fetching
+            - name: METHOD
+              value: GET
+            - name: PROFILE
+              value: capacity
+            - name: K6_SUMMARY_TREND_STATS
+              value: avg,min,med,max,p(90),p(95),p(99)
+          resources:
+            requests:
+              cpu: 250m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: script
+          configMap:
+            name: arunanshu-dev-k6
+        - name: tmp
+          emptyDir: {}
