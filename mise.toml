@@ -28,6 +28,7 @@ kcl = "0.13.3"
 "github:holos-run/holos" = "0.106.0"
 kyverno = "1.19.2"
 conftest = "0.71.1"
+regal = "0.43.0"
 yamlfmt = "latest"
 k9s = "latest"
 

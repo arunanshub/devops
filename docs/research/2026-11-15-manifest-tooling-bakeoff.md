@@ -179,3 +179,21 @@ Kyverno side uses `ValidatingPolicy`. Same four invariants, same fixtures
 Both engines initially missed a real CPU limit behind `initContainers: null`.
 Kyverno reported it as an error and failed the run; conftest reported a clean
 pass. Both rules are null-safe now, with a test for that case.
+
+### Correction: the conftest fail-open was my Rego, not Rego
+
+The first Rego built `containers` with one `array.concat(...)`; an explicit
+`initContainers: null` made the whole value undefined, so every rule using it
+went silent. The idiom in the SafeDep devops repo (`containers contains c if
+some c in ...`, one rule per source) degrades per source instead: rewritten
+that way, the null case is caught with no special handling and all tests
+pass. Rego's general property remains (a rule that hits an unexpected shape
+yields nothing rather than an error), so tests for odd shapes still matter.
+
+Regal 0.43.0 flags style and idiom only (line length, test package naming,
+entrypoint annotations, `prefer-string-interpolation`). It did not and cannot
+flag the fail-open: that is a runtime shape problem.
+
+Neither engine needs anything in the cluster: both run offline in CI on the
+rendered manifests. Kyverno's admission controller (and OPA's Gatekeeper) are
+optional extras that would also block live `kubectl` edits.

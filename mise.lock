@@ -964,6 +964,46 @@ checksum = "sha256:3a7adfb69e3ff02a41ed38ac637808532b438ab3c8619af46ca5dbec5c1f5
 url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.13.16+20261009-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
+[[tools.regal]]
+version = "0.43.0"
+backend = "aqua:open-policy-agent/regal"
+specifiers = ["0.43.0"]
+
+[tools.regal."platforms.linux-arm64"]
+checksum = "sha256:d4fd44a191d5b12a5ab980f56d7eddfed0718129c43d1ede5e8dbc9d217fdcb8"
+url = "https://github.com/open-policy-agent/regal/releases/download/v0.43.0/regal_Linux_arm64"
+url_api = "https://api.github.com/repos/open-policy-agent/regal/releases/assets/598403605"
+
+[tools.regal."platforms.linux-arm64-musl"]
+checksum = "sha256:d4fd44a191d5b12a5ab980f56d7eddfed0718129c43d1ede5e8dbc9d217fdcb8"
+url = "https://github.com/open-policy-agent/regal/releases/download/v0.43.0/regal_Linux_arm64"
+url_api = "https://api.github.com/repos/open-policy-agent/regal/releases/assets/598403605"
+
+[tools.regal."platforms.linux-x64"]
+checksum = "sha256:5e7d030064e307d54e6ffa3d85b8d9052d3d40b7afa10262c86c886f8a76559d"
+url = "https://github.com/open-policy-agent/regal/releases/download/v0.43.0/regal_Linux_x86_64"
+url_api = "https://api.github.com/repos/open-policy-agent/regal/releases/assets/598403603"
+
+[tools.regal."platforms.linux-x64-musl"]
+checksum = "sha256:5e7d030064e307d54e6ffa3d85b8d9052d3d40b7afa10262c86c886f8a76559d"
+url = "https://github.com/open-policy-agent/regal/releases/download/v0.43.0/regal_Linux_x86_64"
+url_api = "https://api.github.com/repos/open-policy-agent/regal/releases/assets/598403603"
+
+[tools.regal."platforms.macos-arm64"]
+checksum = "sha256:23a6e4ef62f288c53e65d770e9325e6d8a9c35ca3f33f6ffb5943c1f381ef540"
+url = "https://github.com/open-policy-agent/regal/releases/download/v0.43.0/regal_Darwin_arm64"
+url_api = "https://api.github.com/repos/open-policy-agent/regal/releases/assets/598403601"
+
+[tools.regal."platforms.macos-x64"]
+checksum = "sha256:f33fc0ac70b6a5783b92c324123c314f7ff127bb970cf1e3dde807925cd821b7"
+url = "https://github.com/open-policy-agent/regal/releases/download/v0.43.0/regal_Darwin_x86_64"
+url_api = "https://api.github.com/repos/open-policy-agent/regal/releases/assets/598403604"
+
+[tools.regal."platforms.windows-x64"]
+checksum = "sha256:7239b548b0298fd4538b2555cce9b09a359e4d77e12d31e4210b94f154c75215"
+url = "https://github.com/open-policy-agent/regal/releases/download/v0.43.0/regal_Windows_x86_64.exe"
+url_api = "https://api.github.com/repos/open-policy-agent/regal/releases/assets/598403697"
+
 [[tools.shellcheck]]
 version = "0.11.0"
 backend = "aqua:koalaman/shellcheck"

@@ -6,12 +6,11 @@ workload_kinds := {"Deployment", "DaemonSet", "StatefulSet"}
 
 pod := input.spec.template.spec if workload_kinds[input.kind]
 
-# initContainers can be an explicit null in rendered charts (hcloud-csi); object.get() returns it as-is.
-init_containers := pod.initContainers if is_array(pod.initContainers)
+# Each source is its own rule: an explicit `initContainers: null` (hcloud-csi)
+# makes only that rule empty instead of making the whole set undefined.
+containers contains c if some c in pod.containers
 
-default init_containers := []
-
-containers := array.concat(pod.containers, init_containers)
+containers contains c if some c in pod.initContainers
 
 # House rule: no CPU limits (CPU is compressible; limits cause CFS throttling).
 deny_no_cpu_limits contains msg if {
