@@ -76,11 +76,11 @@ rules:
 
 **Symptom.** cloudflared pods stuck in `CreateContainerConfigError` — Secret not found.
 
-**Cause.** `cloudflared/application.yaml` was pushed to git and ArgoCD applied the Deployment before `mise run secrets:seal-tunnel-token` was run, so `cloudflared-tunnel-token` Secret never existed.
+**Cause.** `cloudflared/application.yaml` was pushed to git and ArgoCD applied the Deployment before `just seal-tunnel-token` was run, so `cloudflared-tunnel-token` Secret never existed.
 
 **Fix.** Mandatory order:
-1. `mise run infra:apply` — creates Cloudflare tunnel (Terraform)
-2. `mise run secrets:seal-tunnel-token` — writes `tunnel-token.sealedsecret.yaml` (already listed in `cloudflared/resources/kustomization.yaml`)
+1. `just infra-apply` — creates Cloudflare tunnel (Terraform)
+2. `just seal-tunnel-token` — writes `tunnel-token.sealedsecret.yaml` (already listed in `cloudflared/resources/kustomization.yaml`)
 3. Commit it
 5. Push — ArgoCD applies the SealedSecret and Deployment together
 
@@ -98,7 +98,7 @@ resource "random_bytes" "tunnel_secret" {
   length = 32
 }
 ```
-If the tunnel must be recreated, re-run `mise run secrets:seal-tunnel-token` and commit the new SealedSecret.
+If the tunnel must be recreated, re-run `just seal-tunnel-token` and commit the new SealedSecret.
 
 ---
 
@@ -108,7 +108,7 @@ If the tunnel must be recreated, re-run `mise run secrets:seal-tunnel-token` and
 
 **Cause.** The ArgoCD CLI uses gRPC over HTTP/2. Cloudflare's HTTP proxy terminates and re-establishes connections, which disrupts bidirectional gRPC streams. The web UI uses HTTP/1.1 REST and works fine.
 
-**Fix.** Use the tunnel for web UI only. For CLI, use `kubectl port-forward svc/argocd-server -n argocd 8080:80` or `mise run ui:argocd`.
+**Fix.** Use the tunnel for web UI only. For CLI, use `kubectl port-forward svc/argocd-server -n argocd 8080:80` or `just ui-argocd`.
 
 ---
 
@@ -138,4 +138,4 @@ If the tunnel must be recreated, re-run `mise run secrets:seal-tunnel-token` and
 
 **Cause.** Cloudflare Access silently discards the OTP if the submitted email does not match any `include` rule in the Access policy (anti-enumeration). The policy email and the email entered at login must be identical.
 
-**Fix.** Verify `owner_email` in `infra/terraform.tfvars` matches the email you actually log in with, then `mise run infra:apply` to push the updated policy.
+**Fix.** Verify `owner_email` in `infra/terraform.tfvars` matches the email you actually log in with, then `just infra-apply` to push the updated policy.

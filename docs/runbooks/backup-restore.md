@@ -44,7 +44,7 @@ The config lives on each CP node at `/etc/rancher/k3s/config.yaml.d/etcd-snapsho
 
 | File | What it does |
 |------|-------------|
-| `nodes/control-plane/etc/rancher/k3s/config.yaml.d/etcd-snapshots.yaml` | The declarative drop-in (applied by `mise run ansible:converge k3s-config`) |
+| `nodes/control-plane/etc/rancher/k3s/config.yaml.d/etcd-snapshots.yaml` | The declarative drop-in (applied by `just ansible-converge k3s-config`) |
 | `kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sealedsecret.yaml` | S3 credentials as SealedSecret |
 | `kubernetes/components/etcd-snapshot-health/resources/cronjob.yaml` | Health check CronJob |
 
@@ -64,7 +64,7 @@ etcd-snapshot-compress: true
 1. Edit `nodes/control-plane/etc/rancher/k3s/config.yaml.d/etcd-snapshots.yaml` — change `etcd-snapshot-schedule-cron` (CI schema-validates the key against the pinned k3s binary).
 2. If you increased the interval past ~8h, also update `MAX_AGE` in `kubernetes/components/etcd-snapshot-health/resources/cronjob.yaml` and the `> 36000` threshold in `kubernetes/base/monitoring/backup-alerts/resources/prometheusrule.yaml`.
    - Rule: `MAX_AGE = interval_seconds * 1.5`
-3. Review with `mise run ansible:check k3s-config`, then `mise run ansible:converge k3s-config` to push the new config and restart k3s (serial, gated, auto-rolled-back on failure).
+3. Review with `just ansible-check k3s-config`, then `just ansible-converge k3s-config` to push the new config and restart k3s (serial, gated, auto-rolled-back on failure).
 
 ### Reconfigure retention
 
@@ -143,7 +143,7 @@ All route to `mydellpc07@gmail.com` via Alertmanager.
 
 ### Grafana dashboard
 
-`mise run ui:grafana` → Dashboards → search "backup". Shows last backup time, backup count over 7 days, BSL status, etcd health last run, restore drill last run.
+`just ui-grafana` → Dashboards → search "backup". Shows last backup time, backup count over 7 days, BSL status, etcd health last run, restore drill last run.
 
 ---
 
@@ -201,10 +201,10 @@ Use when: entire cluster is gone or unrecoverable. This is the GitOps path — n
 
 ```bash
 # 1. Provision new nodes
-mise run infra:apply
+just infra-apply
 
 # 2. Bootstrap
-mise run k8s:bootstrap   # installs the sealed-secrets key before the controller exists
+just k8s-bootstrap   # installs the sealed-secrets key before the controller exists
 
 # 3. ArgoCD reconciles everything from git (~15-20 min)
 kubectl get applications -n argocd
@@ -274,8 +274,8 @@ sops -d kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sops.yaml |
 
 | Secret | Namespace | Contains | How to reseal |
 |--------|-----------|---------|---------------|
-| `k3s-etcd-snapshot-s3-config` | kube-system | R2 endpoint, access key, secret key for etcd bucket | `mise run secrets:seal kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sops.yaml` |
-| `velero-r2-credentials` | velero | AWS-format credentials for velero bucket | `mise run secrets:seal kubernetes/components/velero-restore-drill/resources/velero-r2.sops.yaml` |
+| `k3s-etcd-snapshot-s3-config` | kube-system | R2 endpoint, access key, secret key for etcd bucket | `just seal kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sops.yaml` |
+| `velero-r2-credentials` | velero | AWS-format credentials for velero bucket | `just seal kubernetes/components/velero-restore-drill/resources/velero-r2.sops.yaml` |
 
 Both are SealedSecrets reconciled by ArgoCD. The plaintext source of truth is the `*.sops.yaml` Secret next to each `*.sealedsecret.yaml`. Sealing is offline against `kubernetes/sealed-secrets-cert.pem`, the key held in the bootstrap backup.
 
@@ -284,8 +284,8 @@ To reseal after rotating R2 credentials:
 ```bash
 sops kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sops.yaml   # edit values, save
 sops kubernetes/components/velero-restore-drill/resources/velero-r2.sops.yaml
-mise run secrets:seal kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sops.yaml
-mise run secrets:seal kubernetes/components/velero-restore-drill/resources/velero-r2.sops.yaml
+just seal kubernetes/components/etcd-snapshot-health/resources/etcd-s3.sops.yaml
+just seal kubernetes/components/velero-restore-drill/resources/velero-r2.sops.yaml
 # Commit the new sealed secrets; ArgoCD applies them; pods pick up the change on next restart
 ```
 

@@ -14,10 +14,10 @@ Run `mise install` one time. mise then puts the pinned tool versions from `mise.
 ## Daily Commands
 
 ```bash
-mise tasks
-mise run infra:plan
-mise run ansible:check
-mise run ansible:converge
+just --list
+just infra-plan
+just ansible-check
+just ansible-converge
 ```
 
 `just` exports `KUBECONFIG=infra/kubeconfig.yaml`, so Kubernetes commands can be
@@ -39,19 +39,19 @@ run from the repo after infrastructure bootstrap.
 Plan first:
 
 ```bash
-mise run infra:plan
+just infra-plan
 ```
 
 Apply only after reading the plan:
 
 ```bash
-mise run infra:apply
+just infra-apply
 ```
 
 Destroy is explicit:
 
 ```bash
-mise run infra:destroy
+just infra-destroy
 ```
 
 Topology is declared in `infra/terraform.tfvars` through `nodes`. Each node has:
@@ -73,11 +73,11 @@ The OpenTofu checks enforce:
 For small topology edits:
 
 1. Edit `infra/terraform.tfvars`.
-2. Run `mise run infra:plan`.
+2. Run `just infra-plan`.
 3. Read replacement/addition/removal effects carefully.
 4. Apply only if the plan preserves quorum and availability.
-5. Run `mise run ansible:check`.
-6. Run `mise run ansible:converge`.
+5. Run `just ansible-check`.
+6. Run `just ansible-converge`.
 
 Do not casually replace multiple control-plane nodes at once. Embedded etcd
 requires quorum. In a three-control-plane cluster, one unavailable control-plane
@@ -109,7 +109,7 @@ Ansible over SSH for convergence: normal.
 Inventory comes directly from the pinned `hetzner.hcloud` collection:
 
 ```bash
-mise run ansible:inventory
+just ansible-inventory
 ```
 
 It selects existing servers with `cluster=hetzner-k3s` and uses their
@@ -130,26 +130,26 @@ Hosts are grouped as:
 Always check first:
 
 ```bash
-mise run ansible:check
+just ansible-check
 ```
 
 Optionally run the read-only cluster gate on its own:
 
 ```bash
-mise run ansible:preflight
+just ansible-preflight
 ```
 
 Then converge:
 
 ```bash
-mise run ansible:converge
+just ansible-converge
 ```
 
 Both default to `ansible/playbooks/site.yml`. To run one playbook:
 
 ```bash
-mise run ansible:check baseline
-mise run ansible:converge baseline
+just ansible-check baseline
+just ansible-converge baseline
 ```
 
 Convergence launches a separate Ansible Runner job for each sorted node and
@@ -160,8 +160,8 @@ stops on the first nonzero result, including SSH failure. Each job records
 Compatibility aliases also exist:
 
 ```bash
-mise run ansible:check
-mise run ansible:converge
+just ansible-check
+just ansible-converge
 ```
 
 ### Adding Host Configuration
@@ -170,7 +170,7 @@ Add roles under `ansible/roles/`.
 
 Add playbooks under `ansible/playbooks/`.
 
-Wire ordering in `ansible/playbooks/site.yml`, not in mise tasks.
+Wire ordering in `ansible/playbooks/site.yml`, not in just recipes.
 
 Use this rule of thumb:
 
@@ -191,22 +191,22 @@ server.
 
 1. Add the node to `var.nodes` (key like `worker-2`; key becomes the k8s Node
    name suffix).
-2. `mise run infra:plan`, review, `mise run infra:apply`. Cloud-init installs k3s on first boot.
+2. `just infra-plan`, review, `just infra-apply`. Cloud-init installs k3s on first boot.
 3. Wait for the node to join:
    `kubectl wait node/hetzner-k3s-<key> --for=condition=Ready --timeout=15m`
 4. Converge host config. Unchanged nodes no-op (checksum-based); only nodes
    whose files change get a (serial, gated, auto-rolled-back) k3s restart:
 
    ```bash
-   mise run ansible:converge                  # baseline OS config (site.yml)
-   mise run ansible:converge k3s-config       # declarative k3s config from nodes/
+   just ansible-converge                  # baseline OS config (site.yml)
+   just ansible-converge k3s-config       # declarative k3s config from nodes/
    ```
 
-5. `kubectl get nodes`, `mise run verify:adoption`, `mise run verify:mtu`
+5. `kubectl get nodes`, `just verify-adoption`, `just verify-mtu`
 
 To CHANGE k3s/kubelet config: edit the data files under `nodes/{all,control-plane}/`,
-let CI validate them against the pinned binaries (`mise run verify:node-config`
-locally), review the plan with `mise run ansible:check k3s-config`, then converge.
+let CI validate them against the pinned binaries (`just verify-node-config`
+locally), review the plan with `just ansible-check k3s-config`, then converge.
 Never author a new playbook for a config change.
 
 ### Rollback certification
@@ -241,20 +241,20 @@ intentional — do not script around them):
    access) cuts your own API access mid-operation.
 2. Relax the guards for the target node in `infra/servers.tf`
    (`lifecycle.prevent_destroy`, `delete_protection`, `rebuild_protection`)
-   and `mise run infra:apply` that change first.
+   and `just infra-apply` that change first.
 3. `sops exec-env infra/secrets.yaml 'tofu apply -replace=hcloud_server.nodes["<key>"]'`
    from `infra/` (use `-replace`, never a hand-edited plan).
 4. Continue from step 3 of "Add a node" (wait Ready → converge → verify).
-5. Revert the guard relaxation and `mise run infra:apply` again.
+5. Revert the guard relaxation and `just infra-apply` again.
 
 ## Fresh Cluster Bootstrap
 
 ```bash
-mise run infra:apply
-mise run k8s:bootstrap
+just infra-apply
+just k8s-bootstrap
 ```
 
-`mise run k8s:bootstrap` is one `helmfile apply` over `kubernetes/bootstrap/helmfile.yaml`;
+`just k8s-bootstrap` is one `helmfile apply` over `kubernetes/bootstrap/helmfile.yaml`;
 `needs:` orders the releases (CRDs → hcloud Secret → hccm → Cilium → ArgoCD →
 repo creds, sealed-secrets key, root Application). It refuses when the root
 Application already exists: from then on ArgoCD owns the cluster and
@@ -267,7 +267,7 @@ Then verify:
 kubectl get nodes
 kubectl get pods -A
 kubectl get applications -n argocd
-mise run ansible:check
+just ansible-check
 ```
 
 If SealedSecrets fail to decrypt, confirm `kube-system/sealed-secrets-keybnqjp`
@@ -280,15 +280,15 @@ ArgoCD is the steady-state deployer. Prefer Git changes over `kubectl apply`.
 Root application (after changing its spec):
 
 ```bash
-mise run k8s:root-apply
+just k8s-root-apply
 ```
 
 Useful local UIs:
 
 ```bash
-mise run ui:argocd
-mise run ui:grafana
-mise run ui:hubble
+just ui-argocd
+just ui-grafana
+just ui-hubble
 ```
 
 ### Adding an ArgoCD Application
@@ -329,13 +329,13 @@ OpenTofu validation and YAML formatting are also wired through lefthook.
 For infrastructure-sensitive work, run:
 
 ```bash
-mise run infra:plan
+just infra-plan
 ```
 
 For host-state-sensitive work, run:
 
 ```bash
-mise run ansible:check
+just ansible-check
 ```
 
 ## Debugging: Node Stuck Unschedulable / Pod Pending
@@ -466,7 +466,7 @@ All nodes should be `Ready` (no `SchedulingDisabled`), all pods running, and
 
 ## Hard Rules
 
-- Read `mise run infra:plan` before applying.
+- Read `just infra-plan` before applying.
 - Preserve control-plane quorum.
 - Keep `init.sh.tpl` for first boot only.
 - Put running host configuration in Ansible.

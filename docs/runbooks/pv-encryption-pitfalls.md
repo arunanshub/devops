@@ -17,8 +17,8 @@ hcloud-csi natively supports LUKS encryption. When a PVC is provisioned from `hc
 3. `kubectl get secret hcloud-luks-key -n kube-system -o jsonpath='{.data.encryption-passphrase}' | base64 -d`
 
 **Playbooks for ongoing ops:**
-- `mise run ops:recreate-encrypted-pvcs` — rotate passphrase: delete and recreate Grafana/Alertmanager/Tempo PVCs
-- `mise run secrets:rotate-luks` — generate and seal a new passphrase; commit and sync it yourself, then run ops:recreate-encrypted-pvcs
+- `just ops-recreate-encrypted-pvcs` — rotate passphrase: delete and recreate Grafana/Alertmanager/Tempo PVCs
+- `just rotate-luks` — generate and seal a new passphrase; commit and sync it yourself, then run ops:recreate-encrypted-pvcs
 
 ---
 
@@ -30,17 +30,17 @@ hcloud-csi natively supports LUKS encryption. When a PVC is provisioned from `hc
 
 **Fix.** Always pipe directly without echoing:
 
-`mise run secrets:rotate-luks` does this: `openssl rand` pipes straight into
+`just rotate-luks` does this: `openssl rand` pipes straight into
 `kubectl create secret --from-file=/dev/stdin`, so the passphrase never
 lands in a variable, the terminal, or a file.
 
-**If you accidentally exposed a passphrase:** run `mise run secrets:rotate-luks` immediately, then `mise run ops:recreate-encrypted-pvcs`. Old volumes carry the old passphrase in their LUKS header and cannot be fixed in-place — they must be deleted and reprovisioned.
+**If you accidentally exposed a passphrase:** run `just rotate-luks` immediately, then `just ops-recreate-encrypted-pvcs`. Old volumes carry the old passphrase in their LUKS header and cannot be fixed in-place — they must be deleted and reprovisioned.
 
 ---
 
 ## Rotating the passphrase requires deleting and reprovisioning every encrypted PVC
 
-**Symptom.** After running `mise run secrets:rotate-luks`, existing pods start failing with:
+**Symptom.** After running `just rotate-luks`, existing pods start failing with:
 
 ```
 MountVolume.SetUp failed: rpc error: code = Internal desc = failed to publish volume:
@@ -49,7 +49,7 @@ unable to open LUKS device /dev/disk/by-id/scsi-0HC_Volume_...: No key available
 
 **Cause.** The LUKS header is baked into the Hetzner volume at format time. Updating the Kubernetes Secret only changes what passphrase future `luksOpen` calls will use. Existing volumes still have the old passphrase in their LUKS header.
 
-**Fix.** After rotating the passphrase, run `mise run ops:recreate-encrypted-pvcs`. This deletes the old volumes (and their LUKS headers) and lets new ones be provisioned with the new passphrase. Data is lost for Grafana/Alertmanager/Tempo — acceptable because monitoring data is ephemeral. Prometheus is handled separately.
+**Fix.** After rotating the passphrase, run `just ops-recreate-encrypted-pvcs`. This deletes the old volumes (and their LUKS headers) and lets new ones be provisioned with the new passphrase. Data is lost for Grafana/Alertmanager/Tempo — acceptable because monitoring data is ephemeral. Prometheus is handled separately.
 
 **If Prometheus data matters:** use the since-removed Prometheus migration playbook (Prometheus was replaced by VictoriaMetrics) before rotating, which copies data to a new encrypted volume first.
 

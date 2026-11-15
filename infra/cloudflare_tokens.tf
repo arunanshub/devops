@@ -3,7 +3,7 @@
 # lifecycle is obvious and does not mix with edge policy HCL.
 #
 # Parent TF_VAR_cloudflare_api_token must allow Account API Tokens:Edit.
-# After apply: `mise run secrets:seal-cache-purge arunanshu-dev cache_purge_token` seals the sensitive output for Argo.
+# After apply: `just seal-cache-purge arunanshu-dev cache_purge_token` seals the sensitive output for Argo.
 
 # Zone → Cache Purge only, scoped to arunanshu.dev. Consumed by the
 # arunanshu-dev PostSync Job (kubernetes/.../purge-cache-job.yaml).
