@@ -21,7 +21,7 @@ shellcheck = "latest"
 sops = "latest"
 uv = "latest"
 # velero CLI must match the in-cluster server (velero/velero image tag).
-velero = "1.18.2"
+velero = "1.18.4"
 # Operator recipes live in justfile; mise provides the tools and [env].
 just = "1.59.0"
 # Policy layer: conftest runs policy/ on manifests rendered by argocd-diff-preview (in k3d).
