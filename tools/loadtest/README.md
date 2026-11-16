@@ -1,39 +1,49 @@
 # arunanshu-dev load test
 
-## Recommended: run inside Kubernetes
-
-Run a 30-second GET smoke test:
-
-```bash
-tools/loadtest/run-in-cluster.sh --smoke --yes
-```
-
-Run the six-minute GET capacity profile:
-
-```bash
-tools/loadtest/run-in-cluster.sh --yes
-```
-
-The launcher creates a temporary ConfigMap and Job in `arunanshu-dev`, using the pinned official `grafana/k6:2.1.0` image. Test traffic stays inside the cluster:
+k6 runs as a Job inside the cluster against the Traefik ClusterIP:
 
 ```text
 k6 Job -> Traefik ClusterIP -> HTTPRoute -> application pods
 ```
 
-The launcher waits for the Job, prints HPA status during the run, returns the k6 container exit status, and removes both temporary resources. A capacity run also fails unless KEDA exposes its metric and scales above the starting replica count. Pass `--keep` to preserve resources from either a successful or failed run. Pass `--dry-run` to print the generated resources without creating them.
+This bypasses Cloudflare and `kubectl port-forward`, but still exercises the
+Traefik metrics that KEDA scales on. It downloads the real GET body. The
+generator requests 250m CPU and 128 MiB; count that when reading node
+saturation.
 
-This path bypasses Cloudflare and `kubectl port-forward` while preserving Traefik metrics used by KEDA. It downloads the real GET response body, so page size, compression, server work, and cluster networking contribute to the result. The generator requests 250m CPU and 128 MiB memory; account for that small cluster-side cost when interpreting node saturation.
+| Profile | Path | Shape |
+|---|---|---|
+| smoke | `smoke/` | 10 req/s for 30 s |
+| capacity | `capacity/` | ramps 10 → 300 req/s over 6 min, aborts above 5 % failures |
+
+## Run
+
+```bash
+kubectl create -k tools/loadtest/smoke        # or tools/loadtest/capacity
+kubectl -n arunanshu-dev logs -f job/arunanshu-dev-k6
+kubectl -n arunanshu-dev delete -k tools/loadtest/smoke
+```
+
+Watch scaling in a second terminal while it runs:
+
+```bash
+kubectl -n arunanshu-dev get hpa keda-hpa-arunanshu-dev -w
+```
+
+A capacity run is a pass when k6 exits 0 (thresholds: no dropped iterations,
+p95 < 500 ms, < 5 % failures) **and** the HPA scaled above its starting
+replica count. Check the ScaledObject is Ready and not in Fallback first:
+`kubectl -n arunanshu-dev get scaledobject arunanshu-dev`.
+
+The Job is removed automatically one hour after it finishes; delete it
+earlier to start another run.
 
 ## Local diagnostic
 
-You can still run the JavaScript locally for script development:
-
 ```bash
-k6 run tools/loadtest/arunanshu-dev.js
+k6 run tools/loadtest/capacity/arunanshu-dev.js
 ```
 
-The script defaults to HEAD locally. HEAD measures handler and proxy residence time, not representative GET service time or full-page capacity.
-
-The profile lasts six minutes. After the first 30 seconds, it aborts when the cumulative HTTP failure rate exceeds 5%. It fails if k6 drops any scheduled iterations or cumulative p95 latency exceeds 500 ms. Press Ctrl-C if pods restart repeatedly or nodes report pressure.
-
-The optional `TARGET_URL` environment variable changes the local port or path. Keep the `Host` header in the script so the HTTPRoute continues to match.
+Locally the script defaults to HEAD, which measures handler and proxy time,
+not full-page capacity. `TARGET_URL` changes the port or path; keep the
+`Host` header in the script so the HTTPRoute still matches.

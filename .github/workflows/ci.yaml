@@ -19,6 +19,8 @@ jobs:
       GOTESTSUM_VERSION: 1.13.0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         id: setup-go
         with:
@@ -81,7 +83,7 @@ jobs:
       - name: Build custom golangci-lint
         if: steps.cache-gcl.outputs.cache-hit != 'true'
         run: |
-          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
           golangci-lint custom
 
       # golangci-lint keeps its analysis results here; without this cache
@@ -134,7 +136,7 @@ jobs:
           # would link the binary twice.
           - name: Build and verify invariants
             env:
-              # Must match the K8S_API_ENDPOINT exported by the Justfile.
+              # Must match K8S_API_ENDPOINT in mise.toml [env].
               K8S_API_ENDPOINT: "10.0.0.100"
               # Rendered but excluded from comparison (bootstrap-only overlay).
               ARGOCD_ADMIN_PASSWORD_HASH: "ci-placeholder"
@@ -159,34 +161,93 @@ jobs:
   kubernetes:
     name: Kustomize render + kubeconform
     runs-on: ubuntu-latest
-    env:
-      KUSTOMIZE_VERSION: 5.8.1
-      KUBECONFORM_VERSION: 0.7.0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
+        with:
+          install_args: just kustomize kubeconform
+      # Same recipe lefthook runs; the command is defined once, in justfile.
+      - run: just check-manifests
 
-      - parallel:
-          - name: Install kustomize
-            run: |
-              curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
-                | sudo tar -C /usr/local/bin -xz kustomize
+  policy:
+    name: Repo policy (no shell, justfile fmt, no manifest tests, zizmor)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
+        with:
+          install_args: just zizmor
+      - run: just check-no-shell check-justfile check-no-manifest-tests
+      - run: just check-actions
+        env:
+          GH_TOKEN: ${{ github.token }} # enables zizmor's online audits
 
-          - name: Install kubeconform
-            run: |
-              curl -sSL "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
-                | sudo tar -C /usr/local/bin -xz kubeconform
+  rego:
+    name: Policy lint + unit tests (Regal, conftest verify)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
+        with:
+          install_args: just regal conftest
+      - run: just policy-lint policy-test
 
-      # Mirrors the lefthook kustomize-validate hook exactly. Keep the two in
-      # sync: a check that only runs locally is a check that stops running.
-      - name: Validate rendered manifests
-        run: >
-          kustomize build kubernetes/overlays/prod | kubeconform --strict --ignore-missing-schemas --summary --schema-location default --schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+  render:
+    name: Render diff (argocd-diff-preview) + policy
+    # Same-repo PRs only (Renovate included): fork PRs get no secrets.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    # Environment-scoped secret (ARGOCD_REPO_SSH_KEY); no deployment object.
+    environment:
+      name: render
+      deployment: false
+    permissions:
+      contents: read
+      pull-requests: write # post the rendered diff as a PR comment
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.number }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.base_ref }}
+          path: .render/base-branch
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: .render/target-branch
+          persist-credentials: false
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
+        with:
+          install_args: just github:dag-andersen/argocd-diff-preview k3d kubectl helm yq conftest
+      - name: Repo credentials for the render cluster
+        env:
+          ARGOCD_REPO_SSH_KEY: ${{ secrets.ARGOCD_REPO_SSH_KEY }}
+        run: |
+          mkdir -p .render/secrets
+          yq '.stringData.sshPrivateKey = strenv(ARGOCD_REPO_SSH_KEY)' \
+            .github/argocd-diff-preview/repo-creds.yaml > .render/secrets/repo.yaml
+      - run: just render-diff "refs/pull/${PR_NUMBER}/merge"
+      - run: cat .render/out/diff.md >> "$GITHUB_STEP_SUMMARY"
+      - run: gh pr comment "$PR_NUMBER" --body-file .render/out/diff.md --edit-last --create-if-none
+      - run: just check-policy
 
   tofu:
     name: OpenTofu fmt + validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
           tofu_version: v1.13.9
@@ -212,7 +273,7 @@ jobs:
         run: tofu -chdir=infra validate
 
   hygiene:
-    name: yamlfmt, shellcheck, just fmt
+    name: yamlfmt, shellcheck
     runs-on: ubuntu-latest
     env:
       YAMLFMT_VERSION: 0.21.0
@@ -221,11 +282,10 @@ jobs:
       SHELLCHECK_VERSION: v0.11.0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
         with:
-          just-version: "1.58.0"
+          persist-credentials: false
 
-      # Each check fetches its own pinned binary, so all three overlap. yamlfmt
+      # Each check fetches its own pinned binary, so they overlap. yamlfmt
       # comes from the release tarball rather than `go install`, which is both
       # faster and removes the only reason this job needed a Go toolchain.
       - parallel:
@@ -243,9 +303,6 @@ jobs:
               git ls-files '*.sh' '*.bash' '*.sh.tpl' '*.bash.tpl' \
                 | xargs -r "$RUNNER_TEMP/shellcheck" --enable=all --severity=style
 
-          - name: Check Justfile formatting
-            run: just --fmt --check --unstable
-
   gitleaks:
     name: Secret scan
     runs-on: ubuntu-latest
@@ -254,6 +311,7 @@ jobs:
         with:
           # Full history — gitleaks scans every commit, not just the tree.
           fetch-depth: 0
+          persist-credentials: false
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -8,7 +8,7 @@ resources:
   - servicemonitor.yaml
   - vpa.yaml
   - pdb.yaml
-  - sealed-tunnel-token.yaml
+  - tunnel-token.sealedsecret.yaml
 
 images:
   - name: cloudflare/cloudflared

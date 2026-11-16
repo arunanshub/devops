@@ -29,13 +29,13 @@ output "ssh_private_key_path" {
 }
 
 output "tunnel_token" {
-  description = "Cloudflare Tunnel token for cloudflared. Pipe through kubeseal via `just seal-cloudflared-token`."
+  description = "Cloudflare Tunnel token for cloudflared. Pipe through kubeseal via `just seal-tunnel-token`."
   value       = data.cloudflare_zero_trust_tunnel_cloudflared_token.main.token
   sensitive   = true
 }
 
 output "cache_purge_token" {
-  description = "Least-privilege Cloudflare Cache Purge token for arunanshu.dev. Seal via `just seal-cf-cache-purge`."
+  description = "Least-privilege Cloudflare Cache Purge token for arunanshu.dev. Seal via `just seal-cache-purge arunanshu-dev cache_purge_token`."
   value       = cloudflare_account_token.cache_purge.value
   sensitive   = true
 }

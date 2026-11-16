@@ -1,0 +1,1802 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: alertmanagerconfigs.monitoring.coreos.com
+  annotations: {}
+spec:
+  group: monitoring.coreos.com
+  names:
+    categories:
+      - prometheus-operator
+    kind: AlertmanagerConfig
+    listKind: AlertmanagerConfigList
+    plural: alertmanagerconfigs
+    shortNames:
+      - amcfg
+    singular: alertmanagerconfig
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: alertmanagers.monitoring.coreos.com
+  annotations: {}
+spec:
+  group: monitoring.coreos.com
+  names:
+    categories:
+      - prometheus-operator
+    kind: Alertmanager
+    listKind: AlertmanagerList
+    plural: alertmanagers
+    shortNames:
+      - am
+    singular: alertmanager
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: backuprepositories.velero.io
+  annotations: {}
+spec:
+  group: velero.io
+  names:
+    kind: BackupRepository
+    listKind: BackupRepositoryList
+    plural: backuprepositories
+    singular: backuprepository
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: backups.velero.io
+  annotations: {}
+spec:
+  group: velero.io
+  names:
+    kind: Backup
+    listKind: BackupList
+    plural: backups
+    singular: backup
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: backupstoragelocations.velero.io
+  annotations: {}
+spec:
+  group: velero.io
+  names:
+    kind: BackupStorageLocation
+    listKind: BackupStorageLocationList
+    plural: backupstoragelocations
+    shortNames:
+      - bsl
+    singular: backupstoragelocation
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: certificaterequests.cert-manager.io
+  annotations: {}
+spec:
+  group: cert-manager.io
+  names:
+    categories:
+      - cert-manager
+    kind: CertificateRequest
+    listKind: CertificateRequestList
+    plural: certificaterequests
+    shortNames:
+      - cr
+      - crs
+    singular: certificaterequest
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: certificates.cert-manager.io
+  annotations: {}
+spec:
+  group: cert-manager.io
+  names:
+    categories:
+      - cert-manager
+    kind: Certificate
+    listKind: CertificateList
+    plural: certificates
+    shortNames:
+      - cert
+      - certs
+    singular: certificate
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: challenges.acme.cert-manager.io
+  annotations: {}
+spec:
+  group: acme.cert-manager.io
+  names:
+    categories:
+      - cert-manager
+      - cert-manager-acme
+    kind: Challenge
+    listKind: ChallengeList
+    plural: challenges
+    singular: challenge
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ciliumcidrgroups.cilium.io
+  annotations: {}
+spec:
+  group: cilium.io
+  names:
+    categories:
+      - cilium
+    kind: CiliumCIDRGroup
+    listKind: CiliumCIDRGroupList
+    plural: ciliumcidrgroups
+    shortNames:
+      - ccg
+    singular: ciliumcidrgroup
+  scope: Cluster
+  versions:
+    - name: v2
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+    - deprecated: true
+      name: v2alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: false
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ciliumclusterwidenetworkpolicies.cilium.io
+  annotations: {}
+spec:
+  group: cilium.io
+  names:
+    categories:
+      - cilium
+      - ciliumpolicy
+    kind: CiliumClusterwideNetworkPolicy
+    listKind: CiliumClusterwideNetworkPolicyList
+    plural: ciliumclusterwidenetworkpolicies
+    shortNames:
+      - ccnp
+    singular: ciliumclusterwidenetworkpolicy
+  scope: Cluster
+  versions:
+    - name: v2
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ciliumendpoints.cilium.io
+  annotations: {}
+spec:
+  group: cilium.io
+  names:
+    categories:
+      - cilium
+    kind: CiliumEndpoint
+    listKind: CiliumEndpointList
+    plural: ciliumendpoints
+    shortNames:
+      - cep
+      - ciliumep
+    singular: ciliumendpoint
+  scope: Namespaced
+  versions:
+    - name: v2
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ciliumidentities.cilium.io
+  annotations: {}
+spec:
+  group: cilium.io
+  names:
+    categories:
+      - cilium
+    kind: CiliumIdentity
+    listKind: CiliumIdentityList
+    plural: ciliumidentities
+    shortNames:
+      - ciliumid
+    singular: ciliumidentity
+  scope: Cluster
+  versions:
+    - name: v2
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ciliuml2announcementpolicies.cilium.io
+  annotations: {}
+spec:
+  group: cilium.io
+  names:
+    categories:
+      - cilium
+    kind: CiliumL2AnnouncementPolicy
+    listKind: CiliumL2AnnouncementPolicyList
+    plural: ciliuml2announcementpolicies
+    shortNames:
+      - l2announcement
+    singular: ciliuml2announcementpolicy
+  scope: Cluster
+  versions:
+    - name: v2alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ciliumloadbalancerippools.cilium.io
+  annotations: {}
+spec:
+  group: cilium.io
+  names:
+    categories:
+      - cilium
+    kind: CiliumLoadBalancerIPPool
+    listKind: CiliumLoadBalancerIPPoolList
+    plural: ciliumloadbalancerippools
+    shortNames:
+      - ippools
+      - ippool
+      - lbippool
+      - lbippools
+    singular: ciliumloadbalancerippool
+  scope: Cluster
+  versions:
+    - name: v2
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+    - deprecated: true
+      name: v2alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: false
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ciliumnetworkpolicies.cilium.io
+  annotations: {}
+spec:
+  group: cilium.io
+  names:
+    categories:
+      - cilium
+      - ciliumpolicy
+    kind: CiliumNetworkPolicy
+    listKind: CiliumNetworkPolicyList
+    plural: ciliumnetworkpolicies
+    shortNames:
+      - cnp
+      - ciliumnp
+    singular: ciliumnetworkpolicy
+  scope: Namespaced
+  versions:
+    - name: v2
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ciliumnodeconfigs.cilium.io
+  annotations: {}
+spec:
+  group: cilium.io
+  names:
+    categories:
+      - cilium
+    kind: CiliumNodeConfig
+    listKind: CiliumNodeConfigList
+    plural: ciliumnodeconfigs
+    singular: ciliumnodeconfig
+  scope: Namespaced
+  versions:
+    - name: v2
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+    - deprecated: true
+      deprecationWarning: cilium.io/v2alpha1 is deprecated, use cilium.io/v2 CiliumNodeConfig
+      name: v2alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: false
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ciliumnodes.cilium.io
+  annotations: {}
+spec:
+  group: cilium.io
+  names:
+    categories:
+      - cilium
+    kind: CiliumNode
+    listKind: CiliumNodeList
+    plural: ciliumnodes
+    shortNames:
+      - cn
+      - ciliumn
+    singular: ciliumnode
+  scope: Cluster
+  versions:
+    - name: v2
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ciliumpodippools.cilium.io
+  annotations: {}
+spec:
+  group: cilium.io
+  names:
+    categories:
+      - cilium
+    kind: CiliumPodIPPool
+    listKind: CiliumPodIPPoolList
+    plural: ciliumpodippools
+    shortNames:
+      - cpip
+    singular: ciliumpodippool
+  scope: Cluster
+  versions:
+    - name: v2alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: cloudeventsources.eventing.keda.sh
+  annotations: {}
+spec:
+  group: eventing.keda.sh
+  names:
+    kind: CloudEventSource
+    listKind: CloudEventSourceList
+    plural: cloudeventsources
+    singular: cloudeventsource
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clustercloudeventsources.eventing.keda.sh
+  annotations: {}
+spec:
+  group: eventing.keda.sh
+  names:
+    kind: ClusterCloudEventSource
+    listKind: ClusterCloudEventSourceList
+    plural: clustercloudeventsources
+    singular: clustercloudeventsource
+  scope: Cluster
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clusterissuers.cert-manager.io
+  annotations: {}
+spec:
+  group: cert-manager.io
+  names:
+    categories:
+      - cert-manager
+    kind: ClusterIssuer
+    listKind: ClusterIssuerList
+    plural: clusterissuers
+    shortNames:
+      - ciss
+    singular: clusterissuer
+  scope: Cluster
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clustertriggerauthentications.keda.sh
+  annotations: {}
+spec:
+  group: keda.sh
+  names:
+    kind: ClusterTriggerAuthentication
+    listKind: ClusterTriggerAuthenticationList
+    plural: clustertriggerauthentications
+    shortNames:
+      - cta
+      - clustertriggerauth
+    singular: clustertriggerauthentication
+  scope: Cluster
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: datadownloads.velero.io
+  annotations: {}
+spec:
+  group: velero.io
+  names:
+    kind: DataDownload
+    listKind: DataDownloadList
+    plural: datadownloads
+    singular: datadownload
+  scope: Namespaced
+  versions:
+    - name: v2alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: datauploads.velero.io
+  annotations: {}
+spec:
+  group: velero.io
+  names:
+    kind: DataUpload
+    listKind: DataUploadList
+    plural: datauploads
+    singular: dataupload
+  scope: Namespaced
+  versions:
+    - name: v2alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: deletebackuprequests.velero.io
+  annotations: {}
+spec:
+  group: velero.io
+  names:
+    kind: DeleteBackupRequest
+    listKind: DeleteBackupRequestList
+    plural: deletebackuprequests
+    singular: deletebackuprequest
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: downloadrequests.velero.io
+  annotations: {}
+spec:
+  group: velero.io
+  names:
+    kind: DownloadRequest
+    listKind: DownloadRequestList
+    plural: downloadrequests
+    singular: downloadrequest
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: issuers.cert-manager.io
+  annotations: {}
+spec:
+  group: cert-manager.io
+  names:
+    categories:
+      - cert-manager
+    kind: Issuer
+    listKind: IssuerList
+    plural: issuers
+    shortNames:
+      - iss
+    singular: issuer
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: orders.acme.cert-manager.io
+  annotations: {}
+spec:
+  group: acme.cert-manager.io
+  names:
+    categories:
+      - cert-manager
+      - cert-manager-acme
+    kind: Order
+    listKind: OrderList
+    plural: orders
+    singular: order
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: podmonitors.monitoring.coreos.com
+  annotations: {}
+spec:
+  group: monitoring.coreos.com
+  names:
+    categories:
+      - prometheus-operator
+    kind: PodMonitor
+    listKind: PodMonitorList
+    plural: podmonitors
+    shortNames:
+      - pmon
+    singular: podmonitor
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: podvolumebackups.velero.io
+  annotations: {}
+spec:
+  group: velero.io
+  names:
+    kind: PodVolumeBackup
+    listKind: PodVolumeBackupList
+    plural: podvolumebackups
+    singular: podvolumebackup
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: podvolumerestores.velero.io
+  annotations: {}
+spec:
+  group: velero.io
+  names:
+    kind: PodVolumeRestore
+    listKind: PodVolumeRestoreList
+    plural: podvolumerestores
+    singular: podvolumerestore
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: probes.monitoring.coreos.com
+  annotations: {}
+spec:
+  group: monitoring.coreos.com
+  names:
+    categories:
+      - prometheus-operator
+    kind: Probe
+    listKind: ProbeList
+    plural: probes
+    shortNames:
+      - prb
+    singular: probe
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: prometheusagents.monitoring.coreos.com
+  annotations: {}
+spec:
+  group: monitoring.coreos.com
+  names:
+    categories:
+      - prometheus-operator
+    kind: PrometheusAgent
+    listKind: PrometheusAgentList
+    plural: prometheusagents
+    shortNames:
+      - promagent
+    singular: prometheusagent
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: prometheuses.monitoring.coreos.com
+  annotations: {}
+spec:
+  group: monitoring.coreos.com
+  names:
+    categories:
+      - prometheus-operator
+    kind: Prometheus
+    listKind: PrometheusList
+    plural: prometheuses
+    shortNames:
+      - prom
+    singular: prometheus
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: prometheusrules.monitoring.coreos.com
+  annotations: {}
+spec:
+  group: monitoring.coreos.com
+  names:
+    categories:
+      - prometheus-operator
+    kind: PrometheusRule
+    listKind: PrometheusRuleList
+    plural: prometheusrules
+    shortNames:
+      - promrule
+    singular: prometheusrule
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: restores.velero.io
+  annotations: {}
+spec:
+  group: velero.io
+  names:
+    kind: Restore
+    listKind: RestoreList
+    plural: restores
+    singular: restore
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: scaledjobs.keda.sh
+  annotations: {}
+spec:
+  group: keda.sh
+  names:
+    kind: ScaledJob
+    listKind: ScaledJobList
+    plural: scaledjobs
+    shortNames:
+      - sj
+    singular: scaledjob
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: scaledobjects.keda.sh
+  annotations: {}
+spec:
+  group: keda.sh
+  names:
+    kind: ScaledObject
+    listKind: ScaledObjectList
+    plural: scaledobjects
+    shortNames:
+      - so
+    singular: scaledobject
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: schedules.velero.io
+  annotations: {}
+spec:
+  group: velero.io
+  names:
+    kind: Schedule
+    listKind: ScheduleList
+    plural: schedules
+    singular: schedule
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: scrapeconfigs.monitoring.coreos.com
+  annotations: {}
+spec:
+  group: monitoring.coreos.com
+  names:
+    categories:
+      - prometheus-operator
+    kind: ScrapeConfig
+    listKind: ScrapeConfigList
+    plural: scrapeconfigs
+    shortNames:
+      - scfg
+    singular: scrapeconfig
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: sealedsecrets.bitnami.com
+  annotations: {}
+spec:
+  group: bitnami.com
+  names:
+    kind: SealedSecret
+    listKind: SealedSecretList
+    plural: sealedsecrets
+    singular: sealedsecret
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: serverstatusrequests.velero.io
+  annotations: {}
+spec:
+  group: velero.io
+  names:
+    kind: ServerStatusRequest
+    listKind: ServerStatusRequestList
+    plural: serverstatusrequests
+    shortNames:
+      - ssr
+    singular: serverstatusrequest
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: servicemonitors.monitoring.coreos.com
+  annotations: {}
+spec:
+  group: monitoring.coreos.com
+  names:
+    categories:
+      - prometheus-operator
+    kind: ServiceMonitor
+    listKind: ServiceMonitorList
+    plural: servicemonitors
+    shortNames:
+      - smon
+    singular: servicemonitor
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: thanosrulers.monitoring.coreos.com
+  annotations: {}
+spec:
+  group: monitoring.coreos.com
+  names:
+    categories:
+      - prometheus-operator
+    kind: ThanosRuler
+    listKind: ThanosRulerList
+    plural: thanosrulers
+    shortNames:
+      - ruler
+    singular: thanosruler
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: triggerauthentications.keda.sh
+  annotations: {}
+spec:
+  group: keda.sh
+  names:
+    kind: TriggerAuthentication
+    listKind: TriggerAuthenticationList
+    plural: triggerauthentications
+    shortNames:
+      - ta
+      - triggerauth
+    singular: triggerauthentication
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: verticalpodautoscalercheckpoints.autoscaling.k8s.io
+  annotations:
+    api-approved.kubernetes.io: https://github.com/kubernetes/enhancements/pull/1111
+spec:
+  group: autoscaling.k8s.io
+  names:
+    kind: VerticalPodAutoscalerCheckpoint
+    listKind: VerticalPodAutoscalerCheckpointList
+    plural: verticalpodautoscalercheckpoints
+    shortNames:
+      - vpacheckpoint
+    singular: verticalpodautoscalercheckpoint
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+    - name: v1beta2
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: false
+      storage: false
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: verticalpodautoscalers.autoscaling.k8s.io
+  annotations:
+    api-approved.kubernetes.io: https://github.com/kubernetes/enhancements/pull/1111
+spec:
+  group: autoscaling.k8s.io
+  names:
+    kind: VerticalPodAutoscaler
+    listKind: VerticalPodAutoscalerList
+    plural: verticalpodautoscalers
+    shortNames:
+      - vpa
+    singular: verticalpodautoscaler
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+    - deprecated: true
+      deprecationWarning: autoscaling.k8s.io/v1beta2 API is deprecated
+      name: v1beta2
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: false
+      storage: false
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vlagents.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VLAgent
+    listKind: VLAgentList
+    plural: vlagents
+    singular: vlagent
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vlclusters.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VLCluster
+    listKind: VLClusterList
+    plural: vlclusters
+    singular: vlcluster
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vldistributed.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VLDistributed
+    listKind: VLDistributedList
+    plural: vldistributed
+    singular: vldistributed
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vlogs.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VLogs
+    listKind: VLogsList
+    plural: vlogs
+    singular: vlogs
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vlsingles.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VLSingle
+    listKind: VLSingleList
+    plural: vlsingles
+    singular: vlsingle
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmagents.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMAgent
+    listKind: VMAgentList
+    plural: vmagents
+    singular: vmagent
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmalertmanagerconfigs.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMAlertmanagerConfig
+    listKind: VMAlertmanagerConfigList
+    plural: vmalertmanagerconfigs
+    singular: vmalertmanagerconfig
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmalertmanagers.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMAlertmanager
+    listKind: VMAlertmanagerList
+    plural: vmalertmanagers
+    shortNames:
+      - vma
+    singular: vmalertmanager
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmalerts.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMAlert
+    listKind: VMAlertList
+    plural: vmalerts
+    singular: vmalert
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmanomalies.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMAnomaly
+    listKind: VMAnomalyList
+    plural: vmanomalies
+    singular: vmanomaly
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmanomalyconfigs.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMAnomalyConfig
+    listKind: VMAnomalyConfigList
+    plural: vmanomalyconfigs
+    singular: vmanomalyconfig
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmauths.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMAuth
+    listKind: VMAuthList
+    plural: vmauths
+    singular: vmauth
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmclusters.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMCluster
+    listKind: VMClusterList
+    plural: vmclusters
+    singular: vmcluster
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmdistributed.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMDistributed
+    listKind: VMDistributedList
+    plural: vmdistributed
+    singular: vmdistributed
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmnodescrapes.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMNodeScrape
+    listKind: VMNodeScrapeList
+    plural: vmnodescrapes
+    singular: vmnodescrape
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmpodscrapes.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMPodScrape
+    listKind: VMPodScrapeList
+    plural: vmpodscrapes
+    singular: vmpodscrape
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmprobes.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMProbe
+    listKind: VMProbeList
+    plural: vmprobes
+    singular: vmprobe
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmrules.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMRule
+    listKind: VMRuleList
+    plural: vmrules
+    singular: vmrule
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmscrapeconfigs.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMScrapeConfig
+    listKind: VMScrapeConfigList
+    plural: vmscrapeconfigs
+    singular: vmscrapeconfig
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmservicescrapes.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMServiceScrape
+    listKind: VMServiceScrapeList
+    plural: vmservicescrapes
+    singular: vmservicescrape
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmsingles.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMSingle
+    listKind: VMSingleList
+    plural: vmsingles
+    singular: vmsingle
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmstaticscrapes.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMStaticScrape
+    listKind: VMStaticScrapeList
+    plural: vmstaticscrapes
+    singular: vmstaticscrape
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vmusers.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VMUser
+    listKind: VMUserList
+    plural: vmusers
+    singular: vmuser
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: volumesnapshotlocations.velero.io
+  annotations: {}
+spec:
+  group: velero.io
+  names:
+    kind: VolumeSnapshotLocation
+    listKind: VolumeSnapshotLocationList
+    plural: volumesnapshotlocations
+    shortNames:
+      - vsl
+    singular: volumesnapshotlocation
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vtagents.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VTAgent
+    listKind: VTAgentList
+    plural: vtagents
+    singular: vtagent
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vtclusters.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VTCluster
+    listKind: VTClusterList
+    plural: vtclusters
+    singular: vtcluster
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vtsingles.operator.victoriametrics.com
+  annotations: {}
+spec:
+  group: operator.victoriametrics.com
+  names:
+    kind: VTSingle
+    listKind: VTSingleList
+    plural: vtsingles
+    singular: vtsingle
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true

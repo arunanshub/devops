@@ -5,3 +5,7 @@ fullnameOverride: sealed-secrets-controller
 resources:
   limits:
     memory: 256Mi
+
+# One sealing key, the one backed up in SOPS. Renewal adds no protection here:
+# the SOPS age key is the root (docs/adr/2026-11-15-sealed-secrets-key-renewal-disabled.md).
+keyrenewperiod: "0"

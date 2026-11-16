@@ -4,7 +4,7 @@
 # (cilium, traefik, keda, tempo, cloudflared, hcloud-ccm) emit ServiceMonitor/PodMonitor
 # objects, which the VictoriaMetrics operator converts to VM-native scrapes. All actual
 # monitoring workloads now run on VictoriaMetrics — see victoria-metrics-k8s-stack/ and
-# docs/victoriametrics-migration.md.
+# docs/research/victoriametrics-migration.md.
 #
 # ⚠️  DO NOT delete this Application. Pruning it would delete the prometheus-operator CRDs,
 # and Kubernetes garbage-collects every CR of a kind when its CRD is deleted — that would

@@ -1,0 +1,14 @@
+# k3s v1.37 ships Gateway API CRDs as a packaged HelmChart (gateway-api-crd) with
+# takeOwnership + forceConflicts, which took the CRDs over from the ArgoCD
+# gateway-api-crds Application (the single intended owner, pinned with Cilium).
+# Valid --disable item in v1.37.2+k3s1 (pkg/cli/cmds/stage.go DisableItems).
+#
+# `disable+` appends to the base `disable: [traefik, servicelb]` from infra/locals.tf;
+# a plain `disable:` key would replace that list and re-deploy traefik and servicelb.
+#
+# Disabling deletes the HelmChart -> helm-controller runs `helm uninstall`. All 10 CRDs
+# in the release carry helm.sh/resource-policy: keep (verified in the stored release
+# manifest), so they and every Gateway/HTTPRoute survive. The uninstall does delete the
+# safe-upgrades ValidatingAdmissionPolicy + binding; ArgoCD self-heals both.
+disable+:
+  - gateway-api-crd

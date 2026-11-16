@@ -1,0 +1,19 @@
+# 30-second constant-rate smoke profile of the capacity test.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../capacity
+patches:
+  - patch: |-
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: arunanshu-dev-k6
+      spec:
+        template:
+          spec:
+            containers:
+              - name: k6
+                env:
+                  - name: PROFILE
+                    value: smoke
