@@ -27,6 +27,13 @@ updateStrategy:
   rollingUpdate:
     maxUnavailable: 1
 
+# install-cni-binaries init container: the chart default sets limits.cpu: 1.
+# No CPU limits (house style); null deletes the default, omitting it lets it merge back.
+cni:
+  resources:
+    limits:
+      cpu: null
+
 # MTU left at default (0 = auto-detect). Path MTU enforcement via pmtuDiscovery below.
 
 # WireGuard for node-to-node encryption. No-op on a single-node cluster, but

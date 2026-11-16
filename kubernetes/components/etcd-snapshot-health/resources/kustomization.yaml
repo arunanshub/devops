@@ -3,7 +3,7 @@ kind: Kustomization
 
 resources:
   - cronjob.yaml
-  - sealedsecret-etcd-s3.yaml
+  - etcd-s3.sealedsecret.yaml
 
 images:
   - name: amazon/aws-cli

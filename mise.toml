@@ -9,11 +9,10 @@ go = "latest"
 hcloud = "latest"
 helm = "4.2.4"
 helmfile = "latest"
-just = "latest"
 kubeconform = "latest"
 kubectl = "latest"
 # kubeseal must match the sealed-secrets controller in the cluster.
-kubeseal = "0.36.0"
+kubeseal = "0.40.0"
 kustomize = "latest"
 lefthook = "latest"
 opentofu = "latest"
@@ -21,13 +20,26 @@ python = "3"
 shellcheck = "latest"
 sops = "latest"
 uv = "latest"
+# velero CLI must match the in-cluster server (velero/velero image tag).
+velero = "1.18.2"
+# Operator recipes live in justfile; mise provides the tools and [env].
+just = "1.59.0"
+# Policy layer: conftest runs policy/ on manifests rendered by argocd-diff-preview (in k3d).
+conftest = "0.71.1"
+regal = "0.43.0"
+"github:dag-andersen/argocd-diff-preview" = "0.2.17"
+k3d = "5.9.0"
+yq = "4.54.3"
 yamlfmt = "latest"
 k9s = "latest"
+zizmor = "1.32.0"
 
 [env]
 KUBECONFIG = "{{config_root}}/infra/kubeconfig.yaml"
 LANG = "C.UTF-8"
 LC_ALL = "C.UTF-8"
+# Private API LB IP; read by the Cilium bootstrap values (gotmpl) and verify-adoption.
+K8S_API_ENDPOINT = "10.0.0.100"
 
 [settings]
 lockfile = true

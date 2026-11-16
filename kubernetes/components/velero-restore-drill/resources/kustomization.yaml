@@ -5,7 +5,7 @@ resources:
   - serviceaccount.yaml
   - rbac.yaml
   - cronjob.yaml
-  - sealedsecret-velero-r2.yaml
+  - velero-r2.sealedsecret.yaml
 
 images:
   - name: alpine/k8s

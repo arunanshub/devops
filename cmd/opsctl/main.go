@@ -17,12 +17,10 @@ import (
 type cli struct {
 	LogLevel string `default:"info" enum:"debug,info,warn,error" help:"Log level."`
 
-	Cluster          clusterCmd             `cmd:"" help:"Whole-cluster operations: bootstrap, verify."`
 	VerifyMTU        verifyMTUCmd           `cmd:"" help:"Verify the VXLAN+WireGuard MTU stack is correctly configured."                name:"verify-mtu"`
 	VerifyAdoption   verifyAdoptionCmd      `cmd:"" help:"Verify helmfile-installed releases match their adopting ArgoCD Applications." name:"verify-adoption"`
 	VerifyNodeConfig verifyNodeConfigCmd    `cmd:"" help:"Validate nodes/ config against the pinned k3s and kubelet flag schemas."      name:"verify-node-config"`
 	VerifyKubelet    verifyKubeletConfigCmd `cmd:"" help:"Assert a node's live kubelet config matches the declared kubelet-args."       name:"verify-kubelet-config"`
-	GetVPA           getVPACmd              `cmd:"" help:"List VPAs whose updateMode differs from the expected one."                    name:"get-vpa"`
 }
 
 func main() {

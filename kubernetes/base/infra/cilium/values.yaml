@@ -23,6 +23,13 @@ updateStrategy:
   rollingUpdate:
     maxUnavailable: 1
 
+# install-cni-binaries init container: the chart default sets limits.cpu: 1.
+# No CPU limits (house style); null deletes the default, omitting it lets it merge back.
+cni:
+  resources:
+    limits:
+      cpu: null
+
 # MTU is left at the default (0 = auto-detect from enp7s0 = 1450).
 # Cilium's MTU param is the physical device MTU, not the pod MTU.
 # Setting it lower shrinks cilium_wg0 too aggressively and breaks the VXLAN path.
@@ -87,7 +94,7 @@ bandwidthManager:
 
 # Send ICMP "Fragmentation Needed" back on oversized packets instead of
 # silently blackholing them, so applications see an explicit error and can
-# retry with a smaller payload. See docs/cilium-mtu-overlay-networking.md.
+# retry with a smaller payload. See docs/incidents/cilium-mtu-overlay-networking.md.
 pmtuDiscovery:
   enabled: true
   packetizationLayerPMTUDMode: "always"
