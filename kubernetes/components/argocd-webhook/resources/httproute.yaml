@@ -1,0 +1,41 @@
+# Public route for GitHub's push webhook — and nothing else. The UI and API
+# stay on argocd.arunanshu.dev behind Cloudflare Access (argocd-route). Any
+# request that is not exactly `POST /api/webhook` matches no rule and gets
+# Traefik's 404, so this host can never reach the rest of argocd-server even if
+# the edge rules in infra/cloudflare_waf.tf and infra/cloudflare_access.tf were
+# loosened. Method matching is a Gateway API extended feature; Traefik declares
+# HTTPRouteMethodMatchingFeature and turns it into a Method() rule:
+# https://gateway-api.sigs.k8s.io/guides/http-method-matching/
+# https://github.com/traefik/traefik/blob/master/pkg/provider/kubernetes/gateway/features.go
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: argocd-webhook
+  namespace: argocd
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: traefik-gateway
+      namespace: traefik
+      sectionName: web
+  hostnames:
+    - argocd-hook.arunanshu.dev
+  rules:
+    - matches:
+        - path:
+            type: Exact
+            value: /api/webhook
+          method: POST
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: argocd-server
+          port: 80
+          weight: 1
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: traefik.io
+            kind: Middleware
+            name: argocd-webhook-ratelimit
