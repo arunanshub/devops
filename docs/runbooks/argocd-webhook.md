@@ -19,7 +19,7 @@ The HMAC secret lives in tofu state (`random_password.argocd_webhook`), is seale
 
 1. **Check for dashboard WAF rules.** `cloudflare_ruleset.zone_custom_firewall` takes over the zone's custom-rules entry point. If Security → WAF → Custom rules lists anything, import it into `infra/cloudflare_waf.tf` first (`cf-terraforming`), or the apply fails or replaces it.
 2. `just infra-apply` — creates the secret, the WAF rule and the Access bypass.
-3. `just seal-argocd-webhook` — writes `kubernetes/components/argocd-webhook/resources/github-secret.sealedsecret.yaml`. Commit it; CI's manifest check fails until this file exists.
+3. `just seal-argocd-webhook` — writes `kubernetes/components/argocd-webhook/resources/github-secret.sealedsecret.yaml`. Commit it; the `render` CI job (Argo CD renders the component) fails until this file exists.
 4. Merge. The `argocd-webhook` Application auto-syncs. The `argocd` Application does **not** (self-management is manual): sync it so `argocd-secret` gets `webhook.github.secret` and `argocd-cm` gets `webhook.maxPayloadSizeMB` (argocd-server rolls on the cm checksum). Check the live objects, not just "Synced".
 5. `just github-argocd-webhook` — creates the hook (push events only) and prints its id. Running it twice creates a second hook.
 6. Push a trivial commit and watch an Application refresh within seconds. GitHub → Settings → Webhooks → Recent Deliveries shows every attempt with the response.
