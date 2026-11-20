@@ -1,0 +1,26 @@
+# Backstop rate limit for the public webhook route. The Cloudflare WAF already
+# admits only GitHub's hook IPs, so this guards argocd-server against a burst
+# from that side (a redelivery storm, a runaway push loop), not the internet.
+#
+# One bucket for the whole host (requestHost), not per client IP: behind
+# cloudflared every request arrives from a cloudflared pod, so the remote
+# address is meaningless, and GitHub is the only legitimate client anyway.
+# Buckets are in-memory per Traefik pod (KEDA runs 2-5), so the effective
+# ceiling is this limit times the replica count — fine for a backstop.
+#
+# A push produces one delivery; 30/min with a burst of 30 is far above a
+# Renovate merge wave and still caps a flood well below what argocd-server's
+# refresh path would notice.
+# https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/ratelimit/
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: argocd-webhook-ratelimit
+  namespace: argocd
+spec:
+  rateLimit:
+    average: 30
+    period: 1m
+    burst: 30
+    sourceCriterion:
+      requestHost: true

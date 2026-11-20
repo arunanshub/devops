@@ -23,6 +23,7 @@ components:
   - ../../components/system-upgrade-controller
   - ../../components/system-upgrade-plans
   - ../../components/argocd-route
+  - ../../components/argocd-webhook
   - ../../components/etcd-snapshot-health
   - ../../components/velero-restore-drill
   - ../../components/network-policies

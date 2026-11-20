@@ -38,6 +38,30 @@ resource "cloudflare_zero_trust_access_application" "libby_hbd_2026_bypass" {
   ]
 }
 
+# Public bypass for the Argo CD GitHub webhook — GitHub cannot answer an OTP
+# and webhooks cannot carry a service-token header. Scoped to the one path: the
+# more specific application wins, so every other path on the host (and the UI
+# host argocd.arunanshu.dev) still falls to the wildcard OTP policy below. The
+# WAF lockdown (cloudflare_waf.tf) and the HMAC check in Argo CD are what
+# actually authenticate a delivery. See argocd_webhook.tf.
+# https://developers.cloudflare.com/cloudflare-one/access-controls/policies/app-paths/
+resource "cloudflare_zero_trust_access_application" "argocd_webhook_bypass" {
+  account_id       = var.cloudflare_account_id
+  name             = "${local.argocd_webhook_host}${local.argocd_webhook_path} — GitHub webhook bypass"
+  domain           = "${local.argocd_webhook_host}${local.argocd_webhook_path}"
+  type             = "self_hosted"
+  session_duration = "24h"
+
+  policies = [
+    {
+      name       = "bypass"
+      decision   = "bypass"
+      precedence = 1
+      include    = [{ everyone = {} }]
+    },
+  ]
+}
+
 # Cloudflare Access — single wildcard app gates all *.arunanshu.dev traffic.
 # New services only need an HTTPRoute; no Terraform change required unless
 # per-app access control is needed (different users, different session length).

@@ -16,6 +16,12 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+
+    # Reads GitHub's webhook IP ranges for the WAF lockdown (argocd_webhook.tf).
+    http = {
+      source  = "hashicorp/http"
+      version = "~> 3.6"
+    }
   }
 
   encryption {
