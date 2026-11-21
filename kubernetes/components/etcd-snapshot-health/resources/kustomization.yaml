@@ -7,4 +7,4 @@ resources:
 
 images:
   - name: amazon/aws-cli
-    newTag: "2.41.2@sha256:393a5999872f4b3708d62f4940fbdcd5777e330fec95e4741be09ffd71c03273"
+    newTag: "2.42.1@sha256:7a878f76b10d19718cc25851a92a8eef6e0d5105569071e51b0480694776a8c9"
