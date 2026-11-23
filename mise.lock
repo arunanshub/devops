@@ -224,39 +224,46 @@ url_api = "https://api.github.com/repos/open-policy-agent/conftest/releases/asse
 provenance = "github-attestations"
 
 [[tools."github:dag-andersen/argocd-diff-preview"]]
-version = "0.2.17"
+version = "0.2.18"
 backend = "github:dag-andersen/argocd-diff-preview"
-specifiers = ["0.2.17"]
+specifiers = ["v0.2.18"]
+unsupported_platforms = ["windows-x64"]
 
 [tools."github:dag-andersen/argocd-diff-preview"."platforms.linux-arm64"]
-checksum = "sha256:74fcfd33fd2699d891b38412ab9b26c43e3dcf86374c94c585ba2c1527df9dd8"
-url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Linux-aarch64.tar.gz"
-url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654482233"
+checksum = "sha256:55d13a3bcae015105d8c2c998eb009f8a569f1d03c9939763fcc2f842e2c14de"
+checksum_source = "mise-versions"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.18/argocd-diff-preview-Linux-aarch64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/780283540"
 
 [tools."github:dag-andersen/argocd-diff-preview"."platforms.linux-arm64-musl"]
-checksum = "sha256:74fcfd33fd2699d891b38412ab9b26c43e3dcf86374c94c585ba2c1527df9dd8"
-url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Linux-aarch64.tar.gz"
-url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654482233"
+checksum = "sha256:55d13a3bcae015105d8c2c998eb009f8a569f1d03c9939763fcc2f842e2c14de"
+checksum_source = "mise-versions"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.18/argocd-diff-preview-Linux-aarch64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/780283540"
 
 [tools."github:dag-andersen/argocd-diff-preview"."platforms.linux-x64"]
-checksum = "sha256:3913c5ded0c4bb748ab8cabc47d9ea1060462fb797b4b61e1a12a805fc35a319"
-url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Linux-x86_64.tar.gz"
-url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654482818"
+checksum = "sha256:6b7427af5be0763777bdbc5dbe5d3aa030b69669a3476db7c89242dd974fc8f5"
+checksum_source = "mise-versions"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.18/argocd-diff-preview-Linux-x86_64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/780281983"
 
 [tools."github:dag-andersen/argocd-diff-preview"."platforms.linux-x64-musl"]
-checksum = "sha256:3913c5ded0c4bb748ab8cabc47d9ea1060462fb797b4b61e1a12a805fc35a319"
-url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Linux-x86_64.tar.gz"
-url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654482818"
+checksum = "sha256:6b7427af5be0763777bdbc5dbe5d3aa030b69669a3476db7c89242dd974fc8f5"
+checksum_source = "mise-versions"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.18/argocd-diff-preview-Linux-x86_64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/780281983"
 
 [tools."github:dag-andersen/argocd-diff-preview"."platforms.macos-arm64"]
-checksum = "sha256:afe577a6bd91e20dc4e8122fd67ec2edb42f2684f834e80a50e0489234d41af4"
-url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Darwin-aarch64.tar.gz"
-url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654485044"
+checksum = "sha256:821f4be30d30040bd851627e0838acf67479a173a63a9d3418a43e1b92c094eb"
+checksum_source = "mise-versions"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.18/argocd-diff-preview-Darwin-aarch64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/780282429"
 
 [tools."github:dag-andersen/argocd-diff-preview"."platforms.macos-x64"]
-checksum = "sha256:72450afd0d11564bfaec6e00764ad9f1038d7377ff7d9b2512948d58dd8aeabc"
-url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.17/argocd-diff-preview-Darwin-x86_64.tar.gz"
-url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/654484197"
+checksum = "sha256:c4a317aafe51841d399c3deed3d89973214f33118c745cb0a0e42a7ba555cede"
+checksum_source = "mise-versions"
+url = "https://github.com/dag-andersen/argocd-diff-preview/releases/download/v0.2.18/argocd-diff-preview-Darwin-x86_64.tar.gz"
+url_api = "https://api.github.com/repos/dag-andersen/argocd-diff-preview/releases/assets/780284063"
 
 [[tools."github:robusta-dev/krr"]]
 version = "1.30.0"
