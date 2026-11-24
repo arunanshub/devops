@@ -203,6 +203,7 @@ jobs:
     # Same-repo PRs only (Renovate included): fork PRs get no secrets.
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # Environment-scoped secret (ARGOCD_REPO_SSH_KEY); no deployment object.
     environment:
       name: render
@@ -236,7 +237,13 @@ jobs:
           mkdir -p .render/secrets
           yq '.stringData.sshPrivateKey = strenv(ARGOCD_REPO_SSH_KEY)' \
             .github/argocd-diff-preview/repo-creds.yaml > .render/secrets/repo.yaml
+      # A healthy render takes ~1.5 min; a stuck render cluster never recovers.
       - run: just render-diff "refs/pull/${PR_NUMBER}/merge"
+        timeout-minutes: 10
+        env:
+          KEEP_CLUSTER_ALIVE: "true" # leave it up for render-debug
+      - if: failure()
+        run: just render-debug
       - run: cat .render/out/diff.md >> "$GITHUB_STEP_SUMMARY"
       - run: gh pr comment "$PR_NUMBER" --body-file .render/out/diff.md --edit-last --create-if-none
       - run: just check-policy

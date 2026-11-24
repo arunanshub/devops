@@ -240,6 +240,9 @@ render-secrets:
 # a Secret change is reviewable. Safe because nothing here can decrypt: no age
 # or sealed-secrets key, no decrypting Argo CD plugin; rendered Secrets hold
 # only what public git and charts already hold. Revisit if that changes.
+# TIMEOUT bounds only the render phase (~15 s when healthy). A stuck repo
+# server never recovers (the tool never rebuilds its port-forward), so more
+# time only delays the failure.
 [env("ARGOCD_CHART_URL", "oci://ghcr.io/argoproj/argo-helm/argo-cd")]
 [env("BASE_BRANCH", "master")]
 [env("CLUSTER", "k3d")]
@@ -248,7 +251,7 @@ render-secrets:
 [env("OUTPUT_FOLDER", "out")]
 [env("PREINSTALL_FOLDER", "../.github/argocd-diff-preview/preinstall")]
 [env("RENDER_METHOD", "repo-server-api")]
-[env("TIMEOUT", "900")]
+[env("TIMEOUT", "180")]
 [group('render')]
 [working-directory('.render')]
 render-diff target=`git branch --show-current`:
@@ -256,6 +259,16 @@ render-diff target=`git branch --show-current`:
       --argocd-chart-version {{ argocd_chart }} \
       --k3d-options "--k3s-arg --resolv-conf=/etc/k3s-resolv.conf@all \
         --volume {{ justfile_directory() }}/.github/argocd-diff-preview/k3s-resolv.conf:/etc/k3s-resolv.conf@all"
+
+# State of the render cluster after a failed render-diff (KEEP_CLUSTER_ALIVE=true)
+[env("KUBECONFIG", "kubeconfig")]
+[group('render')]
+[working-directory('.render')]
+render-debug:
+    -kubectl get nodes,pods -A -o wide
+    -kubectl get events -A --sort-by=.lastTimestamp
+    -kubectl -n argocd describe pods
+    -kubectl -n argocd logs -l app.kubernetes.io/part-of=argocd --all-containers --prefix --tail=200
 
 # Refresh the CRD snapshot render-diff preinstalls, from the live cluster
 [group('render')]
