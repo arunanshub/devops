@@ -12,6 +12,20 @@ configs:
     resource.manifest.compression.enabled: "true"
     resource.manifest.storage: msgpack
     resource.manifest.compression: gzip-bestspeed
+    # Cap GitHub webhook bodies well under the 50MB default: the endpoint has no
+    # rate limiting of its own. A push payload is KBs; an oversized one is
+    # rejected and the 3-minute poll picks the change up instead. Changing
+    # argocd-cm rolls argocd-server (chart checksum/cm annotation).
+    # https://argo-cd.readthedocs.io/en/stable/operator-manual/webhook/
+    webhook.maxPayloadSizeMB: "5"
+  secret:
+    # Not the secret itself: a reference Argo CD resolves at runtime to key
+    # `secret` of the Secret argocd-webhook-github, which must carry
+    # app.kubernetes.io/part-of=argocd (components/argocd-webhook, sealed by
+    # `just seal-argocd-webhook`). Safe in public git; the chart writes it to
+    # argocd-secret as webhook.github.secret.
+    # https://argo-cd.readthedocs.io/en/stable/operator-manual/webhook/
+    githubSecret: "$argocd-webhook-github:secret"
 
 controller:
   resources:

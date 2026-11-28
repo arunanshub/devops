@@ -78,6 +78,22 @@ seal-tunnel-token:
           --from-file=token=/dev/stdin --dry-run=client -o yaml \
       | just _seal kubernetes/components/cloudflared/resources/tunnel-token.sealedsecret.yaml
 
+# Seal the Argo CD GitHub webhook HMAC secret from tofu state (label: Argo CD's $ref lookup)
+[group('secrets')]
+seal-argocd-webhook:
+    just _tofu-output argocd_webhook_secret \
+      | kubectl create secret generic argocd-webhook-github -n argocd \
+          --from-file=secret=/dev/stdin --dry-run=client -o yaml \
+      | kubectl label --local -f - app.kubernetes.io/part-of=argocd -o yaml \
+      | just _seal kubernetes/components/argocd-webhook/resources/github-secret.sealedsecret.yaml
+
+# Create the GitHub push webhook once (gh needs Webhooks: write); prints the hook id
+[group('secrets')]
+github-argocd-webhook:
+    just _tofu-output argocd_webhook_secret \
+      | jq -Rn --arg url "$(just _tofu-output argocd_webhook_url)" -f infra/github-webhook.jq \
+      | gh api --method POST repos/arunanshub/devops/hooks --input - --jq .id
+
 # Seal an app's Cloudflare cache-purge token (app: arunanshu-dev | libby-hbd-2026)
 [group('secrets')]
 seal-cache-purge app output:
